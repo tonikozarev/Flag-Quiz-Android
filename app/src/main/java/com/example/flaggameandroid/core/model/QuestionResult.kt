@@ -2,6 +2,9 @@ package com.example.flaggameandroid.core.model
 
 data class QuestionResult(
   val question: FlagQuestion,
-  val selectedAnswer: FlagCountry,
+  val playerName: String,
+  val selectedCountry: FlagCountry?,
+  val typedAnswer: String,
   val isCorrect: Boolean,
+  val hintUsed: Boolean,
 )

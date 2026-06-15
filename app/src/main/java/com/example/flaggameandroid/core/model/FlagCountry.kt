@@ -4,5 +4,6 @@ data class FlagCountry(
   val code: String,
   val name: String,
   val emoji: String,
-  val region: String,
+  val continent: String,
+  val aliases: List<String> = emptyList(),
 )

@@ -1,6 +1,7 @@
 package com.example.flaggameandroid.core.model
 
 data class FlagQuestion(
-  val flag: FlagCountry,
+  val correctCountry: FlagCountry,
   val options: List<FlagCountry>,
+  val variant: QuizVariant,
 )
