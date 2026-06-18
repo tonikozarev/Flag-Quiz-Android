@@ -10,13 +10,19 @@ import com.example.flaggameandroid.core.data.QuizAnswerChecker
 import com.example.flaggameandroid.core.data.QuizQuestionGenerator
 import com.example.flaggameandroid.core.data.StaticFlagCatalogRepository
 import com.example.flaggameandroid.core.model.AllInType
+import com.example.flaggameandroid.core.model.AchievementId
+import com.example.flaggameandroid.core.model.AchievementsProgress
 import com.example.flaggameandroid.core.model.FlagCountry
 import com.example.flaggameandroid.core.model.GameMode
 import com.example.flaggameandroid.core.model.HintDifficulty
+import com.example.flaggameandroid.core.model.MedalTier
 import com.example.flaggameandroid.core.model.PlayerProgress
+import com.example.flaggameandroid.core.model.ProgressionRules
 import com.example.flaggameandroid.core.model.QuestionResult
 import com.example.flaggameandroid.core.model.QuizConfig
 import com.example.flaggameandroid.core.model.QuizVariant
+import com.example.flaggameandroid.core.model.RatingsProgress
+import com.example.flaggameandroid.engagement.AppEngagementCoordinator
 import com.example.flaggameandroid.persistence.AppGraph
 import com.example.flaggameandroid.persistence.InMemoryProgressStore
 import com.example.flaggameandroid.persistence.InMemorySettingsStore
@@ -31,12 +37,15 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
 import kotlin.random.Random
 
+private const val MaxAvatarIndex = ProgressionRules.TotalAvatarCount - 1
+
 class FlagGameViewModel(
   private val catalogRepository: FlagCatalogRepository = StaticFlagCatalogRepository(),
   private val questionGenerator: QuizQuestionGenerator = QuizQuestionGenerator(),
   private val random: Random = Random.Default,
   private val settingsStore: SettingsStore = InMemorySettingsStore(),
   private val progressStore: ProgressStore = InMemoryProgressStore(),
+  private val engagementCoordinator: AppEngagementCoordinator? = null,
   initialPersistedState: PersistedAppState = PersistedAppState(),
 ) : ViewModel() {
   private val countries = catalogRepository.getCountries()
@@ -55,11 +64,23 @@ class FlagGameViewModel(
   private val _uiState =
     MutableStateFlow(
       FlagGameUiState(
-        settings = SettingsState(hintDifficulty = initialPersistedState.hintDifficulty),
+        settings =
+          SettingsState(
+            hintDifficulty = initialPersistedState.hintDifficulty,
+            reminderEnabled = initialPersistedState.reminderEnabled,
+            language = initialPersistedState.language,
+          ),
         availableContinents = allContinents,
         setup = SetupState(selectedContinents = selectableContinents.toSet()),
         questionCountLimit = countries.size,
+        profile =
+          ProfileState(
+            accountName = initialPersistedState.accountName,
+            avatarIndex = initialPersistedState.avatarIndex.coerceIn(0, MaxAvatarIndex),
+          ),
         hintCount = initialPersistedState.hintCount,
+        ratings = initialPersistedState.ratings,
+        achievements = initialPersistedState.achievements,
         levelProgress =
           LevelProgressState(
             level = initialPersistedState.level,
@@ -67,6 +88,9 @@ class FlagGameViewModel(
             correctAnswersTowardNextLevel = initialPersistedState.correctAnswersTowardNextLevel,
             eligibleQuizzesTowardNextLevel = initialPersistedState.eligibleQuizzesTowardNextLevel,
           ),
+        lastOpenedAtEpochMillis = initialPersistedState.lastOpenedAtEpochMillis,
+        lastPlayedAtEpochMillis = initialPersistedState.lastPlayedAtEpochMillis,
+        inactiveIconActive = initialPersistedState.inactiveIconActive,
       ),
     )
   val uiState: StateFlow<FlagGameUiState> = _uiState.asStateFlow()
@@ -79,8 +103,14 @@ class FlagGameViewModel(
         setup = SetupState(selectedContinents = selectableContinents.toSet()),
         questionCountLimit = countries.size,
         settings = state.settings,
+        profile = state.profile,
         hintCount = state.hintCount,
+        ratings = state.ratings,
+        achievements = state.achievements,
         levelProgress = state.levelProgress,
+        lastOpenedAtEpochMillis = state.lastOpenedAtEpochMillis,
+        lastPlayedAtEpochMillis = state.lastPlayedAtEpochMillis,
+        inactiveIconActive = state.inactiveIconActive,
       )
   }
 
@@ -90,6 +120,14 @@ class FlagGameViewModel(
 
   fun onSettingsClicked() {
     _uiState.update { it.copy(screen = AppScreen.Settings, setupError = null) }
+  }
+
+  fun onMedalsClicked() {
+    _uiState.update { it.copy(screen = AppScreen.Medals, setupError = null) }
+  }
+
+  fun onAchievementsClicked() {
+    _uiState.update { it.copy(screen = AppScreen.Achievements, setupError = null) }
   }
 
   fun onBackToGameModes() {
@@ -107,7 +145,7 @@ class FlagGameViewModel(
           mode = mode,
           selectedContinents = selectableContinents.toSet(),
           questionCountInput = if (mode == GameMode.AllIn) countries.size.toString() else "10",
-          playerNames = listOf("Player 1", "Player 2"),
+          playerNames = listOf(it.profile.displayName, "Player 2"),
         )
       it.copy(
         screen = AppScreen.Setup,
@@ -121,6 +159,26 @@ class FlagGameViewModel(
   fun onHintDifficultySelected(difficulty: HintDifficulty) {
     _uiState.update { it.copy(settings = it.settings.copy(hintDifficulty = difficulty)) }
     persistSettings()
+  }
+
+  fun onReminderEnabledChanged(enabled: Boolean) {
+    _uiState.update { it.copy(settings = it.settings.copy(reminderEnabled = enabled)) }
+    persistSettings()
+  }
+
+  fun onLanguageSelected(language: AppLanguage) {
+    _uiState.update { it.copy(settings = it.settings.copy(language = language)) }
+    persistProgress()
+  }
+
+  fun onAccountNameChanged(name: String) {
+    _uiState.update { it.copy(profile = it.profile.copy(accountName = name.take(24))) }
+    persistProgress()
+  }
+
+  fun onAvatarSelected(index: Int) {
+    _uiState.update { it.copy(profile = it.profile.copy(avatarIndex = index.coerceIn(0, MaxAvatarIndex))) }
+    persistProgress()
   }
 
   fun onResetHintsClicked() {
@@ -146,6 +204,66 @@ class FlagGameViewModel(
       )
     }
     persistProgress()
+  }
+
+  fun onTestingLevelUpClicked() {
+    _uiState.update {
+      val nextLevel = (it.levelProgress.level + 1).coerceAtMost(ProgressionRules.MaxLevel)
+      it.copy(
+        levelProgress =
+          it.levelProgress.copy(
+            level = nextLevel,
+            levelUpVisible = nextLevel > it.levelProgress.level,
+          ),
+      )
+    }
+    persistProgress()
+  }
+
+  fun onTestingResetLevelClicked() {
+    _uiState.update {
+      it.copy(
+        levelProgress =
+          it.levelProgress.copy(
+            level = 1,
+            levelUpVisible = false,
+          ),
+      )
+    }
+    persistProgress()
+  }
+
+  fun onUnlockRandomAchievementClicked() {
+    _uiState.update {
+      val lockedAchievement = AchievementId.entries.filterNot(it.achievements::isUnlocked).randomOrNull(random)
+      if (lockedAchievement == null) {
+        it
+      } else {
+        it.copy(achievements = it.achievements.unlock(lockedAchievement, System.currentTimeMillis()))
+      }
+    }
+    persistProgress()
+  }
+
+  fun onLockAllAchievementsClicked() {
+    _uiState.update { it.copy(achievements = AchievementsProgress()) }
+    persistProgress()
+  }
+
+  fun onResetAchievementsAndMedalsClicked() {
+    _uiState.update { it.copy(ratings = RatingsProgress()) }
+    persistProgress()
+  }
+
+  fun onToggleTestingIconClicked() {
+    val nextActiveState = !_uiState.value.inactiveIconActive
+    engagementCoordinator?.setInactiveLauncherIcon(nextActiveState)
+    _uiState.update { it.copy(inactiveIconActive = nextActiveState) }
+    persistProgress()
+  }
+
+  fun onTriggerTestingReminderClicked() {
+    engagementCoordinator?.triggerTestingReminderNotification()
   }
 
   fun onVariantToggled(variant: QuizVariant) {
@@ -253,6 +371,7 @@ class FlagGameViewModel(
     val questions = questionGenerator.buildQuestions(pool, config)
     val hintCount = _uiState.value.hintCount
     val players = config.players.map { PlayerProgress(name = it, hintPoints = hintCount) }
+    val questionStates = List(questions.size) { QuestionDraftState() }
 
     _uiState.update {
       it.copy(
@@ -262,27 +381,29 @@ class FlagGameViewModel(
             mode = setup.mode,
             allInType = setup.allInType,
             variants = config.variants,
+            selectedContinents = setup.selectedContinents,
             questions = questions,
+            questionStates = questionStates,
             players = players,
-          ),
+          ).loadQuestionDraft(0),
         setupError = null,
       )
     }
   }
 
   fun onCountryAnswerSelected(country: FlagCountry) {
-    _uiState.update { it.copy(quiz = it.quiz.copy(selectedCountry = country)) }
+    updateCurrentQuestionDraft { draft -> draft.copy(selectedCountry = country) }
   }
 
   fun onTypedAnswerChanged(answer: String) {
-    _uiState.update { it.copy(quiz = it.quiz.copy(typedAnswer = answer)) }
+    updateCurrentQuestionDraft { draft -> draft.copy(typedAnswer = answer) }
   }
 
   fun onUseHint() {
     val state = _uiState.value
     val quiz = state.quiz
     val question = quiz.currentQuestion ?: return
-    if (quiz.hintUsedOnCurrentQuestion || quiz.currentPlayer.hintPoints < 1) return
+    if (quiz.currentQuestionState.hintUsed || quiz.currentPlayer.hintPoints < 1) return
 
     val players = quiz.players.toMutableList()
     val newHintCount = quiz.currentPlayer.hintPoints - 1
@@ -301,18 +422,25 @@ class FlagGameViewModel(
       }
 
     _uiState.update {
+      val updatedQuestionState =
+        quiz.currentQuestionState.copy(
+          hiddenOptionCodes = quiz.currentQuestionState.hiddenOptionCodes + hiddenCodes,
+          typedHintPrefix =
+            if (question.variant == QuizVariant.TypeCountryName) {
+              question.correctCountry.localizedName(it.settings.language).take(3)
+            } else {
+              quiz.currentQuestionState.typedHintPrefix
+            },
+          hintUsed = true,
+        )
       it.copy(
         quiz =
           quiz.copy(
             players = players,
-            hiddenOptionCodes = quiz.hiddenOptionCodes + hiddenCodes,
-            typedHintPrefix =
-              if (question.variant == QuizVariant.TypeCountryName) {
-                question.correctCountry.name.take(3)
-              } else {
-                quiz.typedHintPrefix
-              },
-            hintUsedOnCurrentQuestion = true,
+            questionStates = quiz.questionStates.replaceAt(quiz.currentQuestionIndex, updatedQuestionState),
+            hiddenOptionCodes = updatedQuestionState.hiddenOptionCodes,
+            typedHintPrefix = updatedQuestionState.typedHintPrefix,
+            hintUsedOnCurrentQuestion = updatedQuestionState.hintUsed,
           ),
         hintCount = newHintCount,
       )
@@ -321,31 +449,72 @@ class FlagGameViewModel(
   }
 
   fun onNextQuestion() {
-    completeCurrentQuestion(skipped = false)
+    commitCurrentQuestion(QuestionStatus.Answered)
   }
 
   fun onSkipQuestion() {
-    completeCurrentQuestion(skipped = true)
+    commitCurrentQuestion(QuestionStatus.Skipped)
   }
 
-  private fun completeCurrentQuestion(skipped: Boolean) {
+  fun onMarkQuestionUnsure() {
+    commitCurrentQuestion(QuestionStatus.Unsure)
+  }
+
+  fun onPreviousQuestion() {
+    val state = _uiState.value
+    val quiz = state.quiz
+    if (!canMoveAwayFromCurrentQuestion(quiz)) return
+    val targetIndex = quiz.previousAnsweredQuestionIndex() ?: return
+    _uiState.update {
+      it.copy(
+        quiz = quiz.loadQuestionDraft(targetIndex),
+      )
+    }
+  }
+
+  fun onNextQuestionPreview() {
+    val state = _uiState.value
+    val quiz = state.quiz
+    if (!canMoveAwayFromCurrentQuestion(quiz)) return
+    val targetIndex = quiz.nextAnsweredQuestionIndex() ?: return
+
+    _uiState.update {
+      it.copy(
+        quiz = quiz.loadQuestionDraft(targetIndex),
+      )
+    }
+  }
+
+  private fun commitCurrentQuestion(nextStatus: QuestionStatus) {
     val state = _uiState.value
     val quiz = state.quiz
     val question = quiz.currentQuestion ?: return
+    val currentDraft = quiz.currentQuestionState
+    val updatedDraft =
+      currentDraft.copy(
+        status = nextStatus,
+        selectedCountry = if (nextStatus == QuestionStatus.Answered || nextStatus == QuestionStatus.Unsure || nextStatus == QuestionStatus.Skipped) currentDraft.selectedCountry else currentDraft.selectedCountry,
+        typedAnswer = currentDraft.typedAnswer,
+      )
+    val updatedQuestionStates = quiz.questionStates.replaceAt(quiz.currentQuestionIndex, updatedDraft)
     val isCorrect =
-      if (skipped) {
+      if (nextStatus != QuestionStatus.Answered) {
         false
       } else {
         when (question.variant) {
-          QuizVariant.TypeCountryName -> QuizAnswerChecker.isTypedAnswerCorrect(quiz.typedAnswer, question.correctCountry)
+          QuizVariant.TypeCountryName ->
+            QuizAnswerChecker.isTypedAnswerCorrect(
+              typedAnswer = currentDraft.typedAnswer,
+              acceptedAnswers = question.correctCountry.acceptedTypedAnswers(state.settings.language),
+            )
           QuizVariant.FlagToCountry,
-          QuizVariant.CountryToFlag -> QuizAnswerChecker.isCountrySelectionCorrect(quiz.selectedCountry, question.correctCountry)
+          QuizVariant.CountryToFlag -> QuizAnswerChecker.isCountrySelectionCorrect(currentDraft.selectedCountry, question.correctCountry)
         }
       }
 
     val players = quiz.players.toMutableList()
     players[quiz.currentPlayerIndex] =
-      if (skipped) {
+      if (nextStatus == QuestionStatus.Skipped || nextStatus == QuestionStatus.Unsure) {
         quiz.currentPlayer.afterSkip()
       } else {
         quiz.currentPlayer.afterAnswer(
@@ -358,22 +527,32 @@ class FlagGameViewModel(
       QuestionResult(
         question = question,
         playerName = quiz.currentPlayer.name,
-        selectedCountry = quiz.selectedCountry,
-        typedAnswer = if (skipped) "Skipped" else quiz.typedAnswer,
+        selectedCountry = currentDraft.selectedCountry,
+        typedAnswer = when (nextStatus) {
+          QuestionStatus.Skipped -> "Skipped"
+          QuestionStatus.Unsure -> "Unsure"
+          QuestionStatus.Answered -> currentDraft.typedAnswer
+          QuestionStatus.Unanswered -> currentDraft.typedAnswer
+        },
         isCorrect = isCorrect,
-        hintUsed = quiz.hintUsedOnCurrentQuestion,
-        skipped = skipped,
+        hintUsed = currentDraft.hintUsed,
+        skipped = nextStatus == QuestionStatus.Skipped,
+        unsure = nextStatus == QuestionStatus.Unsure,
       )
 
     if (quiz.isLastQuestion) {
+      val completionTime = System.currentTimeMillis()
+      val completedResults = buildQuizResults(quiz.copy(questionStates = updatedQuestionStates), state.settings.language)
+      val correctAnswers = completedResults.count { it.isCorrect }
+      val distinctCountries = completedResults.map { it.question.correctCountry.code }.distinct().size
+      val scoredPlayers = scorePlayersFromResults(players, completedResults, state.settings.hintDifficulty)
       val releasedHints =
         if (quiz.mode == GameMode.LocalMultiplayer) {
           0
         } else {
-          players.sumOf { it.earnedHintPoints }
+          scoredPlayers.sumOf { it.earnedHintPoints }
         }
-      val completedResults = quiz.results + result
-      val correctAnswers = completedResults.count { it.isCorrect }
+      val quizWithResults = quiz.copy(questionStates = updatedQuestionStates, results = completedResults)
       val qualifiesForPerfectNoBluffLevel =
         quiz.mode == GameMode.AllIn &&
           quiz.allInType == AllInType.NoBluffAllTough &&
@@ -397,58 +576,242 @@ class FlagGameViewModel(
         )
       val finalProgress =
         if (qualifiesForPerfectNoBluffLevel) {
+          val targetLevel = (state.levelProgress.level + perfectNoBluffLevelGain).coerceAtMost(ProgressionRules.MaxLevel)
           state.levelProgress.copy(
-            level = state.levelProgress.level + perfectNoBluffLevelGain,
-            levelUpVisible = true,
+            level = targetLevel,
+            hintsTowardNextLevel = 0,
+            levelUpVisible = targetLevel > state.levelProgress.level,
           )
         } else {
           progressResult.progress
         }
-      val totalBonusHints = progressResult.bonusHints + if (qualifiesForPerfectNoBluffLevel) 5 else 0
+      val updatedRatings = awardMedalIfEligible(state.ratings, quizWithResults, completedResults, distinctCountries)
+      val updatedAchievements =
+        awardAchievementsIfEligible(
+          achievements = state.achievements,
+          ratings = updatedRatings,
+          quiz = quizWithResults,
+          completedResults = completedResults,
+          distinctCountries = distinctCountries,
+          completedAtEpochMillis = completionTime,
+        )
+      val noBluffBonusHints =
+        if (qualifiesForPerfectNoBluffLevel) {
+          val gainedLevels = (finalProgress.level - state.levelProgress.level).coerceAtLeast(0)
+          gainedLevels * 5
+        } else {
+          0
+        }
+      val totalBonusHints = progressResult.bonusHints + noBluffBonusHints
       val newHintCount = _uiState.value.hintCount + releasedHints + totalBonusHints
+      val finalPlayers =
+        scoredPlayers.map { player -> player.copy(hintPoints = newHintCount, earnedHintPoints = 0) }
       _uiState.update {
         it.copy(
           screen = AppScreen.Results,
           quiz =
-            quiz.copy(
-              players = players.map { player -> player.copy(hintPoints = newHintCount, earnedHintPoints = 0) },
+            quizWithResults.copy(
+              players = finalPlayers,
               results = completedResults,
             ),
           hintCount = newHintCount,
+          ratings = updatedRatings,
+          achievements = updatedAchievements,
           levelProgress = finalProgress,
+          lastPlayedAtEpochMillis = completionTime,
+          inactiveIconActive = false,
         )
       }
+      engagementCoordinator?.onQuizCompleted()
       persistProgress()
       recordCompletedQuiz(
         mode = quiz.mode ?: GameMode.Training,
         totalQuestions = completedResults.size,
         correctAnswers = correctAnswers,
         skippedAnswers = completedResults.count { it.skipped },
-        netScore = players.sumOf { it.score },
+        netScore = scoredPlayers.sumOf { it.score },
       )
     } else {
+      val nextQuestionIndex = quiz.currentQuestionIndex + 1
       _uiState.update {
+        val updatedResults = buildQuizResults(quiz.copy(questionStates = updatedQuestionStates), state.settings.language)
+        val updatedPlayers = scorePlayersFromResults(players, updatedResults, state.settings.hintDifficulty)
+        val updatedQuiz =
+          quiz.copy(
+            questionStates = updatedQuestionStates,
+            results = updatedResults,
+            players = updatedPlayers,
+            currentQuestionIndex = nextQuestionIndex,
+            currentPlayerIndex = nextQuestionIndex % quiz.players.size,
+          ).loadQuestionDraft(nextQuestionIndex)
         it.copy(
-          quiz =
-            quiz.copy(
-              players = players,
-              results = quiz.results + result,
-              currentQuestionIndex = quiz.currentQuestionIndex + 1,
-              currentPlayerIndex = (quiz.currentPlayerIndex + 1) % quiz.players.size,
-              selectedCountry = null,
-              typedAnswer = "",
-              hiddenOptionCodes = emptySet(),
-              typedHintPrefix = null,
-              hintUsedOnCurrentQuestion = false,
-            ),
+          quiz = updatedQuiz,
         )
       }
     }
   }
 
+  fun onQuestionBack() {
+    val state = _uiState.value
+    val quiz = state.quiz
+    if (!canMoveAwayFromCurrentQuestion(quiz)) return
+    val targetIndex = quiz.previousAnsweredQuestionIndex() ?: return
+    _uiState.update { it.copy(quiz = quiz.loadQuestionDraft(targetIndex)) }
+  }
+
+  fun onQuestionForward() {
+    val state = _uiState.value
+    val quiz = state.quiz
+    if (!canMoveAwayFromCurrentQuestion(quiz)) return
+    val targetIndex = quiz.nextAnsweredQuestionIndex() ?: return
+    _uiState.update { it.copy(quiz = quiz.loadQuestionDraft(targetIndex)) }
+  }
+
   fun onPlayAgain() {
     onStartQuiz()
   }
+
+  private fun updateCurrentQuestionDraft(transform: (QuestionDraftState) -> QuestionDraftState) {
+    _uiState.update { state ->
+      val quiz = state.quiz
+      val currentQuestion = quiz.currentQuestion ?: return@update state
+      val updatedDraft = transform(quiz.currentQuestionState)
+      state.copy(
+        quiz =
+          quiz.copy(
+            questionStates = quiz.questionStates.replaceAt(quiz.currentQuestionIndex, updatedDraft),
+            selectedCountry = updatedDraft.selectedCountry,
+            typedAnswer = updatedDraft.typedAnswer,
+            hiddenOptionCodes = updatedDraft.hiddenOptionCodes,
+            typedHintPrefix = updatedDraft.typedHintPrefix,
+            hintUsedOnCurrentQuestion = updatedDraft.hintUsed,
+          ),
+      )
+    }
+  }
+
+  private fun canMoveAwayFromCurrentQuestion(quiz: QuizState): Boolean {
+    val question = quiz.currentQuestion ?: return false
+    val draft = quiz.currentQuestionState
+    return when (question.variant) {
+      QuizVariant.TypeCountryName ->
+        when (draft.status) {
+          QuestionStatus.Answered -> draft.typedAnswer.isNotBlank()
+          QuestionStatus.Skipped,
+          QuestionStatus.Unsure -> true
+          QuestionStatus.Unanswered -> draft.typedAnswer.isNotBlank()
+        }
+
+      QuizVariant.FlagToCountry,
+      QuizVariant.CountryToFlag ->
+        when (draft.status) {
+          QuestionStatus.Unanswered -> draft.selectedCountry != null
+          else -> true
+        }
+    }
+  }
+
+  private fun QuizState.loadQuestionDraft(index: Int): QuizState {
+    if (questions.isEmpty()) return this
+    val clampedIndex = index.coerceIn(0, questions.lastIndex)
+    val draft = questionStates.getOrElse(clampedIndex) { QuestionDraftState() }
+    return copy(
+      currentQuestionIndex = clampedIndex,
+      currentPlayerIndex = if (players.isEmpty()) 0 else clampedIndex % players.size,
+      selectedCountry = draft.selectedCountry,
+      typedAnswer = draft.typedAnswer,
+      hiddenOptionCodes = draft.hiddenOptionCodes,
+      typedHintPrefix = draft.typedHintPrefix,
+      hintUsedOnCurrentQuestion = draft.hintUsed,
+    )
+  }
+
+  private fun QuizState.previousAnsweredQuestionIndex(): Int? =
+    (currentQuestionIndex - 1 downTo 0).firstOrNull {
+      questionStates.getOrElse(it) { QuestionDraftState() }.status != QuestionStatus.Unanswered
+    }
+
+  private fun QuizState.nextAnsweredQuestionIndex(): Int? =
+    ((currentQuestionIndex + 1)..questions.lastIndex).firstOrNull {
+      questionStates.getOrElse(it) { QuestionDraftState() }.status != QuestionStatus.Unanswered
+    }
+
+  private fun buildQuizResults(
+    quiz: QuizState,
+    language: AppLanguage,
+  ): List<QuestionResult> =
+    quiz.questions.mapIndexed { index, question ->
+      val draft = quiz.questionStates.getOrElse(index) { QuestionDraftState() }
+      val isCorrect =
+        draft.status == QuestionStatus.Answered &&
+          when (question.variant) {
+            QuizVariant.TypeCountryName ->
+              QuizAnswerChecker.isTypedAnswerCorrect(
+                typedAnswer = draft.typedAnswer,
+                acceptedAnswers = question.correctCountry.acceptedTypedAnswers(language),
+              )
+
+            QuizVariant.FlagToCountry,
+            QuizVariant.CountryToFlag ->
+              QuizAnswerChecker.isCountrySelectionCorrect(draft.selectedCountry, question.correctCountry)
+          }
+
+      QuestionResult(
+        question = question,
+        playerName =
+          if (quiz.players.isEmpty()) {
+            "Solo"
+          } else {
+            quiz.players[index % quiz.players.size].name
+          },
+        selectedCountry = draft.selectedCountry,
+        typedAnswer =
+          when (draft.status) {
+            QuestionStatus.Skipped -> "Skipped"
+            QuestionStatus.Unsure -> "Unsure"
+            else -> draft.typedAnswer
+          },
+        isCorrect = isCorrect,
+        hintUsed = draft.hintUsed,
+        skipped = draft.status == QuestionStatus.Skipped,
+        unsure = draft.status == QuestionStatus.Unsure,
+      )
+    }
+
+  private fun scorePlayersFromResults(
+    players: List<PlayerProgress>,
+    results: List<QuestionResult>,
+    hintDifficulty: HintDifficulty,
+  ): List<PlayerProgress> {
+    if (players.isEmpty()) return emptyList()
+    val scored = players.map { it.copy(score = 0, correctStreak = 0, earnedHintPoints = 0) }.toMutableList()
+    results.forEach { result ->
+      val index = scored.indexOfFirst { it.name == result.playerName }
+      if (index == -1) return@forEach
+      val hasAnyAnswer =
+        result.skipped ||
+          result.unsure ||
+          result.selectedCountry != null ||
+          result.typedAnswer.isNotBlank()
+      if (!hasAnyAnswer) return@forEach
+      scored[index] =
+        when {
+          result.skipped || result.unsure -> scored[index].afterSkip()
+          else ->
+            scored[index].afterAnswer(
+              isCorrect = result.isCorrect,
+              hintDifficulty = hintDifficulty,
+              canEarnHints = true,
+            )
+        }
+    }
+    return scored
+  }
+
+  private fun <T> List<T>.replaceAt(
+    index: Int,
+    value: T,
+  ): List<T> = mapIndexed { currentIndex, currentValue -> if (currentIndex == index) value else currentValue }
 
   private fun validateSetup(setup: SetupState): String? {
     if (setup.variants.isEmpty()) return "Choose at least one question variant."
@@ -532,6 +895,7 @@ class FlagGameViewModel(
   private fun persistSettings() {
     runBlocking {
       settingsStore.saveHintDifficulty(_uiState.value.settings.hintDifficulty)
+      settingsStore.saveReminderEnabled(_uiState.value.settings.reminderEnabled)
     }
   }
 
@@ -541,11 +905,20 @@ class FlagGameViewModel(
       progressStore.saveProgress(
         PersistedAppState(
           hintDifficulty = state.settings.hintDifficulty,
+          reminderEnabled = state.settings.reminderEnabled,
+          language = state.settings.language,
+          accountName = state.profile.accountName,
+          avatarIndex = state.profile.avatarIndex,
           hintCount = state.hintCount,
+          ratings = state.ratings,
+          achievements = state.achievements,
           level = state.levelProgress.level,
           hintsTowardNextLevel = state.levelProgress.hintsTowardNextLevel,
           correctAnswersTowardNextLevel = state.levelProgress.correctAnswersTowardNextLevel,
           eligibleQuizzesTowardNextLevel = state.levelProgress.eligibleQuizzesTowardNextLevel,
+          lastOpenedAtEpochMillis = state.lastOpenedAtEpochMillis,
+          lastPlayedAtEpochMillis = state.lastPlayedAtEpochMillis,
+          inactiveIconActive = state.inactiveIconActive,
         ),
       )
     }
@@ -572,6 +945,106 @@ class FlagGameViewModel(
     }
   }
 
+  private fun awardMedalIfEligible(
+    ratings: RatingsProgress,
+    quiz: QuizState,
+    completedResults: List<QuestionResult>,
+    distinctCountries: Int,
+  ): RatingsProgress {
+    if (quiz.isMultiplayer) return ratings
+    if (completedResults.isEmpty() || completedResults.any { !it.isCorrect }) return ratings
+
+    val awardedMedal =
+      ProgressionRules.medalForPerfectQuiz(
+        totalQuestions = completedResults.size,
+        distinctCountries = distinctCountries,
+        totalCatalogCountries = countries.size,
+      ) ?: return ratings
+
+    return ratings.increment(awardedMedal)
+  }
+
+  private fun awardAchievementsIfEligible(
+    achievements: AchievementsProgress,
+    ratings: RatingsProgress,
+    quiz: QuizState,
+    completedResults: List<QuestionResult>,
+    distinctCountries: Int,
+    completedAtEpochMillis: Long,
+  ): AchievementsProgress {
+    if (quiz.isMultiplayer || completedResults.isEmpty()) return achievements
+
+    var updatedAchievements = achievements
+    val perfectQuiz = completedResults.all { it.isCorrect }
+    val medalEligiblePerfectQuiz = perfectQuiz && completedResults.size >= 10
+
+    if (ratings.bronzeCount >= 50) {
+      updatedAchievements = updatedAchievements.unlock(AchievementId.BronzeCollector, completedAtEpochMillis)
+    }
+    if (ratings.silverCount >= 25) {
+      updatedAchievements = updatedAchievements.unlock(AchievementId.SilverCollector, completedAtEpochMillis)
+    }
+    if (ratings.goldCount >= 10) {
+      updatedAchievements = updatedAchievements.unlock(AchievementId.GoldCollector, completedAtEpochMillis)
+    }
+    if (ratings.titaniumCount >= 5) {
+      updatedAchievements = updatedAchievements.unlock(AchievementId.PlatinumCollector, completedAtEpochMillis)
+    }
+    if (ratings.diamondCount >= 1) {
+      updatedAchievements = updatedAchievements.unlock(AchievementId.DiamondCollector, completedAtEpochMillis)
+    }
+
+    if (medalEligiblePerfectQuiz) {
+      updatedAchievements = updatedAchievements.unlock(AchievementId.FirstPerfect, completedAtEpochMillis)
+    }
+
+    if (medalEligiblePerfectQuiz && completedResults.none { it.hintUsed }) {
+      updatedAchievements = updatedAchievements.unlock(AchievementId.HintlessHero, completedAtEpochMillis)
+    }
+
+    if (medalEligiblePerfectQuiz && QuizVariant.entries.all { variant -> completedResults.any { it.question.variant == variant } }) {
+      updatedAchievements = updatedAchievements.unlock(AchievementId.VariantMaster, completedAtEpochMillis)
+    }
+
+    if (perfectQuiz && completedResults.size == countries.size && distinctCountries == countries.size) {
+      updatedAchievements = updatedAchievements.unlock(AchievementId.DiamondWorld, completedAtEpochMillis)
+      if (completedResults.none { it.hintUsed }) {
+        updatedAchievements = updatedAchievements.unlock(AchievementId.WorldPurist, completedAtEpochMillis)
+      }
+    }
+
+    if (
+      perfectQuiz &&
+      quiz.mode == GameMode.AllIn &&
+      quiz.variants.containsAll(QuizVariant.entries) &&
+      completedResults.size == countries.size &&
+      distinctCountries == countries.size
+    ) {
+      updatedAchievements = updatedAchievements.unlock(AchievementId.NoBluffLegend, completedAtEpochMillis)
+    }
+
+    val selectedContinent = quiz.selectedContinents.singleOrNull()
+    val continentAchievementId = selectedContinent?.let(AchievementId::forContinent)
+    if (continentAchievementId != null) {
+      val availableCountriesForSelectedContinent = countries.count { it.continent == selectedContinent }
+      val qualifiesForContinentAchievement =
+        ProgressionRules.qualifiesForContinentAchievement(
+          mode = quiz.mode ?: GameMode.Training,
+          selectedContinents = quiz.selectedContinents,
+          usedHint = completedResults.any { it.hintUsed },
+          totalQuestions = completedResults.size,
+          correctAnswers = completedResults.count { it.isCorrect },
+          distinctCountries = distinctCountries,
+          availableCountriesForSelectedContinent = availableCountriesForSelectedContinent,
+        )
+      if (qualifiesForContinentAchievement) {
+        updatedAchievements = updatedAchievements.unlock(continentAchievementId, completedAtEpochMillis)
+      }
+    }
+
+    return updatedAchievements
+  }
+
   private fun advanceLevelProgress(
     progress: LevelProgressState,
     earnedHints: Int,
@@ -585,22 +1058,28 @@ class FlagGameViewModel(
     var levelUps = 0
 
     while (
-      hints >= progress.hintsNeeded &&
-      correct >= progress.correctAnswersNeeded &&
-      eligibleQuizzes >= progress.eligibleQuizzesNeeded
+      level < ProgressionRules.MaxLevel
     ) {
+      val requirements = ProgressionRules.requirementsForLevel(level)
+      if (
+        hints < requirements.hintsNeeded ||
+        correct < requirements.correctAnswersNeeded ||
+        eligibleQuizzes < requirements.eligibleQuizzesNeeded
+      ) {
+        break
+      }
       level++
       levelUps++
-      hints -= progress.hintsNeeded
-      correct -= progress.correctAnswersNeeded
-      eligibleQuizzes -= progress.eligibleQuizzesNeeded
+      hints -= requirements.hintsNeeded
+      correct -= requirements.correctAnswersNeeded
+      eligibleQuizzes -= requirements.eligibleQuizzesNeeded
     }
 
     return LevelProgressResult(
       progress =
         progress.copy(
           level = level,
-          hintsTowardNextLevel = hints,
+          hintsTowardNextLevel = if (levelUps > 0) 0 else hints,
           correctAnswersTowardNextLevel = correct,
           eligibleQuizzesTowardNextLevel = eligibleQuizzes,
           levelUpVisible = levelUps > 0,
@@ -628,12 +1107,14 @@ class FlagGameViewModel(
           val initialPersistedState =
             runBlocking {
               val hintDifficulty = container.settingsStore.loadHintDifficulty()
+              val reminderEnabled = container.settingsStore.loadReminderEnabled()
               val progress = container.progressStore.loadProgress()
-              progress.copy(hintDifficulty = hintDifficulty)
+              progress.copy(hintDifficulty = hintDifficulty, reminderEnabled = reminderEnabled)
             }
           FlagGameViewModel(
             settingsStore = container.settingsStore,
             progressStore = container.progressStore,
+            engagementCoordinator = container.engagementCoordinator,
             initialPersistedState = initialPersistedState,
           )
         }

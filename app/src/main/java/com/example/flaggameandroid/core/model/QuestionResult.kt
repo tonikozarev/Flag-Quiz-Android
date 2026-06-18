@@ -8,4 +8,5 @@ data class QuestionResult(
   val isCorrect: Boolean,
   val hintUsed: Boolean,
   val skipped: Boolean = false,
+  val unsure: Boolean = false,
 )

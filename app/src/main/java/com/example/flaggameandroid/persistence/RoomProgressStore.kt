@@ -14,6 +14,11 @@ class RoomProgressStore(
       hintsTowardNextLevel = entity.hintsTowardNextLevel,
       correctAnswersTowardNextLevel = entity.correctAnswersTowardNextLevel,
       eligibleQuizzesTowardNextLevel = entity.eligibleQuizzesTowardNextLevel,
+      lastOpenedAtEpochMillis = entity.lastOpenedAtEpochMillis,
+      lastPlayedAtEpochMillis = entity.lastPlayedAtEpochMillis,
+      inactiveIconActive = entity.inactiveIconActive,
+      ratings = entity.ratingsSerialized.toRatingsProgress(),
+      achievements = entity.achievementUnlocksSerialized.toAchievementsProgress(),
     )
   }
 
@@ -25,6 +30,14 @@ class RoomProgressStore(
         hintsTowardNextLevel = progress.hintsTowardNextLevel,
         correctAnswersTowardNextLevel = progress.correctAnswersTowardNextLevel,
         eligibleQuizzesTowardNextLevel = progress.eligibleQuizzesTowardNextLevel,
+        lastOpenedAtEpochMillis = progress.lastOpenedAtEpochMillis,
+        lastPlayedAtEpochMillis = progress.lastPlayedAtEpochMillis,
+        inactiveIconActive = progress.inactiveIconActive,
+        ratingsSerialized = progress.ratings.serialize(),
+        achievementUnlocksSerialized = progress.achievements.serialize(),
+        accountName = progress.accountName,
+        avatarIndex = progress.avatarIndex,
+        languageName = progress.language.name,
       ),
     )
   }

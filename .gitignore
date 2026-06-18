@@ -2,6 +2,8 @@
 *.ipr
 *.iws
 .gradle/
+.kotlin/
+.kotlin/errors/
 .idea/
 local.properties
 .DS_Store

@@ -1,18 +1,25 @@
 package com.example.flaggameandroid.feature.app
 
 import com.example.flaggameandroid.core.model.AllInType
+import com.example.flaggameandroid.core.model.AchievementsProgress
 import com.example.flaggameandroid.core.model.FlagCountry
 import com.example.flaggameandroid.core.model.FlagQuestion
 import com.example.flaggameandroid.core.model.GameMode
 import com.example.flaggameandroid.core.model.HintDifficulty
 import com.example.flaggameandroid.core.model.PlayerProgress
+import com.example.flaggameandroid.core.model.ProgressionRules
 import com.example.flaggameandroid.core.model.QuestionResult
 import com.example.flaggameandroid.core.model.QuizVariant
+import com.example.flaggameandroid.core.model.RatingsProgress
 
 sealed interface AppScreen {
   data object Menu : AppScreen
 
   data object GameModes : AppScreen
+
+  data object Medals : AppScreen
+
+  data object Achievements : AppScreen
 
   data object Settings : AppScreen
 
@@ -21,6 +28,22 @@ sealed interface AppScreen {
   data object Quiz : AppScreen
 
   data object Results : AppScreen
+}
+
+enum class AppLanguage(
+  val title: String,
+) {
+  English("English"),
+  Bulgarian("Bulgarian"),
+  German("German"),
+}
+
+data class ProfileState(
+  val accountName: String = "",
+  val avatarIndex: Int = 0,
+) {
+  val displayName: String
+    get() = accountName.ifBlank { "Player 1" }
 }
 
 enum class MultiplayerQuizBase(
@@ -32,7 +55,9 @@ enum class MultiplayerQuizBase(
 
 data class SettingsState(
   val hintDifficulty: HintDifficulty = HintDifficulty.Medium,
+  val reminderEnabled: Boolean = true,
   val testingToolsVisible: Boolean = false,
+  val language: AppLanguage = AppLanguage.English,
 )
 
 data class SetupState(
@@ -55,12 +80,30 @@ data class SetupState(
     get() = mode == GameMode.LocalMultiplayer
 }
 
+enum class QuestionStatus {
+  Unanswered,
+  Answered,
+  Skipped,
+  Unsure,
+}
+
+data class QuestionDraftState(
+  val status: QuestionStatus = QuestionStatus.Unanswered,
+  val selectedCountry: FlagCountry? = null,
+  val typedAnswer: String = "",
+  val hiddenOptionCodes: Set<String> = emptySet(),
+  val typedHintPrefix: String? = null,
+  val hintUsed: Boolean = false,
+)
+
 data class QuizState(
   val mode: GameMode? = null,
   val allInType: AllInType? = null,
   val variants: Set<QuizVariant> = emptySet(),
+  val selectedContinents: Set<String> = emptySet(),
   val questions: List<FlagQuestion> = emptyList(),
   val currentQuestionIndex: Int = 0,
+  val questionStates: List<QuestionDraftState> = emptyList(),
   val players: List<PlayerProgress> = listOf(PlayerProgress("Solo")),
   val currentPlayerIndex: Int = 0,
   val selectedCountry: FlagCountry? = null,
@@ -72,6 +115,9 @@ data class QuizState(
 ) {
   val currentQuestion: FlagQuestion?
     get() = questions.getOrNull(currentQuestionIndex)
+
+  val currentQuestionState: QuestionDraftState
+    get() = questionStates.getOrElse(currentQuestionIndex) { QuestionDraftState() }
 
   val currentPlayer: PlayerProgress
     get() = players.getOrElse(currentPlayerIndex) { PlayerProgress("Solo") }
@@ -93,17 +139,29 @@ data class LevelProgressState(
   val eligibleQuizzesTowardNextLevel: Int = 0,
   val levelUpVisible: Boolean = false,
 ) {
-  val hintsNeeded: Int = 20
-  val correctAnswersNeeded: Int = 200
-  val eligibleQuizzesNeeded: Int = 50
+  val hintsNeeded: Int
+    get() = ProgressionRules.requirementsForLevel(level).hintsNeeded
+
+  val correctAnswersNeeded: Int
+    get() = ProgressionRules.requirementsForLevel(level).correctAnswersNeeded
+
+  val eligibleQuizzesNeeded: Int
+    get() = ProgressionRules.requirementsForLevel(level).eligibleQuizzesNeeded
+
+  val isMaxLevel: Boolean
+    get() = ProgressionRules.isMaxLevel(level)
 
   val progressFraction: Float
     get() =
-      minOf(
-        hintsTowardNextLevel.toFloat() / hintsNeeded,
-        correctAnswersTowardNextLevel.toFloat() / correctAnswersNeeded,
-        eligibleQuizzesTowardNextLevel.toFloat() / eligibleQuizzesNeeded,
-      ).coerceIn(0f, 1f)
+      if (isMaxLevel) {
+        1f
+      } else {
+        minOf(
+          hintsTowardNextLevel.toFloat() / hintsNeeded,
+          correctAnswersTowardNextLevel.toFloat() / correctAnswersNeeded,
+          eligibleQuizzesTowardNextLevel.toFloat() / eligibleQuizzesNeeded,
+        ).coerceIn(0f, 1f)
+      }
 }
 
 data class FlagGameUiState(
@@ -114,6 +172,12 @@ data class FlagGameUiState(
   val availableContinents: List<String> = emptyList(),
   val questionCountLimit: Int = 195,
   val levelProgress: LevelProgressState = LevelProgressState(),
+  val profile: ProfileState = ProfileState(),
   val hintCount: Int = 0,
+  val ratings: RatingsProgress = RatingsProgress(),
+  val achievements: AchievementsProgress = AchievementsProgress(),
   val setupError: String? = null,
+  val lastOpenedAtEpochMillis: Long = 0L,
+  val lastPlayedAtEpochMillis: Long = 0L,
+  val inactiveIconActive: Boolean = false,
 )

@@ -111,11 +111,18 @@ object QuizAnswerChecker {
     typedAnswer: String,
     correctCountry: FlagCountry,
   ): Boolean {
+    return isTypedAnswerCorrect(typedAnswer, listOf(correctCountry.name) + correctCountry.aliases)
+  }
+
+  fun isTypedAnswerCorrect(
+    typedAnswer: String,
+    acceptedAnswers: List<String>,
+  ): Boolean {
     val normalizedAnswer = typedAnswer.normalizeAnswer()
-    val acceptedAnswers = (listOf(correctCountry.name) + correctCountry.aliases).map { it.normalizeAnswer() }
-    return normalizedAnswer in acceptedAnswers ||
-      normalizedAnswer.compactAnswer() in acceptedAnswers.map { it.compactAnswer() } ||
-      normalizedAnswer.looseCompactAnswer() in acceptedAnswers.map { it.looseCompactAnswer() }
+    val normalizedAcceptedAnswers = acceptedAnswers.map { it.normalizeAnswer() }
+    return normalizedAnswer in normalizedAcceptedAnswers ||
+      normalizedAnswer.compactAnswer() in normalizedAcceptedAnswers.map { it.compactAnswer() } ||
+      normalizedAnswer.looseCompactAnswer() in normalizedAcceptedAnswers.map { it.looseCompactAnswer() }
   }
 
   fun String.normalizeAnswer(): String =
@@ -123,7 +130,7 @@ object QuizAnswerChecker {
       .replace(Regex("\\p{Mn}+"), "")
       .lowercase()
       .replace("&", " and ")
-      .replace(Regex("[^a-z0-9 ]"), " ")
+      .replace(Regex("[^\\p{L}\\p{Nd} ]"), " ")
       .replace(Regex("\\s+"), " ")
       .trim()
 

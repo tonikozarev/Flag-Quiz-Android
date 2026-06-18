@@ -2,10 +2,14 @@ package com.example.flaggameandroid.feature.app
 
 import com.example.flaggameandroid.core.data.QuizQuestionGenerator
 import com.example.flaggameandroid.core.data.StaticFlagCatalogRepository
+import com.example.flaggameandroid.core.model.AchievementId
 import com.example.flaggameandroid.core.model.AllInType
 import com.example.flaggameandroid.core.model.GameMode
 import com.example.flaggameandroid.core.model.HintDifficulty
 import com.example.flaggameandroid.core.model.QuizVariant
+import com.example.flaggameandroid.core.model.RatingsProgress
+import com.example.flaggameandroid.persistence.PersistedAppState
+import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertTrue
 import org.junit.Test
@@ -17,6 +21,14 @@ class FlagGameViewModelTest {
       catalogRepository = StaticFlagCatalogRepository(),
       questionGenerator = QuizQuestionGenerator(Random(3)),
       random = Random(4),
+    )
+
+  private fun viewModel(initialPersistedState: PersistedAppState): FlagGameViewModel =
+    FlagGameViewModel(
+      catalogRepository = StaticFlagCatalogRepository(),
+      questionGenerator = QuizQuestionGenerator(Random(3)),
+      random = Random(4),
+      initialPersistedState = initialPersistedState,
     )
 
   @Test
@@ -220,6 +232,169 @@ class FlagGameViewModelTest {
   }
 
   @Test
+  fun perfectQuizWithTenQuestions_awardsBronzeMedal() {
+    val viewModel = viewModel()
+
+    completePerfectQuiz(viewModel, questionCount = 10)
+
+    val ratings = viewModel.uiState.value.ratings
+    assertEquals(1, ratings.bronzeCount)
+    assertEquals(0, ratings.silverCount)
+    assertEquals(0, ratings.goldCount)
+    assertEquals(0, ratings.titaniumCount)
+    assertEquals(0, ratings.diamondCount)
+  }
+
+  @Test
+  fun bronzeCollectorUnlocksAtFiftyBronzeMedals() {
+    val viewModel =
+      viewModel(
+        PersistedAppState(
+          ratings = RatingsProgress(bronzeCount = 49),
+        ),
+      )
+
+    completePerfectQuiz(viewModel, questionCount = 10)
+
+    assertEquals(50, viewModel.uiState.value.ratings.bronzeCount)
+    assertTrue(viewModel.uiState.value.achievements.isUnlocked(AchievementId.BronzeCollector))
+  }
+
+  @Test
+  fun resetAchievementsAndMedalsClearsOnlyThoseTestingCounters() {
+    val viewModel =
+      viewModel(
+        PersistedAppState(
+          hintCount = 7,
+          ratings = RatingsProgress(bronzeCount = 49),
+          achievements =
+            com.example.flaggameandroid.core.model.AchievementsProgress().unlock(
+              AchievementId.BronzeCollector,
+              123L,
+            ),
+        ),
+      )
+    completePerfectQuiz(viewModel, questionCount = 10)
+
+    viewModel.onResetAchievementsAndMedalsClicked()
+
+    val state = viewModel.uiState.value
+    assertEquals(0, state.ratings.bronzeCount)
+    assertTrue(state.achievements.isUnlocked(AchievementId.BronzeCollector))
+    assertTrue(state.hintCount >= 7)
+  }
+
+  @Test
+  fun perfectQuizWithTwentyFiveQuestions_awardsSilverMedal() {
+    val viewModel = viewModel()
+
+    completePerfectQuiz(viewModel, questionCount = 25)
+
+    val ratings = viewModel.uiState.value.ratings
+    assertEquals(0, ratings.bronzeCount)
+    assertEquals(1, ratings.silverCount)
+  }
+
+  @Test
+  fun perfectQuizWithFiftyQuestions_awardsGoldMedal() {
+    val viewModel = viewModel()
+
+    completePerfectQuiz(viewModel, questionCount = 50)
+
+    val ratings = viewModel.uiState.value.ratings
+    assertEquals(1, ratings.goldCount)
+    assertEquals(0, ratings.titaniumCount)
+  }
+
+  @Test
+  fun perfectQuizWithOneHundredQuestions_awardsTitaniumMedal() {
+    val viewModel = viewModel()
+
+    completePerfectQuiz(viewModel, questionCount = 100)
+
+    val ratings = viewModel.uiState.value.ratings
+    assertEquals(1, ratings.titaniumCount)
+    assertEquals(0, ratings.diamondCount)
+  }
+
+  @Test
+  fun perfectQuizWithLessThanTenQuestions_awardsNoMedal() {
+    val viewModel = viewModel()
+
+    completePerfectQuiz(viewModel, questionCount = 9)
+
+    val ratings = viewModel.uiState.value.ratings
+    assertEquals(0, ratings.bronzeCount)
+    assertEquals(0, ratings.silverCount)
+    assertEquals(0, ratings.goldCount)
+    assertEquals(0, ratings.titaniumCount)
+    assertEquals(0, ratings.diamondCount)
+  }
+
+  @Test
+  fun perfectAllCountriesQuiz_awardsDiamondMedalAndAchievement() {
+    val viewModel = viewModel()
+
+    viewModel.onModeSelected(GameMode.AllIn)
+    viewModel.onAllInTypeSelected(AllInType.NoBluffAllTough)
+    viewModel.onStartQuiz()
+
+    repeat(viewModel.uiState.value.quiz.totalQuestions) {
+      answerCurrentCorrectly(viewModel)
+      viewModel.onNextQuestion()
+    }
+
+    val state = viewModel.uiState.value
+    assertEquals(195, state.quiz.totalQuestions)
+    assertEquals(1, state.ratings.diamondCount)
+    assertTrue(state.achievements.isUnlocked(AchievementId.DiamondWorld))
+    assertTrue(state.achievements.isUnlocked(AchievementId.DiamondCollector))
+    assertTrue(state.achievements.isUnlocked(AchievementId.NoBluffLegend))
+  }
+
+  @Test
+  fun perfectSingleContinentWithoutHints_unlocksContinentAchievement() {
+    val viewModel = viewModel()
+    val europeCount = StaticFlagCatalogRepository().getCountries().count { it.continent == "Europe" }
+
+    viewModel.onModeSelected(GameMode.Continents)
+    viewModel.uiState.value.setup.selectedContinents
+      .filterNot { it == "Europe" }
+      .forEach(viewModel::onContinentToggled)
+    viewModel.onQuestionCountChanged(europeCount)
+    viewModel.onStartQuiz()
+
+    repeat(europeCount) {
+      answerCurrentCorrectly(viewModel)
+      viewModel.onNextQuestion()
+    }
+
+    assertTrue(viewModel.uiState.value.achievements.isUnlocked(AchievementId.EuropePerfect))
+  }
+
+  @Test
+  fun perfectSingleContinentWithHint_doesNotUnlockContinentAchievement() {
+    val viewModel = viewModel()
+    val europeCount = StaticFlagCatalogRepository().getCountries().count { it.continent == "Europe" }
+
+    viewModel.onAddTestingHintsClicked()
+    viewModel.onModeSelected(GameMode.Continents)
+    viewModel.uiState.value.setup.selectedContinents
+      .filterNot { it == "Europe" }
+      .forEach(viewModel::onContinentToggled)
+    viewModel.onQuestionCountChanged(europeCount)
+    viewModel.onStartQuiz()
+
+    viewModel.onUseHint()
+    repeat(europeCount) {
+      answerCurrentCorrectly(viewModel)
+      viewModel.onNextQuestion()
+    }
+
+    assertFalse(viewModel.uiState.value.achievements.isUnlocked(AchievementId.EuropePerfect))
+  }
+
+  @Test
   fun localMultiplayerCanSpendExistingHintsButDoesNotCollectNewHints() {
     val viewModel = viewModel()
 
@@ -268,24 +443,117 @@ class FlagGameViewModelTest {
   }
 
   @Test
-  fun levelProgress_requiresHintsCorrectAnswersAndFiftyEligibleQuizzes() {
+  fun testingLevelButtonsChangeOnlyLevelAndKeepProgressCounters() {
+    val viewModel =
+      viewModel(
+        PersistedAppState(
+          hintCount = 22,
+          level = 4,
+          hintsTowardNextLevel = 7,
+          correctAnswersTowardNextLevel = 88,
+          eligibleQuizzesTowardNextLevel = 6,
+        ),
+      )
+
+    viewModel.onTestingLevelUpClicked()
+
+    var progress = viewModel.uiState.value.levelProgress
+    assertEquals(5, progress.level)
+    assertEquals(7, progress.hintsTowardNextLevel)
+    assertEquals(88, progress.correctAnswersTowardNextLevel)
+    assertEquals(6, progress.eligibleQuizzesTowardNextLevel)
+    assertEquals(22, viewModel.uiState.value.hintCount)
+
+    viewModel.onTestingResetLevelClicked()
+
+    progress = viewModel.uiState.value.levelProgress
+    assertEquals(1, progress.level)
+    assertEquals(7, progress.hintsTowardNextLevel)
+    assertEquals(88, progress.correctAnswersTowardNextLevel)
+    assertEquals(6, progress.eligibleQuizzesTowardNextLevel)
+    assertEquals(22, viewModel.uiState.value.hintCount)
+  }
+
+  @Test
+  fun testingAchievementButtonsUnlockOneAndThenLockAllAchievements() {
+    val viewModel = viewModel()
+
+    viewModel.onUnlockRandomAchievementClicked()
+    assertEquals(1, viewModel.uiState.value.achievements.unlockedAtEpochMillisById.size)
+
+    viewModel.onLockAllAchievementsClicked()
+    assertTrue(viewModel.uiState.value.achievements.unlockedAtEpochMillisById.isEmpty())
+  }
+
+  @Test
+  fun levelProgress_requiresTenHintsHundredCorrectAnswersAndTenEligibleQuizzesForLevelTwo() {
     val viewModel = viewModel()
     viewModel.onHintDifficultySelected(HintDifficulty.Rookie)
 
-    repeat(49) {
+    repeat(9) {
       completePerfectContinentsQuiz(viewModel, questionCount = 10)
     }
 
     assertEquals(1, viewModel.uiState.value.levelProgress.level)
-    assertEquals(49, viewModel.uiState.value.levelProgress.eligibleQuizzesTowardNextLevel)
+    assertEquals(9, viewModel.uiState.value.levelProgress.eligibleQuizzesTowardNextLevel)
 
     completePerfectContinentsQuiz(viewModel, questionCount = 10)
 
     val state = viewModel.uiState.value
     assertEquals(2, state.levelProgress.level)
     assertTrue(state.levelProgress.levelUpVisible)
-    assertEquals(505, state.hintCount)
+    assertEquals(105, state.hintCount)
     assertEquals(0, state.levelProgress.eligibleQuizzesTowardNextLevel)
+    assertEquals(0, state.levelProgress.hintsTowardNextLevel)
+    assertEquals(0, state.levelProgress.correctAnswersTowardNextLevel)
+  }
+
+  @Test
+  fun levelUpAddsFiveFreeHintsToTheCollectedCount() {
+    val viewModel = viewModel()
+    viewModel.onHintDifficultySelected(HintDifficulty.Rookie)
+
+    repeat(9) {
+      completePerfectContinentsQuiz(viewModel, questionCount = 10)
+    }
+
+    assertEquals(90, viewModel.uiState.value.hintCount)
+
+    completePerfectContinentsQuiz(viewModel, questionCount = 10)
+
+    assertEquals(105, viewModel.uiState.value.hintCount)
+    assertEquals(2, viewModel.uiState.value.levelProgress.level)
+  }
+
+  @Test
+  fun levelProgress_usesHigherRequirementsAfterLevelTwo() {
+    val viewModel = viewModel()
+    viewModel.onHintDifficultySelected(HintDifficulty.Rookie)
+
+    repeat(10) {
+      completePerfectContinentsQuiz(viewModel, questionCount = 10)
+    }
+
+    assertEquals(2, viewModel.uiState.value.levelProgress.level)
+
+    repeat(14) {
+      completePerfectContinentsQuiz(viewModel, questionCount = 10)
+    }
+
+    val beforeFinalRun = viewModel.uiState.value.levelProgress
+    assertEquals(2, beforeFinalRun.level)
+    assertEquals(14, beforeFinalRun.eligibleQuizzesTowardNextLevel)
+    assertEquals(140, beforeFinalRun.hintsTowardNextLevel)
+    assertEquals(140, beforeFinalRun.correctAnswersTowardNextLevel)
+
+    completePerfectContinentsQuiz(viewModel, questionCount = 10)
+
+    val finalProgress = viewModel.uiState.value.levelProgress
+    assertEquals(3, finalProgress.level)
+    assertEquals(260, viewModel.uiState.value.hintCount)
+    assertEquals(0, finalProgress.hintsTowardNextLevel)
+    assertEquals(0, finalProgress.correctAnswersTowardNextLevel)
+    assertEquals(0, finalProgress.eligibleQuizzesTowardNextLevel)
   }
 
   @Test
@@ -293,7 +561,7 @@ class FlagGameViewModelTest {
     val viewModel = viewModel()
     viewModel.onHintDifficultySelected(HintDifficulty.Rookie)
 
-    repeat(50) {
+    repeat(10) {
       completePerfectContinentsQuiz(viewModel, questionCount = 10)
     }
 
@@ -334,7 +602,7 @@ class FlagGameViewModelTest {
 
     val progress = viewModel.uiState.value.levelProgress
     assertEquals(2, progress.level)
-    assertEquals(10, progress.hintsTowardNextLevel)
+    assertEquals(0, progress.hintsTowardNextLevel)
     assertEquals(10, progress.correctAnswersTowardNextLevel)
     assertEquals(1, progress.eligibleQuizzesTowardNextLevel)
   }
