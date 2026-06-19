@@ -1,6 +1,6 @@
 package com.example.flaggameandroid.persistence
 
-import com.example.flaggameandroid.core.model.GameMode
+import com.example.flaggameandroid.core.model.HintDifficulty
 
 class RoomProgressStore(
   private val progressDao: ProgressDao,
@@ -8,50 +8,14 @@ class RoomProgressStore(
 ) : ProgressStore {
   override suspend fun loadProgress(): PersistedAppState {
     val entity = progressDao.load() ?: return PersistedAppState()
-    return PersistedAppState(
-      hintCount = entity.hintCount,
-      level = entity.level,
-      hintsTowardNextLevel = entity.hintsTowardNextLevel,
-      correctAnswersTowardNextLevel = entity.correctAnswersTowardNextLevel,
-      eligibleQuizzesTowardNextLevel = entity.eligibleQuizzesTowardNextLevel,
-      lastOpenedAtEpochMillis = entity.lastOpenedAtEpochMillis,
-      lastPlayedAtEpochMillis = entity.lastPlayedAtEpochMillis,
-      inactiveIconActive = entity.inactiveIconActive,
-      ratings = entity.ratingsSerialized.toRatingsProgress(),
-      achievements = entity.achievementUnlocksSerialized.toAchievementsProgress(),
-    )
+    return entity.toPersistedAppState(hintDifficultyName = HintDifficulty.Medium.name)
   }
 
   override suspend fun saveProgress(progress: PersistedAppState) {
-    progressDao.upsert(
-      ProgressEntity(
-        hintCount = progress.hintCount,
-        level = progress.level,
-        hintsTowardNextLevel = progress.hintsTowardNextLevel,
-        correctAnswersTowardNextLevel = progress.correctAnswersTowardNextLevel,
-        eligibleQuizzesTowardNextLevel = progress.eligibleQuizzesTowardNextLevel,
-        lastOpenedAtEpochMillis = progress.lastOpenedAtEpochMillis,
-        lastPlayedAtEpochMillis = progress.lastPlayedAtEpochMillis,
-        inactiveIconActive = progress.inactiveIconActive,
-        ratingsSerialized = progress.ratings.serialize(),
-        achievementUnlocksSerialized = progress.achievements.serialize(),
-        accountName = progress.accountName,
-        avatarIndex = progress.avatarIndex,
-        languageName = progress.language.name,
-      ),
-    )
+    progressDao.upsert(progress.toProgressEntity())
   }
 
   override suspend fun recordQuiz(history: PersistedQuizHistory) {
-    quizHistoryDao.insert(
-      QuizHistoryEntity(
-        mode = history.mode.name,
-        totalQuestions = history.totalQuestions,
-        correctAnswers = history.correctAnswers,
-        skippedAnswers = history.skippedAnswers,
-        netScore = history.netScore,
-        completedAtEpochMillis = history.completedAtEpochMillis,
-      ),
-    )
+    quizHistoryDao.insert(history.toEntity())
   }
 }

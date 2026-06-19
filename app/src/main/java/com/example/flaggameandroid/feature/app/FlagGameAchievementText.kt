@@ -1,0 +1,126 @@
+package com.example.flaggameandroid.feature.app
+
+import com.example.flaggameandroid.core.model.AchievementId
+import com.example.flaggameandroid.core.model.AchievementSector
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+internal fun localizedAchievementSectorTitle(
+  sector: AchievementSector,
+  language: AppLanguage,
+): String =
+  when (sector) {
+    AchievementSector.Continents ->
+      when (language) {
+        AppLanguage.English -> "Continent masters"
+        AppLanguage.Bulgarian -> "Майстори на континенти"
+        AppLanguage.German -> "Kontinent-Meister"
+      }
+    AchievementSector.World ->
+      when (language) {
+        AppLanguage.English -> "World runs"
+        AppLanguage.Bulgarian -> "Световни серии"
+        AppLanguage.German -> "Weltläufe"
+      }
+    AchievementSector.Collectors ->
+      when (language) {
+        AppLanguage.English -> "Collectors"
+        AppLanguage.Bulgarian -> "Събирачи"
+        AppLanguage.German -> "Sammler"
+      }
+    AchievementSector.Skill ->
+      when (language) {
+        AppLanguage.English -> "Skill feats"
+        AppLanguage.Bulgarian -> "Умения"
+        AppLanguage.German -> "Skill-Leistungen"
+      }
+  }
+
+internal fun localizedTitle(
+  language: AppLanguage,
+  en: String,
+  bg: String,
+  de: String,
+): String =
+  when (language) {
+    AppLanguage.English -> en
+    AppLanguage.Bulgarian -> bg
+    AppLanguage.German -> de
+  }
+
+internal fun localizedAchievementTitle(
+  achievementId: AchievementId,
+  language: AppLanguage,
+): String =
+  when (achievementId) {
+    AchievementId.AfricaPerfect -> localizedTitle(language, "Africa Perfect", "Африка без грешка", "Afrika fehlerfrei")
+    AchievementId.AsiaPerfect -> localizedTitle(language, "Asia Perfect", "Азия без грешка", "Asien fehlerfrei")
+    AchievementId.EuropePerfect -> localizedTitle(language, "Europe Perfect", "Европа без грешка", "Europa fehlerfrei")
+    AchievementId.NorthAmericaPerfect -> localizedTitle(language, "North America Perfect", "Северна Америка без грешка", "Nordamerika fehlerfrei")
+    AchievementId.OceaniaPerfect -> localizedTitle(language, "Oceania Perfect", "Океания без грешка", "Ozeanien fehlerfrei")
+    AchievementId.SouthAmericaPerfect -> localizedTitle(language, "South America Perfect", "Южна Америка без грешка", "Südamerika fehlerfrei")
+    AchievementId.DiamondWorld -> localizedTitle(language, "Diamond World", "Диамантен свят", "Diamantene Welt")
+    AchievementId.NoBluffLegend -> localizedTitle(language, "No Bluff Legend", "Легенда без блъф", "Kein Bluff Legende")
+    AchievementId.WorldPurist -> localizedTitle(language, "World Purist", "Световен пурист", "Weltpurist")
+    AchievementId.BronzeCollector -> localizedTitle(language, "Bronze Collector", "Събирач на бронз", "Bronze-Sammler")
+    AchievementId.SilverCollector -> localizedTitle(language, "Silver Collector", "Събирач на сребро", "Silber-Sammler")
+    AchievementId.GoldCollector -> localizedTitle(language, "Gold Collector", "Събирач на злато", "Gold-Sammler")
+    AchievementId.PlatinumCollector -> localizedTitle(language, "Platinum Collector", "Събирач на платина", "Platin-Sammler")
+    AchievementId.DiamondCollector -> localizedTitle(language, "Diamond Collector", "Събирач на диаманти", "Diamant-Sammler")
+    AchievementId.FirstPerfect -> localizedTitle(language, "First Perfect", "Първи перфектен", "Erstes Perfekt")
+    AchievementId.HintlessHero -> localizedTitle(language, "Hintless Hero", "Герой без жокери", "Hinweisloser Held")
+    AchievementId.VariantMaster -> localizedTitle(language, "Variant Master", "Майстор на варианти", "Variantenmeister")
+  }
+
+internal fun localizedAchievementDescription(
+  achievementId: AchievementId,
+  language: AppLanguage,
+): String =
+  when (achievementId) {
+    AchievementId.AfricaPerfect -> localizedTitle(language, "Finish an Africa-only quiz with 0 mistakes.", "Завърши тест само за Африка без грешка.", "Beende ein Quiz nur für Afrika ohne Fehler.")
+    AchievementId.AsiaPerfect -> localizedTitle(language, "Finish an Asia-only quiz with 0 mistakes.", "Завърши тест само за Азия без грешка.", "Beende ein Quiz nur für Asien ohne Fehler.")
+    AchievementId.EuropePerfect -> localizedTitle(language, "Finish an Europe-only quiz with 0 mistakes.", "Завърши тест само за Европа без грешка.", "Beende ein Quiz nur für Europa ohne Fehler.")
+    AchievementId.NorthAmericaPerfect -> localizedTitle(language, "Finish a North America-only quiz with 0 mistakes.", "Завърши тест само за Северна Америка без грешка.", "Beende ein Quiz nur für Nordamerika ohne Fehler.")
+    AchievementId.OceaniaPerfect -> localizedTitle(language, "Finish an Oceania-only quiz with 0 mistakes.", "Завърши тест само за Океания без грешка.", "Beende ein Quiz nur für Ozeanien ohne Fehler.")
+    AchievementId.SouthAmericaPerfect -> localizedTitle(language, "Finish a South America-only quiz with 0 mistakes.", "Завърши тест само за Южна Америка без грешка.", "Beende ein Quiz nur für Südamerika ohne Fehler.")
+    AchievementId.DiamondWorld -> localizedTitle(language, "Finish all countries with 0 mistakes.", "Завърши всички държави без грешка.", "Beende alle Länder ohne Fehler.")
+    AchievementId.NoBluffLegend -> localizedTitle(language, "Finish No Bluff, All Tough with all three variants selected and 0 mistakes.", "Завърши Без блъф, само трудно с трите варианта и без грешка.", "Beende Kein Bluff, alles hart mit allen drei Varianten und ohne Fehler.")
+    AchievementId.WorldPurist -> localizedTitle(language, "Finish all countries with 0 mistakes and no hints.", "Завърши всички държави без грешка и без жокери.", "Beende alle Länder ohne Fehler und ohne Hinweise.")
+    AchievementId.BronzeCollector -> localizedTitle(language, "Earn bronze 50 times.", "Спечели бронз 50 пъти.", "Bronze 50-mal verdienen.")
+    AchievementId.SilverCollector -> localizedTitle(language, "Earn silver 25 times.", "Спечели сребро 25 пъти.", "Silber 25-mal verdienen.")
+    AchievementId.GoldCollector -> localizedTitle(language, "Earn gold 10 times.", "Спечели злато 10 пъти.", "Gold 10-mal verdienen.")
+    AchievementId.PlatinumCollector -> localizedTitle(language, "Earn platinum 5 times.", "Спечели платина 5 пъти.", "Platin 5-mal verdienen.")
+    AchievementId.DiamondCollector -> localizedTitle(language, "Earn diamond 1 time.", "Спечели диамант 1 път.", "Diamant 1-mal verdienen.")
+    AchievementId.FirstPerfect -> localizedTitle(language, "Finish any medal-eligible quiz with 100% correct answers.", "Завърши всеки тест за медал с 100% верни отговори.", "Beende ein medaillenfähiges Quiz mit 100% richtigen Antworten.")
+    AchievementId.HintlessHero -> localizedTitle(language, "Finish a perfect medal-eligible quiz without using hints.", "Завърши перфектен тест за медал без жокери.", "Beende ein perfektes medaillenfähiges Quiz ohne Hinweise.")
+    AchievementId.VariantMaster -> localizedTitle(language, "Finish a perfect quiz that includes all three question variants.", "Завърши перфектен тест с трите варианта въпроси.", "Beende ein perfektes Quiz mit allen drei Fragetypen.")
+  }
+
+internal fun localizedAchievementHint(language: AppLanguage): String =
+  when (language) {
+    AppLanguage.English -> "Tap an achievement to see its unlock clue."
+    AppLanguage.Bulgarian -> "Докосни постижение, за да видиш подсказка за отключване."
+    AppLanguage.German -> "Tippe auf einen Erfolg, um den Freischalt-Hinweis zu sehen."
+  }
+
+internal fun localizedAchievementStatus(
+  language: AppLanguage,
+  unlockedAt: Long?,
+): String =
+  if (unlockedAt == null) {
+    when (language) {
+      AppLanguage.English -> "Locked"
+      AppLanguage.Bulgarian -> "Заключено"
+      AppLanguage.German -> "Gesperrt"
+    }
+  } else {
+    when (language) {
+      AppLanguage.English -> "Unlocked on ${formatAchievementDate(unlockedAt)}"
+      AppLanguage.Bulgarian -> "Отключено на ${formatAchievementDate(unlockedAt)}"
+      AppLanguage.German -> "Freigeschaltet am ${formatAchievementDate(unlockedAt)}"
+    }
+  }
+
+private fun formatAchievementDate(unlockedAt: Long): String =
+  SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(Date(unlockedAt))
