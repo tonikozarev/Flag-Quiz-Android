@@ -84,7 +84,6 @@ enum class QuestionStatus {
   Unanswered,
   Answered,
   Skipped,
-  Unsure,
 }
 
 data class QuestionDraftState(
@@ -93,6 +92,7 @@ data class QuestionDraftState(
   val typedAnswer: String = "",
   val hiddenOptionCodes: Set<String> = emptySet(),
   val typedHintPrefix: String? = null,
+  val hintUses: Int = 0,
   val hintUsed: Boolean = false,
 )
 
@@ -130,6 +130,9 @@ data class QuizState(
 
   val isMultiplayer: Boolean
     get() = players.size > 1
+
+  val canFinish: Boolean
+    get() = questions.isNotEmpty() && questionStates.size == questions.size && questionStates.all { it.status == QuestionStatus.Answered }
 }
 
 data class LevelProgressState(

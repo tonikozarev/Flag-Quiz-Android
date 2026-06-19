@@ -20,14 +20,19 @@ data class PlayerProgress(
 ) {
   fun afterAnswer(
     isCorrect: Boolean,
+    hintUses: Int,
     hintDifficulty: HintDifficulty,
     canEarnHints: Boolean = true,
   ): PlayerProgress {
-    if (!isCorrect) return copy(correctStreak = 0)
+    if (!isCorrect || hintUses >= 2) return copy(correctStreak = 0)
+
+    if (hintUses == 1) {
+      return copy(score = score + 1)
+    }
 
     val newStreak = correctStreak + 1
     return copy(
-      score = score + 1,
+      score = score + 2,
       correctStreak = newStreak,
       earnedHintPoints = earnedHintPoints + if (canEarnHints && newStreak % hintDifficulty.correctStreakRequired == 0) 1 else 0,
     )

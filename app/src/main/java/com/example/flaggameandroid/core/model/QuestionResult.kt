@@ -7,6 +7,6 @@ data class QuestionResult(
   val typedAnswer: String,
   val isCorrect: Boolean,
   val hintUsed: Boolean,
-  val skipped: Boolean = false,
-  val unsure: Boolean = false,
+  val hintUses: Int = 0,
+  val hintStreak: Int = 0,
 )

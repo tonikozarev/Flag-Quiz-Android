@@ -233,9 +233,8 @@ fun FlagGameRoute(
         onUseHint = resolvedViewModel::onUseHint,
         onPreviousQuestion = resolvedViewModel::onQuestionBack,
         onNextQuestionPreview = resolvedViewModel::onQuestionForward,
-        onNextQuestion = resolvedViewModel::onNextQuestion,
-        onSkipQuestion = resolvedViewModel::onSkipQuestion,
-        onMarkQuestionUnsure = resolvedViewModel::onMarkQuestionUnsure,
+        onUnskipQuestion = resolvedViewModel::onUnskipQuestion,
+        onFinishQuiz = resolvedViewModel::onFinishQuiz,
       )
     AppScreen.Results ->
       ResultsScreen(
@@ -850,9 +849,8 @@ fun QuizScreen(
   onUseHint: () -> Unit,
   onPreviousQuestion: () -> Unit,
   onNextQuestionPreview: () -> Unit,
-  onNextQuestion: () -> Unit,
-  onSkipQuestion: () -> Unit,
-  onMarkQuestionUnsure: () -> Unit,
+  onUnskipQuestion: () -> Unit,
+  onFinishQuiz: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val question = quiz.currentQuestion ?: return
@@ -860,33 +858,9 @@ fun QuizScreen(
   var showQuitDialog by remember { mutableStateOf(false) }
   var showQuizInfo by remember { mutableStateOf(false) }
   BackHandler { showQuitDialog = true }
-  val canSubmit =
-    when (question.variant) {
-      QuizVariant.TypeCountryName -> quiz.typedAnswer.isNotBlank()
-      QuizVariant.FlagToCountry,
-      QuizVariant.CountryToFlag -> quiz.selectedCountry != null
-    }
-  val canMoveAway =
-    when (question.variant) {
-      QuizVariant.TypeCountryName ->
-        when (draft.status) {
-          QuestionStatus.Answered -> draft.typedAnswer.isNotBlank()
-          QuestionStatus.Skipped,
-          QuestionStatus.Unsure -> true
-          QuestionStatus.Unanswered -> draft.typedAnswer.isNotBlank()
-        }
-
-      QuizVariant.FlagToCountry,
-      QuizVariant.CountryToFlag ->
-        when (draft.status) {
-          QuestionStatus.Unanswered -> quiz.selectedCountry != null
-          else -> true
-        }
-    }
-  val canGoBack = canMoveAway && quiz.questionStates.take(quiz.currentQuestionIndex).any { it.status != QuestionStatus.Unanswered }
-  val canGoForward = canMoveAway && quiz.questionStates.drop(quiz.currentQuestionIndex + 1).any { it.status != QuestionStatus.Unanswered }
+  val canGoBack = quiz.currentQuestionIndex > 0
+  val canGoForward = quiz.currentQuestionIndex < quiz.questions.lastIndex
   val unansweredQuestions = quiz.questionStates.mapIndexedNotNull { index, state -> if (state.status == QuestionStatus.Unanswered) index + 1 else null }
-  val unsureQuestions = quiz.questionStates.mapIndexedNotNull { index, state -> if (state.status == QuestionStatus.Unsure) index + 1 else null }
   val skippedQuestions = quiz.questionStates.mapIndexedNotNull { index, state -> if (state.status == QuestionStatus.Skipped) index + 1 else null }
 
   if (showQuitDialog) {
@@ -908,7 +882,21 @@ fun QuizScreen(
   }
 
   ScreenShell(modifier = modifier, padding = 12.dp, spacing = 8.dp) {
-    HeaderRow(title = displayModeTitle(quiz.mode, language), onBack = { showQuitDialog = true })
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Text(
+        text = displayModeTitle(quiz.mode, language),
+        style = MaterialTheme.typography.headlineMedium,
+        color = Color.White,
+        modifier = Modifier.weight(1f),
+      )
+      Button(onClick = onFinishQuiz, enabled = quiz.canFinish) {
+        Text(t(language, UiText.Finish))
+      }
+    }
 
     Surface(
       color = MaterialTheme.colorScheme.surfaceVariant,
@@ -934,10 +922,6 @@ fun QuizScreen(
           questionNumbers = unansweredQuestions,
         )
         QuestionTrackingPanel(
-          title = t(language, UiText.Unsure),
-          questionNumbers = unsureQuestions,
-        )
-        QuestionTrackingPanel(
           title = t(language, UiText.Skipped),
           questionNumbers = skippedQuestions,
         )
@@ -955,7 +939,31 @@ fun QuizScreen(
       }
     }
 
-    QuestionPrompt(question, language)
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      horizontalArrangement = Arrangement.spacedBy(10.dp),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      OutlinedButton(
+        onClick = onPreviousQuestion,
+        enabled = canGoBack,
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp),
+      ) {
+        Text("←")
+      }
+      QuestionPrompt(
+        question = question,
+        language = language,
+        modifier = Modifier.weight(1f),
+      )
+      OutlinedButton(
+        onClick = onNextQuestionPreview,
+        enabled = canGoForward,
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp),
+      ) {
+        Text("→")
+      }
+    }
 
     if (question.variant == QuizVariant.TypeCountryName) {
       OutlinedTextField(
@@ -1003,41 +1011,24 @@ fun QuizScreen(
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
       OutlinedButton(
         onClick = onUseHint,
-        enabled = quiz.currentPlayer.hintPoints >= 1 && !quiz.hintUsedOnCurrentQuestion,
+        enabled = quiz.currentPlayer.hintPoints >= 1 && quiz.currentQuestionState.hintUses < 2,
         modifier = Modifier.weight(1f),
       ) {
-        Text(t(language, UiText.Hint))
-      }
-      OutlinedButton(onClick = onSkipQuestion, modifier = Modifier.weight(1f)) {
-        Text(t(language, UiText.Skip))
-      }
-      Button(onClick = onNextQuestion, enabled = canSubmit, modifier = Modifier.weight(1f)) {
-        Text(if (quiz.isLastQuestion) t(language, UiText.Finish) else t(language, UiText.Next))
-      }
-    }
-
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-      OutlinedButton(
-        onClick = onPreviousQuestion,
-        enabled = canGoBack,
-        modifier = Modifier.weight(1f),
-      ) {
-        Text("<")
+        Text(
+          if (quiz.currentQuestionState.hintUses == 0) {
+            localizedHintButtonLabel(language)
+          } else {
+            localizedRevealButtonLabel(language)
+          },
+        )
       }
       InfoButton(onClick = { showQuizInfo = !showQuizInfo })
       OutlinedButton(
-        onClick = onMarkQuestionUnsure,
-        enabled = true,
+        onClick = onUnskipQuestion,
+        enabled = skippedQuestions.isNotEmpty(),
         modifier = Modifier.weight(1f),
       ) {
-        Text(t(language, UiText.Unsure))
-      }
-      OutlinedButton(
-        onClick = onNextQuestionPreview,
-        enabled = canGoForward,
-        modifier = Modifier.weight(1f),
-      ) {
-        Text(">")
+        Text("${t(language, UiText.Unskip)} \u21b7")
       }
     }
   }
@@ -1072,7 +1063,6 @@ fun ResultsScreen(
           language = language,
           totalQuestions = playerResults.size,
           correctAnswers = playerResults.count { it.isCorrect },
-          skippedAnswers = playerResults.count { it.skipped },
           showHints = quiz.mode != GameMode.LocalMultiplayer,
         )
       }
@@ -1081,7 +1071,7 @@ fun ResultsScreen(
     SectionCard(title = when (language) {
       AppLanguage.English -> "Answer review"
       AppLanguage.Bulgarian -> "Преглед на отговорите"
-      AppLanguage.German -> "Antwortübersicht"
+              AppLanguage.German -> "Antwortübersicht"
     }) {
       quiz.results.forEachIndexed { index, result ->
         ResultRow(index = index + 1, result = result, language = language)
@@ -1291,7 +1281,7 @@ private fun ProfileEditorDialog(
               when (language) {
                 AppLanguage.English -> "\u270E Change icon"
                 AppLanguage.Bulgarian -> "\u270E Промени иконата"
-                AppLanguage.German -> "\u270E Symbol ändern"
+                AppLanguage.German -> "✎ Symbol ?ndern"
               },
             )
           }
@@ -1503,23 +1493,20 @@ private fun LanguageSelector(
   onExpandedChange: (Boolean) -> Unit,
   onLanguageSelected: (AppLanguage) -> Unit,
 ) {
-  Box {
-    Card(
-      onClick = { onExpandedChange(true) },
-      colors =
-        CardDefaults.cardColors(
-          containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-        ),
-      shape = RoundedCornerShape(20.dp),
+  Box(modifier = Modifier.fillMaxWidth()) {
+    OutlinedButton(
+      onClick = { onExpandedChange(!expanded) },
       modifier = Modifier.fillMaxWidth(),
+      shape = RoundedCornerShape(18.dp),
+      contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
     ) {
       Row(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
       ) {
         Surface(
-          color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.10f),
+          color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
           contentColor = MaterialTheme.colorScheme.onPrimary,
           shape = CircleShape,
         ) {
@@ -1532,29 +1519,32 @@ private fun LanguageSelector(
         }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
           Text(
-            when (selectedLanguage) {
-              AppLanguage.English -> "Language"
-              AppLanguage.Bulgarian -> "Език"
-              AppLanguage.German -> "Sprache"
-            },
+            text = t(selectedLanguage, UiText.Language),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
-          Text(languageName(selectedLanguage), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+          Text(
+            languageName(selectedLanguage),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+          )
         }
         Text(
-          text = "⌄",
+          text = "\u25BE",
           style = MaterialTheme.typography.titleLarge,
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
-          modifier =
-            Modifier.graphicsLayer {
-              rotationZ = if (expanded) 180f else 0f
-            },
+          modifier = Modifier.graphicsLayer {
+            rotationZ = if (expanded) 180f else 0f
+          },
         )
       }
     }
-    DropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }) {
+    DropdownMenu(
+      expanded = expanded,
+      onDismissRequest = { onExpandedChange(false) },
+      modifier = Modifier.fillMaxWidth(0.94f),
+    ) {
       AppLanguage.entries.forEach { language ->
         DropdownMenuItem(
           text = {
@@ -1572,7 +1562,11 @@ private fun LanguageSelector(
               }
               Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(languageName(language), fontWeight = FontWeight.Bold)
-                Text(languageDescription(language), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                  languageDescription(language),
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
               }
             }
           },
@@ -1849,7 +1843,7 @@ private fun HeroInfoButton(onClick: () -> Unit) {
       ),
     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
   ) {
-    Text("i", fontWeight = FontWeight.Bold)
+    Text("𝒊", fontWeight = FontWeight.Bold)
   }
 }
 
@@ -2096,7 +2090,7 @@ private fun InfoButton(onClick: () -> Unit) {
     onClick = onClick,
     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
   ) {
-    Text("i", fontWeight = FontWeight.Bold)
+    Text("𝒊", fontWeight = FontWeight.Bold)
   }
 }
 
@@ -2164,9 +2158,29 @@ private fun QuestionTrackingPanel(
       if (questionNumbers.isEmpty()) {
         "$title: -"
       } else {
-        "$title: ${questionNumbers.joinToString(", ")}"
+        "$title: ${formatQuestionRanges(questionNumbers)}"
       },
   )
+}
+
+private fun formatQuestionRanges(numbers: List<Int>): String {
+  if (numbers.isEmpty()) return "-"
+  val sorted = numbers.distinct().sorted()
+  val ranges = mutableListOf<String>()
+  var start = sorted.first()
+  var previous = start
+  for (index in 1 until sorted.size) {
+    val current = sorted[index]
+    if (current == previous + 1) {
+      previous = current
+      continue
+    }
+    ranges += if (start == previous) "$start" else "$start-$previous"
+    start = current
+    previous = current
+  }
+  ranges += if (start == previous) "$start" else "$start-$previous"
+  return ranges.joinToString(", ")
 }
 
 private fun HintDifficulty.shortRule(): String =
@@ -2253,10 +2267,11 @@ private fun CheckRow(
 private fun QuestionPrompt(
   question: FlagQuestion,
   language: AppLanguage,
+  modifier: Modifier = Modifier,
 ) {
   ElevatedCard(
     colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-    modifier = Modifier.fillMaxWidth(),
+    modifier = modifier.fillMaxWidth(),
   ) {
     Column(
       modifier = Modifier.padding(12.dp),
@@ -2331,7 +2346,6 @@ private fun PlayerResultRow(
   language: AppLanguage,
   totalQuestions: Int,
   correctAnswers: Int,
-  skippedAnswers: Int,
   showHints: Boolean,
 ) {
   Surface(
@@ -2349,22 +2363,12 @@ private fun PlayerResultRow(
             AppLanguage.German -> "Richtige Antworten: $correctAnswers / $totalQuestions"
           },
       )
-      if (skippedAnswers > 0) {
-        Text(
-          text =
-            when (language) {
-              AppLanguage.English -> "Skipped: $skippedAnswers"
-              AppLanguage.Bulgarian -> "Пропуснати: $skippedAnswers"
-              AppLanguage.German -> "Übersprungen: $skippedAnswers"
-            },
-        )
-      }
       Text(
         text =
           when (language) {
-            AppLanguage.English -> "Net score: ${player.score}"
-            AppLanguage.Bulgarian -> "Краен резултат: ${player.score}"
-            AppLanguage.German -> "Punktestand: ${player.score}"
+            AppLanguage.English -> "Net score: ${formatScore(player.score)}"
+            AppLanguage.Bulgarian -> "Краен резултат: ${formatScore(player.score)}"
+            AppLanguage.German -> "Punktestand: ${formatScore(player.score)}"
           },
       )
       if (showHints) {
@@ -2398,7 +2402,6 @@ private fun ResultRow(
   val background =
     when {
       result.isCorrect -> AccentGreen.copy(alpha = 0.15f)
-      result.unsure -> AccentGold.copy(alpha = 0.15f)
       else -> AccentRed.copy(alpha = 0.15f)
     }
   val wrongOptions =
@@ -2440,24 +2443,10 @@ private fun ResultRow(
       )
       Text(
         text =
-          if (result.skipped) {
-            when (language) {
-              AppLanguage.English -> "Your answer: Skipped"
-              AppLanguage.Bulgarian -> "����� �������: ���������"
-              AppLanguage.German -> "Deine Antwort: Ubersprungen"
-            }
-          } else if (result.unsure) {
-            when (language) {
-              AppLanguage.English -> "Your answer: Unsure"
-              AppLanguage.Bulgarian -> "����� �������: ���������"
-              AppLanguage.German -> "Deine Antwort: Unsicher"
-            }
-          } else {
-            when (language) {
-              AppLanguage.English -> "Your answer: ${result.selectedCountry?.localizedName(language) ?: result.typedAnswer.ifBlank { "No answer" }}"
-              AppLanguage.Bulgarian -> "����� �������: ${result.selectedCountry?.localizedName(language) ?: result.typedAnswer.ifBlank { "��� �������" }}"
-              AppLanguage.German -> "Deine Antwort: ${result.selectedCountry?.localizedName(language) ?: result.typedAnswer.ifBlank { "Keine Antwort" }}"
-            }
+          when (language) {
+            AppLanguage.English -> "Your answer: ${result.selectedCountry?.localizedName(language) ?: result.typedAnswer.ifBlank { "No answer" }}"
+            AppLanguage.Bulgarian -> "Твоят отговор: ${result.selectedCountry?.localizedName(language) ?: result.typedAnswer.ifBlank { "Без отговор" }}"
+            AppLanguage.German -> "Deine Antwort: ${result.selectedCountry?.localizedName(language) ?: result.typedAnswer.ifBlank { "Keine Antwort" }}"
           },
       )
       if (wrongOptions.isNotEmpty()) {
@@ -2465,25 +2454,32 @@ private fun ResultRow(
           text =
             when (language) {
               AppLanguage.English -> "Wrong options: ${wrongOptions.joinToString(", ") { wrongOptionLabel(it, result.question.variant, language) }}"
-              AppLanguage.Bulgarian -> "������ �����: ${wrongOptions.joinToString(", ") { wrongOptionLabel(it, result.question.variant, language) }}"
+              AppLanguage.Bulgarian -> "Грешни опции: ${wrongOptions.joinToString(", ") { wrongOptionLabel(it, result.question.variant, language) }}"
               AppLanguage.German -> "Falsche Optionen: ${wrongOptions.joinToString(", ") { wrongOptionLabel(it, result.question.variant, language) }}"
             },
         )
       }
       Text(
         text =
-          if (result.hintUsed) {
-            when (language) {
-              AppLanguage.English -> "Hint used"
-              AppLanguage.Bulgarian -> "Използван жокер"
-              AppLanguage.German -> "Hinweis verwendet"
-            }
-          } else {
-            when (language) {
-              AppLanguage.English -> "No hint used"
-              AppLanguage.Bulgarian -> "Няма използван жокер"
-              AppLanguage.German -> "Kein Hinweis verwendet"
-            }
+          when (result.hintUses) {
+            1 ->
+              when (language) {
+                AppLanguage.English -> "Hint used (+0.5 point) - Hint streak is paused and stays ${result.hintStreak}."
+                AppLanguage.Bulgarian -> "Използван жокер (+0.5 точка) - Жокер серията е на пауза и остава ${result.hintStreak}."
+                AppLanguage.German -> "Hinweis verwendet (+0.5 Punkt) - Hinweis-Serie ist pausiert und bleibt bei ${result.hintStreak}."
+              }
+            2 ->
+              when (language) {
+                AppLanguage.English -> "Reveal used (+0 point) - Hint streak is reset."
+                AppLanguage.Bulgarian -> "Използвано разкриване (+0 точки) - Жокер серията е нулирана."
+                AppLanguage.German -> "Aufdecken verwendet (+0 Punkt) - Hinweis-Serie ist zurückgesetzt."
+              }
+            else ->
+              when (language) {
+                AppLanguage.English -> "No hint used (+1 point) - Hint streak is now ${result.hintStreak}."
+                AppLanguage.Bulgarian -> "Няма използван жокер (+1 точка) - Жокер серията вече е ${result.hintStreak}."
+                AppLanguage.German -> "Kein Hinweis verwendet (+1 Punkt) - Hinweis-Serie ist jetzt ${result.hintStreak}."
+              }
           },
       )
     }
@@ -2559,9 +2555,9 @@ private fun avatarFor(index: Int): String = AvatarOptions.getOrElse(index) { Ava
 
 private fun languageFlag(language: AppLanguage): String =
   when (language) {
-    AppLanguage.English -> "🇬🇧"
-    AppLanguage.Bulgarian -> "🇧🇬"
-    AppLanguage.German -> "🇩🇪"
+    AppLanguage.English -> "\uD83C\uDDEC\uD83C\uDDE7"
+    AppLanguage.Bulgarian -> "\uD83C\uDDE7\uD83C\uDDEC"
+    AppLanguage.German -> "\uD83C\uDDE9\uD83C\uDDEA"
   }
 
 private fun languageName(language: AppLanguage): String =
@@ -2573,9 +2569,30 @@ private fun languageName(language: AppLanguage): String =
 
 private fun languageDescription(language: AppLanguage): String =
   when (language) {
-    AppLanguage.English -> "English (US)"
+    AppLanguage.English -> "English (UK)"
     AppLanguage.Bulgarian -> "Български (BG)"
     AppLanguage.German -> "Deutsch (DE)"
+  }
+
+private fun localizedHintButtonLabel(language: AppLanguage): String =
+  when (language) {
+    AppLanguage.English -> "Hint"
+    AppLanguage.Bulgarian -> "Жокер"
+    AppLanguage.German -> "Hinweis"
+  }
+
+private fun localizedRevealButtonLabel(language: AppLanguage): String =
+  when (language) {
+    AppLanguage.English -> "Reveal"
+    AppLanguage.Bulgarian -> "Разкрий"
+    AppLanguage.German -> "Aufdecken"
+  }
+
+private fun formatScore(score: Int): String =
+  if (score % 2 == 0) {
+    (score / 2).toString()
+  } else {
+    "${score / 2}.5"
   }
 
 private fun modeSelectionTitle(language: AppLanguage): String =
@@ -2709,7 +2726,7 @@ private fun localizedModeDescription(
       when (language) {
         AppLanguage.English -> "Up to 5 players pass one device and play turn by turn."
         AppLanguage.Bulgarian -> "До 5 играчи споделят едно устройство и играят на ред."
-        AppLanguage.German -> "Bis zu 5 Spieler teilen sich ein Gerät und spielen reihum."
+        AppLanguage.German -> "Bis zu 5 Spieler teilen sich ein Ger?t und spielen reihum."
       }
   }
 
@@ -2963,7 +2980,7 @@ private fun localizedAchievementSectorTitle(
     AchievementSector.Continents ->
       when (language) {
         AppLanguage.English -> "Continent masters"
-        AppLanguage.Bulgarian -> "Господари на континентите"
+        AppLanguage.Bulgarian -> "Майстори на континентите"
         AppLanguage.German -> "Kontinent-Meister"
       }
     AchievementSector.World ->
@@ -3020,17 +3037,17 @@ private fun localizedAchievementDescription(
     AchievementId.EuropePerfect -> localizedTitle(language, "Complete every European country perfectly without using hints.", "Завърши всички държави в Европа без грешка и без жокери.", "Schließe alle europäischen Länder fehlerfrei und ohne Hinweise ab.")
     AchievementId.NorthAmericaPerfect -> localizedTitle(language, "Complete every North American country perfectly without using hints.", "Завърши всички държави в Северна Америка без грешка и без жокери.", "Schließe alle nordamerikanischen Länder fehlerfrei und ohne Hinweise ab.")
     AchievementId.OceaniaPerfect -> localizedTitle(language, "Complete every Oceanian country perfectly without using hints.", "Завърши всички държави в Океания без грешка и без жокери.", "Schließe alle ozeanischen Länder fehlerfrei und ohne Hinweise ab.")
-    AchievementId.SouthAmericaPerfect -> localizedTitle(language, "Complete every South American country perfectly without using hints.", "Завърши всички държави в Южна Америка без грешка и без жокери.", "Schließe alle südamerikanischen Länder fehlerfrei und ohne Hinweise ab.")
-    AchievementId.DiamondWorld -> localizedTitle(language, "Complete all countries perfectly in one quiz.", "Завърши всички държави без грешка в един тест.", "Schließe alle Länder in einem Quiz fehlerfrei ab.")
+    AchievementId.SouthAmericaPerfect -> localizedTitle(language, "South America Perfect", "???? ??????? ??? ??????", "Südamerika fehlerfrei")
+    AchievementId.DiamondWorld -> localizedTitle(language, "Complete all countries perfectly in one quiz.", "??????? ?????? ??????? ??? ?????? ? ???? ????.", "Schließe alle Länder in einem Quiz fehlerfrei ab.")
     AchievementId.NoBluffLegend -> localizedTitle(language, "Perfectly clear No Bluff, All Tough with all three variants selected.", "Завърши „Без блъф, много зор“ без грешка с избрани всички 3 варианта.", "Schließe „Kein Bluff, nur knifflig“ fehlerfrei mit allen 3 Varianten ab.")
-    AchievementId.WorldPurist -> localizedTitle(language, "Complete all countries perfectly without using any hints.", "Завърши всички държави без грешка и без нито един жокер.", "Schließe alle Länder fehlerfrei und ohne Hinweise ab.")
+    AchievementId.WorldPurist -> localizedTitle(language, "Complete all countries perfectly without using any hints.", "??????? ?????? ??????? ??? ?????? ? ??? ???? ???? ?????.", "Schließe alle Länder fehlerfrei und ohne Hinweise ab.")
     AchievementId.BronzeCollector -> localizedTitle(language, "Earn bronze medals 50 times.", "Спечели бронзов медал 50 пъти.", "Verdiene 50 Bronzemedaillen.")
     AchievementId.SilverCollector -> localizedTitle(language, "Earn silver medals 25 times.", "Спечели сребърен медал 25 пъти.", "Verdiene 25 Silbermedaillen.")
     AchievementId.GoldCollector -> localizedTitle(language, "Earn gold medals 10 times.", "Спечели златен медал 10 пъти.", "Verdiene 10 Goldmedaillen.")
     AchievementId.PlatinumCollector -> localizedTitle(language, "Earn platinum medals 5 times.", "Спечели платинен медал 5 пъти.", "Verdiene 5 Platinmedaillen.")
     AchievementId.DiamondCollector -> localizedTitle(language, "Earn a diamond medal once.", "Спечели диамантен медал веднъж.", "Verdiene einmal eine Diamantmedaille.")
-    AchievementId.FirstPerfect -> localizedTitle(language, "Finish any medal-eligible quiz with 100% correct answers.", "Завърши тест, който дава медал, със 100% верни отговори.", "Beende ein medaillenfähiges Quiz mit 100% richtigen Antworten.")
-    AchievementId.HintlessHero -> localizedTitle(language, "Finish a perfect medal-eligible quiz without using hints.", "Завърши безгрешен тест за медал без жокери.", "Beende ein perfektes medaillenfähiges Quiz ohne Hinweise.")
+    AchievementId.FirstPerfect -> localizedTitle(language, "Finish any medal-eligible quiz with 100% correct answers.", "??????? ????? ????, ????? ???? ?????, ??? 100% ????? ????????.", "Beende ein medaillenfähiges Quiz mit 100% richtigen Antworten.")
+    AchievementId.HintlessHero -> localizedTitle(language, "Finish a perfect medal-eligible quiz without using hints.", "??????? ????????? ???? ?? ????? ??? ??????.", "Beende ein perfektes medaillenfähiges Quiz ohne Hinweise.")
     AchievementId.VariantMaster -> localizedTitle(language, "Finish a perfect quiz that includes all three question variants.", "Завърши безгрешен тест с всички три вида въпроси.", "Beende ein perfektes Quiz mit allen drei Fragetypen.")
   }
 
@@ -3165,6 +3182,7 @@ private enum class UiText {
   HintStartsWith,
   Hint,
   Skip,
+  Unskip,
   Finish,
   Next,
   PlayAgain,
@@ -3245,6 +3263,7 @@ private fun t(
         UiText.CountryName -> "Country name"
         UiText.Hint -> "Hint"
         UiText.Skip -> "↷"
+        UiText.Unskip -> "Unskip"
         UiText.Finish -> "Finish"
         UiText.Next -> "Next"
         UiText.PlayAgain -> "Play again"
@@ -3256,7 +3275,7 @@ private fun t(
         UiText.Correct -> "Correct"
         UiText.YourAnswer -> "Your answer"
         UiText.NoAnswer -> "No answer"
-        UiText.HintUsed -> "Hint used"
+        UiText.HintUsed -> "Hint used (+0.5 point) - Hint streak is paused and stays X."
         UiText.NoHintUsed -> "No hint used"
         UiText.NextLevelRequirements -> "Next level requirements"
         UiText.Open -> "Open"
@@ -3312,6 +3331,7 @@ private fun t(
         UiText.CountryName -> "Име на държава"
         UiText.Hint -> "Жокер"
         UiText.Skip -> "↷"
+        UiText.Unskip -> "Отмени пропуска"
         UiText.Finish -> "Финал"
         UiText.Next -> "Напред"
         UiText.PlayAgain -> "Играй отново"
@@ -3379,6 +3399,7 @@ private fun t(
         UiText.CountryName -> "Ländername"
         UiText.Hint -> "Hinweis"
         UiText.Skip -> "↷"
+        UiText.Unskip -> "Überspringen zurücknehmen"
         UiText.Finish -> "Fertig"
         UiText.Next -> "Weiter"
         UiText.PlayAgain -> "Nochmal spielen"
