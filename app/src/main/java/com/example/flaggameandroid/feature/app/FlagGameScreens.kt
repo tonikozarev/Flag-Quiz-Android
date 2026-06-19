@@ -1,4 +1,4 @@
-package com.example.flaggameandroid.feature.app
+﻿package com.example.flaggameandroid.feature.app
 
 import android.app.Activity
 import android.Manifest
@@ -12,6 +12,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +44,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -76,6 +78,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.flaggameandroid.core.data.QuizAnswerChecker
 import com.example.flaggameandroid.core.model.AllInType
 import com.example.flaggameandroid.core.model.AchievementId
 import com.example.flaggameandroid.core.model.AchievementSector
@@ -99,6 +102,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
+
+private const val InfoSymbolText = "\uD835\uDC8A"
+private const val PreviousArrowText = "\u2190"
+private const val NextArrowText = "\u2192"
+private const val UnskipArrowText = "\u21B7"
 
 @Composable
 fun FlagGameRoute(
@@ -230,6 +238,7 @@ fun FlagGameRoute(
         onLeaveQuiz = resolvedViewModel::onBackToGameModes,
         onCountryAnswerSelected = resolvedViewModel::onCountryAnswerSelected,
         onTypedAnswerChanged = resolvedViewModel::onTypedAnswerChanged,
+        onVerifyTypedAnswer = resolvedViewModel::onVerifyTypedAnswer,
         onUseHint = resolvedViewModel::onUseHint,
         onPreviousQuestion = resolvedViewModel::onQuestionBack,
         onNextQuestionPreview = resolvedViewModel::onQuestionForward,
@@ -289,8 +298,8 @@ fun MenuScreen(
     )
 
     HeroPanel(
-      title = t(language, UiText.WorldFlagGame),
-      subtitle = t(language, UiText.HeroSubtitle),
+      title = cleanText(language, UiText.WorldFlagGame),
+      subtitle = cleanText(language, UiText.HeroSubtitle),
       language = language,
       onStartClick = onStartClick,
       onMedalsClick = onMedalsClick,
@@ -311,7 +320,7 @@ fun GameModesScreen(
   var expandedInfoMode by remember { mutableStateOf<GameMode?>(null) }
 
   ScreenShell(modifier = modifier) {
-    HeaderRow(title = modeSelectionTitle(language), onBack = onBack)
+    HeaderRow(title = cleanModeSelectionTitle(language))
 
     GameMode.entries.forEach { mode ->
       ModeCard(
@@ -335,7 +344,7 @@ fun MedalsScreen(
   modifier: Modifier = Modifier,
 ) {
   ScreenShell(modifier = modifier) {
-    HeaderRow(title = t(language, UiText.Medals), onBack = onBack)
+    HeaderRow(title = cleanText(language, UiText.Medals))
     RatingsSection(ratings = ratings, language = language)
   }
 }
@@ -348,7 +357,7 @@ fun AchievementsScreen(
   modifier: Modifier = Modifier,
 ) {
   ScreenShell(modifier = modifier) {
-    HeaderRow(title = t(language, UiText.Achievements), onBack = onBack)
+    HeaderRow(title = cleanText(language, UiText.Achievements))
     AchievementsSection(achievements = achievements, language = language)
   }
 }
@@ -385,7 +394,7 @@ fun SettingsScreen(
   }
 
   ScreenShell(modifier = modifier) {
-    HeaderRow(title = t(settings.language, UiText.Settings), onBack = onBack)
+    HeaderRow(title = t(settings.language, UiText.Settings))
 
     SectionCard(title = t(settings.language, UiText.Language)) {
       LanguageSelector(
@@ -439,8 +448,8 @@ fun SettingsScreen(
         },
         description = when (settings.language) {
           AppLanguage.English -> "Send a 13:00 notification when you have not checked in yet today."
-          AppLanguage.Bulgarian -> "Изпращай известие в 13:00, ако още не си направил дори 1 тест днес."
-          AppLanguage.German -> "Sende um 13:00 eine Erinnerung, wenn du heute noch nicht nachgeschaut hast."
+          AppLanguage.Bulgarian -> "Изпрати известие в 13:00, ако още не си влязъл днес."
+          AppLanguage.German -> "Sende um 13:00 eine Benachrichtigung, wenn du heute noch nicht da warst."
         },
         checked = settings.reminderEnabled,
         onCheckedChange = onReminderEnabledChanged,
@@ -506,7 +515,7 @@ fun SettingsScreen(
           Text(
             when (settings.language) {
               AppLanguage.English -> "Reset level"
-              AppLanguage.Bulgarian -> "Нулирай ниво"
+              AppLanguage.Bulgarian -> "Нулирай нивото"
               AppLanguage.German -> "Level zurücksetzen"
             },
           )
@@ -521,8 +530,8 @@ fun SettingsScreen(
           Text(
             when (settings.language) {
               AppLanguage.English -> "Open random achievement"
-              AppLanguage.Bulgarian -> "Отключи случайно"
-              AppLanguage.German -> "Zufälligen Erfolg öffnen"
+              AppLanguage.Bulgarian -> "Случайно постижение"
+              AppLanguage.German -> "Zufälliges Achievement öffnen"
             },
             textAlign = TextAlign.Center,
           )
@@ -535,7 +544,7 @@ fun SettingsScreen(
           Text(
             when (settings.language) {
               AppLanguage.English -> "Lock achievements"
-              AppLanguage.Bulgarian -> "Заключи всички"
+              AppLanguage.Bulgarian -> "Заключи постиженията"
               AppLanguage.German -> "Erfolge sperren"
             },
             textAlign = TextAlign.Center,
@@ -547,13 +556,13 @@ fun SettingsScreen(
           if (inactiveIconActive) {
             when (settings.language) {
               AppLanguage.English -> "Icon status: inactive test icon enabled"
-              AppLanguage.Bulgarian -> "Статус на иконата: неактивна"
+              AppLanguage.Bulgarian -> "Състояние на иконата: тестовата неактивна икона е включена"
               AppLanguage.German -> "Symbolstatus: inaktives Testsymbol aktiviert"
             }
           } else {
             when (settings.language) {
               AppLanguage.English -> "Icon status: normal icon enabled"
-              AppLanguage.Bulgarian -> "Статус на иконата: активна"
+              AppLanguage.Bulgarian -> "Състояние на иконата: нормалната икона е включена"
               AppLanguage.German -> "Symbolstatus: normales Symbol aktiviert"
             }
           },
@@ -567,13 +576,13 @@ fun SettingsScreen(
           if (inactiveIconActive) {
             when (settings.language) {
               AppLanguage.English -> "Switch to normal icon"
-              AppLanguage.Bulgarian -> "Премини към нормалната икона"
+              AppLanguage.Bulgarian -> "Към нормална икона"
               AppLanguage.German -> "Zum normalen Symbol wechseln"
             }
           } else {
             when (settings.language) {
               AppLanguage.English -> "Switch to inactive icon"
-              AppLanguage.Bulgarian -> "Премини към неактивната икона"
+              AppLanguage.Bulgarian -> "Към неактивна икона"
               AppLanguage.German -> "Zum inaktiven Symbol wechseln"
             }
           },
@@ -629,7 +638,7 @@ fun SetupScreen(
   modifier: Modifier = Modifier,
 ) {
   ScreenShell(modifier = modifier) {
-    HeaderRow(title = localizedModeTitle(setup.mode, language), onBack = onBack)
+    HeaderRow(title = cleanModeTitle(setup.mode, language))
 
     if (setup.mode == GameMode.LocalMultiplayer) {
       SectionCard(title = when (language) {
@@ -693,7 +702,7 @@ fun SetupScreen(
     }
 
     if (setup.mode == GameMode.Continents || setup.multiplayerBase == MultiplayerQuizBase.Continents && setup.mode == GameMode.LocalMultiplayer) {
-      SectionCard(title = t(language, UiText.Continents)) {
+    SectionCard(title = cleanText(language, UiText.Continents)) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
           availableContinents.forEach { continent ->
             val isSelectable = continent != "Antarctica"
@@ -736,8 +745,8 @@ fun SetupScreen(
               if (setup.surpriseMe) {
                 when (language) {
                   AppLanguage.English -> "Surprise me selected"
-                  AppLanguage.Bulgarian -> "Избрано е Изненадай ме"
-                  AppLanguage.German -> "Überrasche mich gewählt"
+                  AppLanguage.Bulgarian -> "Избрано е \"Изненадай ме\""
+                  AppLanguage.German -> "\"Überrasche mich\" ausgewählt"
                 }
               } else {
                 when (language) {
@@ -753,15 +762,22 @@ fun SetupScreen(
               Text(
                 when (language) {
                   AppLanguage.English -> "Allowed range: 1-$questionCountLimit"
-                  AppLanguage.Bulgarian -> "Позволен диапазон: 1-$questionCountLimit"
+                  AppLanguage.Bulgarian -> "Допустим диапазон: 1-$questionCountLimit"
                   AppLanguage.German -> "Erlaubter Bereich: 1-$questionCountLimit"
+                },
+              )
+              Text(
+                when (language) {
+                  AppLanguage.English -> "Questions repeat only if you ask for more than 195; otherwise each country appears once."
+                  AppLanguage.Bulgarian -> "Въпросите се повтарят само ако поискаш повече от 195. Иначе всяка държава се показва само веднъж."
+                  AppLanguage.German -> "Fragen wiederholen sich nur, wenn du mehr als 195 willst; sonst erscheint jedes Land nur einmal."
                 },
               )
               if (ProgressionRules.shouldWarnNoMedal(setup.questionCount)) {
                 Text(
                   when (language) {
                     AppLanguage.English -> "Perfect runs under 10 questions do not earn a medal."
-                    AppLanguage.Bulgarian -> "Перфектни резултати под 10 въпроса не печелят медал."
+                    AppLanguage.Bulgarian -> "Перфектен тест под 10 въпроса не носи медал."
                     AppLanguage.German -> "Perfekte Läufe unter 10 Fragen geben keine Medaille."
                   },
                 )
@@ -778,8 +794,8 @@ fun SetupScreen(
             if (setup.surpriseMe) {
               when (language) {
                 AppLanguage.English -> "Use custom amount"
-                AppLanguage.Bulgarian -> "Използвай ръчен брой"
-                AppLanguage.German -> "Eigenen Wert verwenden"
+                AppLanguage.Bulgarian -> "Използвай собствен брой"
+                AppLanguage.German -> "Eigene Anzahl verwenden"
               }
             } else {
               when (language) {
@@ -816,7 +832,7 @@ fun SetupScreen(
       Text(
         when (language) {
           AppLanguage.English -> "Start quiz"
-          AppLanguage.Bulgarian -> "Стартирай теста"
+          AppLanguage.Bulgarian -> "Започни теста"
           AppLanguage.German -> "Quiz starten"
         },
       )
@@ -846,6 +862,7 @@ fun QuizScreen(
   onLeaveQuiz: () -> Unit,
   onCountryAnswerSelected: (FlagCountry) -> Unit,
   onTypedAnswerChanged: (String) -> Unit,
+  onVerifyTypedAnswer: () -> Unit,
   onUseHint: () -> Unit,
   onPreviousQuestion: () -> Unit,
   onNextQuestionPreview: () -> Unit,
@@ -855,6 +872,19 @@ fun QuizScreen(
 ) {
   val question = quiz.currentQuestion ?: return
   val draft = quiz.currentQuestionState
+  val isTrainingLocked = quiz.mode == GameMode.Training && draft.locked
+  val isTrainingPreview = quiz.mode == GameMode.Training && draft.status == QuestionStatus.Answered
+  val isTrainingCorrect =
+    when (question.variant) {
+      QuizVariant.TypeCountryName ->
+        QuizAnswerChecker.isTypedAnswerCorrect(
+          typedAnswer = draft.typedAnswer,
+          acceptedAnswers = question.correctCountry.acceptedTypedAnswers(language),
+        )
+
+      QuizVariant.FlagToCountry,
+      QuizVariant.CountryToFlag -> QuizAnswerChecker.isCountrySelectionCorrect(draft.selectedCountry, question.correctCountry)
+    }
   var showQuitDialog by remember { mutableStateOf(false) }
   var showQuizInfo by remember { mutableStateOf(false) }
   BackHandler { showQuitDialog = true }
@@ -866,16 +896,16 @@ fun QuizScreen(
   if (showQuitDialog) {
     AlertDialog(
       onDismissRequest = { showQuitDialog = false },
-      title = { Text(t(language, UiText.LeaveQuizTitle)) },
-      text = { Text(t(language, UiText.LeaveQuizBody)) },
+      title = { Text(cleanText(language, UiText.LeaveQuizTitle)) },
+      text = { Text(cleanText(language, UiText.LeaveQuizBody)) },
       confirmButton = {
         TextButton(onClick = onLeaveQuiz) {
-          Text(t(language, UiText.Leave))
+          Text(cleanText(language, UiText.Leave))
         }
       },
       dismissButton = {
         TextButton(onClick = { showQuitDialog = false }) {
-          Text(t(language, UiText.Stay))
+          Text(cleanText(language, UiText.Stay))
         }
       },
     )
@@ -894,7 +924,7 @@ fun QuizScreen(
         modifier = Modifier.weight(1f),
       )
       Button(onClick = onFinishQuiz, enabled = quiz.canFinish) {
-        Text(t(language, UiText.Finish))
+        Text(cleanText(language, UiText.Finish))
       }
     }
 
@@ -908,21 +938,21 @@ fun QuizScreen(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
       ) {
-        Text(t(language, UiText.GuessTheFlag), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        Text(cleanText(language, UiText.GuessTheFlag), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         Text("${quiz.currentQuestionIndex + 1}/${quiz.totalQuestions}", style = MaterialTheme.typography.bodySmall)
-        Text("${t(language, UiText.Hints)}: ${quiz.currentPlayer.hintPoints}", style = MaterialTheme.typography.bodySmall)
+        Text("${cleanText(language, UiText.Hints)}: ${quiz.currentPlayer.hintPoints}", style = MaterialTheme.typography.bodySmall)
       }
     }
 
     if (showQuizInfo) {
       Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        InfoPanel(text = t(language, UiText.QuizInfo))
+        InfoPanel(text = cleanText(language, UiText.QuizInfo))
         QuestionTrackingPanel(
-          title = t(language, UiText.Unanswered),
+          title = cleanText(language, UiText.Unanswered),
           questionNumbers = unansweredQuestions,
         )
         QuestionTrackingPanel(
-          title = t(language, UiText.Skipped),
+          title = cleanText(language, UiText.Skipped),
           questionNumbers = skippedQuestions,
         )
       }
@@ -931,7 +961,7 @@ fun QuizScreen(
     if (quiz.isMultiplayer) {
       Surface(color = AccentGold.copy(alpha = 0.18f), shape = RoundedCornerShape(10.dp), modifier = Modifier.fillMaxWidth()) {
         Text(
-          text = "${t(language, UiText.NextUp)}: ${quiz.currentPlayer.name}",
+          text = "${cleanText(language, UiText.NextUp)}: ${quiz.currentPlayer.name}",
           modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.Bold,
@@ -949,7 +979,7 @@ fun QuizScreen(
         enabled = canGoBack,
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp),
       ) {
-        Text("←")
+        Text(PreviousArrowText)
       }
       QuestionPrompt(
         question = question,
@@ -961,37 +991,84 @@ fun QuizScreen(
         enabled = canGoForward,
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp),
       ) {
-        Text("→")
+        Text(NextArrowText)
       }
     }
 
     if (question.variant == QuizVariant.TypeCountryName) {
-      OutlinedTextField(
-        value = quiz.typedAnswer,
-        onValueChange = onTypedAnswerChanged,
-        label = {
-          Text(
-            when (language) {
-              AppLanguage.English -> "Country name"
-              AppLanguage.Bulgarian -> "Име на държава"
-              AppLanguage.German -> "Ländername"
-            },
-          )
-        },
-        singleLine = true,
-        supportingText = {
-          quiz.typedHintPrefix?.let {
+      Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+          value = quiz.typedAnswer,
+          onValueChange = onTypedAnswerChanged,
+          enabled = !isTrainingLocked,
+          label = {
             Text(
               when (language) {
-                AppLanguage.English -> "Hint: starts with $it"
-                AppLanguage.Bulgarian -> "Подсказка: започва с $it"
-                AppLanguage.German -> "Hinweis: beginnt mit $it"
+                AppLanguage.English -> "Country name"
+                AppLanguage.Bulgarian -> "Име на държава"
+                AppLanguage.German -> "Ländername"
               },
             )
+          },
+          singleLine = true,
+          supportingText = {
+            quiz.typedHintPrefix?.let {
+              Text(
+                when (language) {
+                  AppLanguage.English -> "Hint: starts with $it"
+                  AppLanguage.Bulgarian -> "Подсказка: започва с $it"
+                  AppLanguage.German -> "Hinweis: beginnt mit $it"
+                },
+              )
+            }
+          },
+          colors =
+            if (isTrainingPreview) {
+              OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = if (isTrainingCorrect) AccentGreen.copy(alpha = 0.18f) else AccentRed.copy(alpha = 0.18f),
+                unfocusedContainerColor = if (isTrainingCorrect) AccentGreen.copy(alpha = 0.18f) else AccentRed.copy(alpha = 0.18f),
+                disabledContainerColor = if (isTrainingCorrect) AccentGreen.copy(alpha = 0.18f) else AccentRed.copy(alpha = 0.18f),
+                focusedBorderColor = if (isTrainingCorrect) AccentGreen else AccentRed,
+                unfocusedBorderColor = if (isTrainingCorrect) AccentGreen else AccentRed,
+                disabledBorderColor = if (isTrainingCorrect) AccentGreen else AccentRed,
+                focusedTextColor = if (isTrainingCorrect) AccentGreen else AccentRed,
+                unfocusedTextColor = if (isTrainingCorrect) AccentGreen else AccentRed,
+                disabledTextColor = if (isTrainingCorrect) AccentGreen else AccentRed,
+              )
+            } else {
+              OutlinedTextFieldDefaults.colors()
+            },
+          modifier = Modifier.fillMaxWidth(),
+        )
+        if (isTrainingPreview && !isTrainingCorrect) {
+          Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(2.dp, AccentGreen),
+            modifier = Modifier.fillMaxWidth(),
+          ) {
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+              Text(
+                text =
+                  when (language) {
+                    AppLanguage.English -> "Correct answer"
+                    AppLanguage.Bulgarian -> "Верен отговор"
+                    AppLanguage.German -> "Richtige Antwort"
+                  },
+                style = MaterialTheme.typography.bodySmall,
+              )
+              Text(
+                text = question.correctCountry.localizedName(language),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = AccentGreen,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+              )
+            }
           }
-        },
-        modifier = Modifier.fillMaxWidth(),
-      )
+        }
+      }
     } else {
       Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         question.options
@@ -1003,32 +1080,67 @@ fun QuizScreen(
               selectedCountry = quiz.selectedCountry,
               language = language,
               onCountryAnswerSelected = onCountryAnswerSelected,
+              enabled = !isTrainingLocked,
+              trainingPreview = isTrainingPreview,
+              correctCountry = question.correctCountry,
             )
           }
       }
     }
-
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+      InfoButton(
+        label = localizedQuizInfoButtonLabel(language),
+        modifier = Modifier.weight(1f),
+        onClick = { showQuizInfo = !showQuizInfo },
+      )
+      if (question.variant == QuizVariant.TypeCountryName) {
+        OutlinedButton(
+          onClick = onVerifyTypedAnswer,
+          enabled = quiz.typedAnswer.isNotBlank() && !isTrainingLocked,
+          modifier = Modifier.weight(1f),
+          contentPadding = PaddingValues(horizontal = 6.dp, vertical = 10.dp),
+        ) {
+          Text(
+            text = localizedVerifyButtonLabel(language),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            softWrap = false,
+          )
+        }
+      }
       OutlinedButton(
         onClick = onUseHint,
-        enabled = quiz.currentPlayer.hintPoints >= 1 && quiz.currentQuestionState.hintUses < 2,
+        enabled = quiz.currentPlayer.hintPoints >= 1 && quiz.currentQuestionState.hintUses < 2 && !quiz.currentQuestionState.locked && quiz.currentQuestionState.status != QuestionStatus.Answered,
         modifier = Modifier.weight(1f),
+        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 10.dp),
       ) {
         Text(
-          if (quiz.currentQuestionState.hintUses == 0) {
-            localizedHintButtonLabel(language)
-          } else {
-            localizedRevealButtonLabel(language)
-          },
+          text =
+            if (quiz.currentQuestionState.hintUses == 0) {
+              localizedHintButtonLabel(language)
+            } else {
+              localizedRevealButtonLabel(language)
+            },
+          fontSize = 12.sp,
+          fontWeight = FontWeight.SemiBold,
+          maxLines = 1,
+          softWrap = false,
         )
       }
-      InfoButton(onClick = { showQuizInfo = !showQuizInfo })
       OutlinedButton(
         onClick = onUnskipQuestion,
         enabled = skippedQuestions.isNotEmpty(),
         modifier = Modifier.weight(1f),
+        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 10.dp),
       ) {
-        Text("${t(language, UiText.Unskip)} \u21b7")
+        Text(
+          text = localizedUnskipButtonLabel(language),
+          fontSize = 12.sp,
+          fontWeight = FontWeight.SemiBold,
+          maxLines = 1,
+          softWrap = false,
+        )
       }
     }
   }
@@ -1045,7 +1157,7 @@ fun ResultsScreen(
   modifier: Modifier = Modifier,
 ) {
   ScreenShell(modifier = modifier) {
-    HeaderRow(title = quizCompleteTitle(language), onBack = onBackToMenu)
+    HeaderRow(title = quizCompleteTitle(language))
 
     if (levelProgress.levelUpVisible) {
       LevelUpBanner(level = levelProgress.level, language = language, onLevelUpSeen = onLevelUpSeen)
@@ -1053,7 +1165,7 @@ fun ResultsScreen(
 
     SectionCard(title = when (language) {
       AppLanguage.English -> "Final results"
-      AppLanguage.Bulgarian -> "Крайни резултати"
+      AppLanguage.Bulgarian -> "Краен резултат"
       AppLanguage.German -> "Endergebnisse"
     }) {
       quiz.players.sortedByDescending { it.score }.forEach { player ->
@@ -1175,7 +1287,7 @@ private fun LevelProgressPanel(
           verticalAlignment = Alignment.CenterVertically,
         ) {
           Text(
-            "${profile.displayName} - ${t(language, UiText.Level)} ${levelProgress.level}",
+            "${profile.displayName} - ${cleanText(language, UiText.Level)} ${levelProgress.level}",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f),
@@ -1225,8 +1337,8 @@ private fun LevelProgressPanel(
         }
         Text(
           text =
-            "${levelProgress.hintsTowardNextLevel}/${levelProgress.hintsNeeded} hints  •  " +
-              "${levelProgress.correctAnswersTowardNextLevel}/${levelProgress.correctAnswersNeeded} correct  •  " +
+            "${levelProgress.hintsTowardNextLevel}/${levelProgress.hintsNeeded} hints  ↺  " +
+              "${levelProgress.correctAnswersTowardNextLevel}/${levelProgress.correctAnswersNeeded} correct  ↺  " +
               "${levelProgress.eligibleQuizzesTowardNextLevel}/${levelProgress.eligibleQuizzesNeeded} tests",
           style = MaterialTheme.typography.bodySmall.copy(color = Color.Transparent, fontSize = 0.sp),
         )
@@ -1262,7 +1374,7 @@ private fun ProfileEditorDialog(
 
   AlertDialog(
     onDismissRequest = onDismiss,
-    title = { Text(t(language, UiText.Profile)) },
+    title = { Text(cleanText(language, UiText.Profile)) },
     text = {
       Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1280,8 +1392,8 @@ private fun ProfileEditorDialog(
             Text(
               when (language) {
                 AppLanguage.English -> "\u270E Change icon"
-                AppLanguage.Bulgarian -> "\u270E Промени иконата"
-                AppLanguage.German -> "✎ Symbol ?ndern"
+                AppLanguage.Bulgarian -> "✎ Промени иконата"
+                AppLanguage.German -> "✎ Symbol ändern"
               },
             )
           }
@@ -1289,7 +1401,7 @@ private fun ProfileEditorDialog(
         OutlinedTextField(
           value = nameDraft,
           onValueChange = { nameDraft = it.take(24) },
-          label = { Text(t(language, UiText.AccountName)) },
+          label = { Text(cleanText(language, UiText.AccountName)) },
           placeholder = { Text("Player 1") },
           singleLine = true,
           modifier = Modifier.fillMaxWidth(),
@@ -1309,9 +1421,9 @@ private fun ProfileEditorDialog(
               style = MaterialTheme.typography.titleSmall,
               fontWeight = FontWeight.Bold,
             )
-            Text("${levelProgress.hintsTowardNextLevel}/${levelProgress.hintsNeeded} ${t(language, UiText.Hints)}")
-            Text("${levelProgress.correctAnswersTowardNextLevel}/${levelProgress.correctAnswersNeeded} ${t(language, UiText.CorrectAnswers)}")
-            Text("${levelProgress.eligibleQuizzesTowardNextLevel}/${levelProgress.eligibleQuizzesNeeded} ${t(language, UiText.CompletedTests)}")
+            Text("${levelProgress.hintsTowardNextLevel}/${levelProgress.hintsNeeded} ${cleanText(language, UiText.Hints)}")
+            Text("${levelProgress.correctAnswersTowardNextLevel}/${levelProgress.correctAnswersNeeded} ${cleanText(language, UiText.CorrectAnswers)}")
+            Text("${levelProgress.eligibleQuizzesTowardNextLevel}/${levelProgress.eligibleQuizzesNeeded} ${cleanText(language, UiText.CompletedTests)}")
           }
         }
       }
@@ -1355,10 +1467,11 @@ private fun AvatarPickerDialog(
     onDismissRequest = onDismiss,
     title = {
       Text(
-        when ("app-language") {
-          "bg" -> "Избери профилна икона"
-          "de" -> "Profilsymbol wählen"
-          else -> t(language, UiText.ChooseProfileIcon)
+        when (language) {
+          AppLanguage.English -> "Choose profile icon"
+          AppLanguage.Bulgarian -> "Избери икона на профила"
+          AppLanguage.German -> "Profilbild wählen"
+          else -> cleanText(language, UiText.ChooseProfileIcon)
         },
       )
     },
@@ -1391,10 +1504,11 @@ private fun AvatarPickerDialog(
     confirmButton = {
       TextButton(onClick = onDismiss) {
         Text(
-          when ("app-language") {
-            "bg" -> "Затвори"
-            "de" -> "Schließen"
-            else -> t(language, UiText.Close)
+          when (language) {
+            AppLanguage.English -> "Close"
+            AppLanguage.Bulgarian -> "Затвори"
+            AppLanguage.German -> "Schließen"
+            else -> cleanText(language, UiText.Close)
           },
         )
       }
@@ -1421,7 +1535,7 @@ private fun AvatarPickerSheet(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
       ) {
-        Text(t(language, UiText.ChooseProfileIcon), modifier = Modifier.weight(1f))
+        Text(cleanText(language, UiText.ChooseProfileIcon), modifier = Modifier.weight(1f))
         InfoButton(onClick = { showUnlockInfo = !showUnlockInfo })
       }
     },
@@ -1480,7 +1594,7 @@ private fun AvatarPickerSheet(
     },
     confirmButton = {
       TextButton(onClick = onDismiss) {
-        Text(t(language, UiText.Close))
+        Text(cleanText(language, UiText.Close))
       }
     },
   )
@@ -1652,7 +1766,7 @@ private fun LevelUpBanner(
         )
       }
       Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(t(language, UiText.LevelUpTitle), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(cleanText(language, UiText.LevelUpTitle), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text(levelUpBody(language, level), style = MaterialTheme.typography.bodyMedium)
       }
     }
@@ -1716,9 +1830,9 @@ private fun HeroPanel(
           modifier = Modifier.fillMaxWidth(),
           horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-          HeroGoldPill(localizedHeroPill(0, language), modifier = Modifier.weight(1f))
-          HeroGoldPill(localizedHeroPill(1, language), modifier = Modifier.weight(1f))
-          HeroGoldPill(localizedHeroPill(2, language), modifier = Modifier.weight(1f))
+          HeroGoldPill(cleanHeroPill(0, language), modifier = Modifier.weight(1f))
+          HeroGoldPill(cleanHeroPill(1, language), modifier = Modifier.weight(1f))
+          HeroGoldPill(cleanHeroPill(2, language), modifier = Modifier.weight(1f))
         }
         Row(
           modifier = Modifier.fillMaxWidth(),
@@ -1772,12 +1886,12 @@ private fun HeroPanel(
                   contentColor = Color(0xFF172033),
                 ),
             ) {
-              Text(t(language, UiText.Start), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+              Text(cleanText(language, UiText.Start), fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
             }
-            HeroNavButton(t(language, UiText.Medals), onMedalsClick, widthFraction = 0.78f)
-            HeroNavButton(t(language, UiText.Achievements), onAchievementsClick, widthFraction = 0.78f)
-            HeroNavButton(t(language, UiText.Settings), onSettingsClick, widthFraction = 0.78f)
-            HeroNavButton(t(language, UiText.Quit), onQuitClick, widthFraction = 0.78f)
+            HeroNavButton(cleanText(language, UiText.Medals), onMedalsClick, widthFraction = 0.78f)
+            HeroNavButton(cleanText(language, UiText.Achievements), onAchievementsClick, widthFraction = 0.78f)
+            HeroNavButton(cleanText(language, UiText.Settings), onSettingsClick, widthFraction = 0.78f)
+            HeroNavButton(cleanText(language, UiText.Quit), onQuitClick, widthFraction = 0.78f)
           }
         }
       }
@@ -1843,7 +1957,7 @@ private fun HeroInfoButton(onClick: () -> Unit) {
       ),
     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
   ) {
-    Text("𝒊", fontWeight = FontWeight.Bold)
+    Text(InfoSymbolText, fontWeight = FontWeight.Bold)
   }
 }
 
@@ -1869,14 +1983,14 @@ private fun RatingsSection(
   language: AppLanguage,
 ) {
   var showMedalInfo by remember { mutableStateOf(false) }
-  SectionCard(title = t(language, UiText.Medals)) {
+  SectionCard(title = cleanText(language, UiText.Medals)) {
     Row(
       modifier = Modifier.fillMaxWidth(),
       horizontalArrangement = Arrangement.SpaceBetween,
       verticalAlignment = Alignment.CenterVertically,
     ) {
       Text(
-        text = localizedMedalIntro(language),
+        text = cleanMedalIntro(language),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.weight(1f),
@@ -1884,7 +1998,7 @@ private fun RatingsSection(
       InfoButton(onClick = { showMedalInfo = !showMedalInfo })
     }
     if (showMedalInfo) {
-      InfoPanel(text = localizedMedalInfo(language))
+      InfoPanel(text = cleanMedalInfo(language))
     }
     FlowRow(
       modifier = Modifier.fillMaxWidth(),
@@ -1909,7 +2023,7 @@ private fun RatingsSection(
             ) {
               Text(text = medalTier.badge, fontSize = 24.sp)
               Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(text = localizedMedalTitle(medalTier, language), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(text = cleanMedalTitle(medalTier, language), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
               }
             }
             Text(
@@ -1930,7 +2044,7 @@ private fun AchievementsSection(
   language: AppLanguage,
 ) {
   var expandedAchievement by remember { mutableStateOf<AchievementId?>(null) }
-  SectionCard(title = t(language, UiText.Achievements)) {
+  SectionCard(title = cleanText(language, UiText.Achievements)) {
     Text(
       text = localizedAchievementHint(language),
       style = MaterialTheme.typography.bodySmall,
@@ -2017,11 +2131,10 @@ private fun formatAchievementDate(epochMillis: Long?): String {
 @Composable
 private fun HeaderRow(
   title: String,
-  onBack: () -> Unit,
 ) {
   Row(
     modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.SpaceBetween,
+    horizontalArrangement = Arrangement.Start,
     verticalAlignment = Alignment.CenterVertically,
   ) {
     Text(
@@ -2030,17 +2143,6 @@ private fun HeaderRow(
       color = Color.White,
       modifier = Modifier.weight(1f),
     )
-    OutlinedButton(
-      onClick = onBack,
-      colors =
-        ButtonDefaults.outlinedButtonColors(
-          contentColor = Color.White,
-          containerColor = Color.White.copy(alpha = 0.08f),
-        ),
-      contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-    ) {
-      Text("\u2190")
-    }
   }
 }
 
@@ -2063,34 +2165,35 @@ private fun ModeCard(
         verticalAlignment = Alignment.CenterVertically,
       ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-          Text(text = localizedModeTitle(mode, language), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-          Text(text = localizedModeShortLabel(mode, language), style = MaterialTheme.typography.bodySmall)
+          Text(text = cleanModeTitle(mode, language), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+          Text(text = cleanModeShortLabel(mode, language), style = MaterialTheme.typography.bodySmall)
         }
         InfoButton(onClick = onInfoClick)
         Button(onClick = onClick, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) {
           Text(
-            when (language) {
-              AppLanguage.English -> "Open"
-              AppLanguage.Bulgarian -> "Отвори"
-              AppLanguage.German -> "Öffnen"
-            },
+            cleanText(language, UiText.Open),
           )
         }
       }
       if (infoExpanded) {
-        InfoPanel(text = localizedModeDescription(mode, language))
+        InfoPanel(text = cleanModeDescription(mode, language))
       }
     }
   }
 }
 
 @Composable
-private fun InfoButton(onClick: () -> Unit) {
+private fun InfoButton(
+  label: String = InfoSymbolText,
+  modifier: Modifier = Modifier,
+  onClick: () -> Unit,
+) {
   OutlinedButton(
     onClick = onClick,
     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+    modifier = modifier,
   ) {
-    Text("𝒊", fontWeight = FontWeight.Bold)
+    Text(label, fontWeight = FontWeight.Bold)
   }
 }
 
@@ -2248,22 +2351,6 @@ private fun SelectableRow(
 }
 
 @Composable
-private fun CheckRow(
-  title: String,
-  description: String,
-  checked: Boolean,
-  onClick: () -> Unit,
-) {
-  Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-    Checkbox(checked = checked, onCheckedChange = { onClick() })
-    Column(modifier = Modifier.weight(1f)) {
-      Text(title, style = MaterialTheme.typography.titleMedium)
-      Text(description, style = MaterialTheme.typography.bodySmall)
-    }
-  }
-}
-
-@Composable
 private fun QuestionPrompt(
   question: FlagQuestion,
   language: AppLanguage,
@@ -2274,7 +2361,7 @@ private fun QuestionPrompt(
     modifier = modifier.fillMaxWidth(),
   ) {
     Column(
-      modifier = Modifier.padding(12.dp),
+      modifier = Modifier.padding(16.dp),
       verticalArrangement = Arrangement.spacedBy(8.dp),
       horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -2295,8 +2382,14 @@ private fun QuestionPrompt(
             )
           }
         }
+
         QuizVariant.CountryToFlag -> {
-          Text(text = question.correctCountry.localizedName(language), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+          Text(
+            text = question.correctCountry.localizedName(language),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+          )
           Text(
             text =
               when (language) {
@@ -2305,10 +2398,31 @@ private fun QuestionPrompt(
                 AppLanguage.German -> "Wähle die Flagge."
               },
             style = MaterialTheme.typography.titleSmall,
+            textAlign = TextAlign.Center,
           )
         }
       }
     }
+  }
+}
+
+@Composable
+private fun CheckRow(
+  title: String,
+  description: String,
+  checked: Boolean,
+  onClick: () -> Unit,
+) {
+  Row(
+    verticalAlignment = Alignment.CenterVertically,
+    horizontalArrangement = Arrangement.spacedBy(12.dp),
+    modifier = Modifier.fillMaxWidth(),
+  ) {
+    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+      Text(text = title, style = MaterialTheme.typography.titleSmall)
+      Text(text = description, style = MaterialTheme.typography.bodySmall)
+    }
+    Checkbox(checked = checked, onCheckedChange = { onClick() })
   }
 }
 
@@ -2319,16 +2433,37 @@ private fun AnswerButton(
   selectedCountry: FlagCountry?,
   language: AppLanguage,
   onCountryAnswerSelected: (FlagCountry) -> Unit,
+  enabled: Boolean = true,
+  trainingPreview: Boolean = false,
+  correctCountry: FlagCountry? = null,
 ) {
   val selected = selectedCountry?.code == option.code
-  val color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+  val isCorrectOption = correctCountry?.code == option.code
+  val isTrainingCorrect = trainingPreview && selected && isCorrectOption
+  val isTrainingWrong = trainingPreview && selected && !isCorrectOption
+  val color =
+    when {
+      isTrainingCorrect -> AccentGreen.copy(alpha = 0.88f)
+      isTrainingWrong -> AccentRed.copy(alpha = 0.88f)
+      selected -> MaterialTheme.colorScheme.primary
+      else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+  val border =
+    when {
+      trainingPreview && isCorrectOption && !selected -> BorderStroke(2.dp, AccentGreen)
+      else -> null
+    }
   Button(
     onClick = { onCountryAnswerSelected(option) },
+    enabled = enabled,
     colors =
       ButtonDefaults.buttonColors(
         containerColor = color,
         contentColor = buttonContentColor(color),
+        disabledContainerColor = color.copy(alpha = if (trainingPreview) 0.72f else 0.42f),
+        disabledContentColor = buttonContentColor(color),
       ),
+    border = border,
     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 11.dp),
     shape = RoundedCornerShape(10.dp),
     modifier = Modifier.fillMaxWidth(),
@@ -2437,16 +2572,16 @@ private fun ResultRow(
         text =
           when (language) {
             AppLanguage.English -> "Correct: ${result.question.correctCountry.emoji} ${result.question.correctCountry.localizedName(language)}"
-            AppLanguage.Bulgarian -> "Верен отговор: ${result.question.correctCountry.emoji} ${result.question.correctCountry.localizedName(language)}"
+            AppLanguage.Bulgarian -> "Верен: ${result.question.correctCountry.emoji} ${result.question.correctCountry.localizedName(language)}"
             AppLanguage.German -> "Richtig: ${result.question.correctCountry.emoji} ${result.question.correctCountry.localizedName(language)}"
           },
       )
       Text(
         text =
           when (language) {
-            AppLanguage.English -> "Your answer: ${result.selectedCountry?.localizedName(language) ?: result.typedAnswer.ifBlank { "No answer" }}"
-            AppLanguage.Bulgarian -> "Твоят отговор: ${result.selectedCountry?.localizedName(language) ?: result.typedAnswer.ifBlank { "Без отговор" }}"
-            AppLanguage.German -> "Deine Antwort: ${result.selectedCountry?.localizedName(language) ?: result.typedAnswer.ifBlank { "Keine Antwort" }}"
+            AppLanguage.English -> "Your answer: ${result.selectedCountry?.localizedName(language) ?: result.typedAnswer.ifBlank { cleanText(language, UiText.NoAnswer) }}"
+            AppLanguage.Bulgarian -> "Твой отговор: ${result.selectedCountry?.localizedName(language) ?: result.typedAnswer.ifBlank { cleanText(language, UiText.NoAnswer) }}"
+            AppLanguage.German -> "Deine Antwort: ${result.selectedCountry?.localizedName(language) ?: result.typedAnswer.ifBlank { cleanText(language, UiText.NoAnswer) }}"
           },
       )
       if (wrongOptions.isNotEmpty()) {
@@ -2465,19 +2600,19 @@ private fun ResultRow(
             1 ->
               when (language) {
                 AppLanguage.English -> "Hint used (+0.5 point) - Hint streak is paused and stays ${result.hintStreak}."
-                AppLanguage.Bulgarian -> "Използван жокер (+0.5 точка) - Жокер серията е на пауза и остава ${result.hintStreak}."
+                AppLanguage.Bulgarian -> "Използван жокер (+0.5 точка) - Веригата за жокери е паузирана и остава ${result.hintStreak}."
                 AppLanguage.German -> "Hinweis verwendet (+0.5 Punkt) - Hinweis-Serie ist pausiert und bleibt bei ${result.hintStreak}."
               }
             2 ->
               when (language) {
                 AppLanguage.English -> "Reveal used (+0 point) - Hint streak is reset."
-                AppLanguage.Bulgarian -> "Използвано разкриване (+0 точки) - Жокер серията е нулирана."
+                AppLanguage.Bulgarian -> "Разкрий използва (+0 точка) - Веригата за жокери се нулира."
                 AppLanguage.German -> "Aufdecken verwendet (+0 Punkt) - Hinweis-Serie ist zurückgesetzt."
               }
             else ->
               when (language) {
                 AppLanguage.English -> "No hint used (+1 point) - Hint streak is now ${result.hintStreak}."
-                AppLanguage.Bulgarian -> "Няма използван жокер (+1 точка) - Жокер серията вече е ${result.hintStreak}."
+                AppLanguage.Bulgarian -> "Без жокер (+1 точка) - Веригата за жокери е ${result.hintStreak}."
                 AppLanguage.German -> "Kein Hinweis verwendet (+1 Punkt) - Hinweis-Serie ist jetzt ${result.hintStreak}."
               }
           },
@@ -2588,6 +2723,26 @@ private fun localizedRevealButtonLabel(language: AppLanguage): String =
     AppLanguage.German -> "Aufdecken"
   }
 
+private fun localizedVerifyButtonLabel(language: AppLanguage): String =
+  when (language) {
+    AppLanguage.English -> "Verify"
+    AppLanguage.Bulgarian -> "Провери"
+    AppLanguage.German -> "Prüfen"
+  }
+
+private fun localizedQuizInfoButtonLabel(language: AppLanguage): String =
+  when (language) {
+    AppLanguage.English -> "Info $InfoSymbolText"
+    AppLanguage.Bulgarian -> "Инфо $InfoSymbolText"
+    AppLanguage.German -> "Info $InfoSymbolText"
+  }
+
+private fun localizedUnskipButtonLabel(language: AppLanguage): String =
+  when (language) {
+    AppLanguage.English -> "Unskip $UnskipArrowText"
+    AppLanguage.Bulgarian -> "Върни $UnskipArrowText"
+    AppLanguage.German -> "Zurück $UnskipArrowText"
+  }
 private fun formatScore(score: Int): String =
   if (score % 2 == 0) {
     (score / 2).toString()
@@ -2652,19 +2807,57 @@ private fun allInRewardInfo(
       }
     AppLanguage.Bulgarian ->
       if (hasAllVariants) {
-        "Настройка за жокери: $hintSettingLabel. Бонусът за безгрешен тест е активен. Завърши без грешка с всички 3 варианта, за да получиш $rewardLevels ниво." +
-          if (isImpossible) "" else " Ако включиш „Невъзможното“, бонусът става общо +2 нива."
+        "Настройка за жокери: $hintSettingLabel. Наградата за перфектен тест е активна. Завърши без грешка с всичките 3 варианта, за да вземеш $rewardLevels пълно ниво." +
+          if (isImpossible) "" else " Ако включиш 'The impossible one', ще получиш още +1 ниво, общо +2."
       } else {
-        "Настройка за жокери: $hintSettingLabel. Бонусът за безгрешен тест не е активен, защото не са избрани всички 3 варианта. Включи всички варианти, за да получиш $rewardLevels ниво." +
-          if (isImpossible) "" else " С „Невъзможното“ бонусът би станал +2 нива."
+        "Настройка за жокери: $hintSettingLabel. Наградата за перфектен тест е неактивна, защото не са избрани и 3-те варианта. Включи всички варианти, за да вземеш $rewardLevels пълно ниво." +
+          if (isImpossible) "" else " С 'The impossible one' тази награда ще стане +2 пълни нива."
       }
     AppLanguage.German ->
       if (hasAllVariants) {
-        "Hinweis-Einstellung: $hintSettingLabel. Der Perfekt-Bonus ist aktiv. Beende das Quiz ohne Fehler mit allen 3 Varianten, um $rewardLevels Level zu erhalten." +
-          if (isImpossible) "" else " Mit „Die unmögliche“ bekommst du +1 Level mehr, also insgesamt +2 Level."
+        "Hinweis-Einstellung: $hintSettingLabel. Die Belohnung für einen fehlerfreien Durchlauf ist aktiv. Beende das Quiz ohne Fehler mit allen 3 Varianten, um $rewardLevels volle Level zu erhalten." +
+          if (isImpossible) "" else " Mit 'The impossible one' bekommst du +1 Level mehr, also insgesamt +2 volle Level."
       } else {
-        "Hinweis-Einstellung: $hintSettingLabel. Der Perfekt-Bonus ist nicht aktiv, weil nicht alle 3 Varianten gewählt sind. Aktiviere alle Varianten, um $rewardLevels Level zu erhalten." +
-          if (isImpossible) "" else " Mit „Die unmögliche“ wären es +2 Level."
+        "Hinweis-Einstellung: $hintSettingLabel. Die Belohnung für einen fehlerfreien Durchlauf ist inaktiv, weil nicht alle 3 Varianten ausgewählt sind. Aktiviere alle Varianten, um $rewardLevels volle Level zu erhalten." +
+          if (isImpossible) "" else " Mit 'The impossible one' würde diese Belohnung +2 volle Level geben."
+      }
+  }
+
+private fun modeBaseTitle(
+  base: MultiplayerQuizBase,
+  language: AppLanguage,
+): String =
+  when (base) {
+    MultiplayerQuizBase.Continents ->
+      when (language) {
+        AppLanguage.English -> "Continents"
+        AppLanguage.Bulgarian -> "Континенти"
+        AppLanguage.German -> "Kontinente"
+      }
+    MultiplayerQuizBase.AllIn ->
+      when (language) {
+        AppLanguage.English -> "No Bluff, All Tough"
+        AppLanguage.Bulgarian -> "Без блъф, само трудно"
+        AppLanguage.German -> "Kein Bluff, alles hart"
+      }
+  }
+
+private fun modeBaseDescription(
+  base: MultiplayerQuizBase,
+  language: AppLanguage,
+): String =
+  when (base) {
+    MultiplayerQuizBase.Continents ->
+      when (language) {
+        AppLanguage.English -> "Quiz by selected continents."
+        AppLanguage.Bulgarian -> "Тест по избрани континенти."
+        AppLanguage.German -> "Quiz nach ausgewählten Kontinenten."
+      }
+    MultiplayerQuizBase.AllIn ->
+      when (language) {
+        AppLanguage.English -> "Quiz from all countries."
+        AppLanguage.Bulgarian -> "Тест от всички държави."
+        AppLanguage.German -> "Quiz mit allen Ländern."
       }
   }
 
@@ -2688,14 +2881,14 @@ private fun localizedModeTitle(
     GameMode.AllIn ->
       when (language) {
         AppLanguage.English -> "No Bluff, All Tough"
-        AppLanguage.Bulgarian -> "Без блъф, много зор"
-        AppLanguage.German -> "Kein Bluff, nur knifflig"
+        AppLanguage.Bulgarian -> "Без блъф, само трудно"
+        AppLanguage.German -> "Kein Bluff, alles hart"
       }
     GameMode.LocalMultiplayer ->
       when (language) {
-        AppLanguage.English -> "Local Multiplayer"
-        AppLanguage.Bulgarian -> "Локален мултиплейър"
-        AppLanguage.German -> "Lokaler Multiplayer"
+        AppLanguage.English -> "Local multiplayer"
+        AppLanguage.Bulgarian -> "Локална игра"
+        AppLanguage.German -> "Lokaler Mehrspieler"
       }
   }
 
@@ -2707,26 +2900,26 @@ private fun localizedModeDescription(
     GameMode.Training ->
       when (language) {
         AppLanguage.English -> "Mix flags, country names, and typed answers at your pace. Training does not give level-up progress."
-        AppLanguage.Bulgarian -> "Смесвай флагове, имена на държави и писани отговори в свой ритъм. Тренировката не дава прогрес за ниво."
+        AppLanguage.Bulgarian -> "Смесвай флагове, имена на държави и писмени отговори със свое темпо. Тренировката не дава прогрес към ниво."
         AppLanguage.German -> "Mische Flaggen, Ländernamen und Texteingaben in deinem Tempo. Training bringt keinen Level-Fortschritt."
       }
     GameMode.Continents ->
       when (language) {
         AppLanguage.English -> "Build a quiz from the continents you want to practice."
         AppLanguage.Bulgarian -> "Създай тест от континентите, които искаш да упражняваш."
-        AppLanguage.German -> "Erstelle ein Quiz aus den Kontinenten, die du üben willst."
+        AppLanguage.German -> "Erstelle ein Quiz aus den Kontinenten, die du üben möchtest."
       }
     GameMode.AllIn ->
       when (language) {
         AppLanguage.English -> "All countries with only the variants you choose."
-        AppLanguage.Bulgarian -> "Всички държави, само с вариантите, които избереш."
+        AppLanguage.Bulgarian -> "Всички държави само с вариантите, които избереш."
         AppLanguage.German -> "Alle Länder mit nur den Varianten, die du auswählst."
       }
     GameMode.LocalMultiplayer ->
       when (language) {
         AppLanguage.English -> "Up to 5 players pass one device and play turn by turn."
-        AppLanguage.Bulgarian -> "До 5 играчи споделят едно устройство и играят на ред."
-        AppLanguage.German -> "Bis zu 5 Spieler teilen sich ein Ger?t und spielen reihum."
+        AppLanguage.Bulgarian -> "До 5 играчи използват едно устройство и играят поред."
+        AppLanguage.German -> "Bis zu 5 Spieler teilen sich ein Gerät und spielen reihum."
       }
   }
 
@@ -2738,7 +2931,7 @@ private fun localizedModeShortLabel(
     GameMode.Training ->
       when (language) {
         AppLanguage.English -> "Practice freely."
-        AppLanguage.Bulgarian -> "Свободна практика."
+        AppLanguage.Bulgarian -> "Упражнявай свободно."
         AppLanguage.German -> "Frei üben."
       }
     GameMode.Continents ->
@@ -2755,9 +2948,9 @@ private fun localizedModeShortLabel(
       }
     GameMode.LocalMultiplayer ->
       when (language) {
-        AppLanguage.English -> "Pass-and-play."
-        AppLanguage.Bulgarian -> "На ходове."
-        AppLanguage.German -> "Abwechselnd spielen."
+        AppLanguage.English -> "Play together."
+        AppLanguage.Bulgarian -> "Играй заедно."
+        AppLanguage.German -> "Zusammen spielen."
       }
   }
 
@@ -2850,25 +3043,25 @@ private fun localizedHintDifficultyShortRule(
     HintDifficulty.Rookie ->
       when (language) {
         AppLanguage.English -> "Every correct answer"
-        AppLanguage.Bulgarian -> "Всеки верен отговор"
+        AppLanguage.Bulgarian -> "Всяки верен отговор"
         AppLanguage.German -> "Jede richtige Antwort"
       }
     HintDifficulty.Medium ->
       when (language) {
         AppLanguage.English -> "Every 5-streak"
-        AppLanguage.Bulgarian -> "На всеки 5 поредни"
+        AppLanguage.Bulgarian -> "Всеки 5 верни поред"
         AppLanguage.German -> "Alle 5 in Folge"
       }
     HintDifficulty.Hard ->
       when (language) {
         AppLanguage.English -> "Every 10-streak"
-        AppLanguage.Bulgarian -> "На всеки 10 поредни"
+        AppLanguage.Bulgarian -> "Всеки 10 верни поред"
         AppLanguage.German -> "Alle 10 in Folge"
       }
     HintDifficulty.Impossible ->
       when (language) {
         AppLanguage.English -> "Every 50-streak"
-        AppLanguage.Bulgarian -> "На всеки 50 поредни"
+        AppLanguage.Bulgarian -> "Всеки 50 верни поред"
         AppLanguage.German -> "Alle 50 in Folge"
       }
   }
@@ -2881,25 +3074,25 @@ private fun localizedHintDifficultyDescription(
     HintDifficulty.Rookie ->
       when (language) {
         AppLanguage.English -> "Collect 1 hint for every correct answer."
-        AppLanguage.Bulgarian -> "Вземай 1 жокер за всеки верен отговор."
+        AppLanguage.Bulgarian -> "Събирай 1 жокер за всеки верен отговор."
         AppLanguage.German -> "Sammle 1 Hinweis für jede richtige Antwort."
       }
     HintDifficulty.Medium ->
       when (language) {
         AppLanguage.English -> "Collect 1 hint for every 5 correct answers in a row."
-        AppLanguage.Bulgarian -> "Вземай 1 жокер за всеки 5 поредни верни отговора."
+        AppLanguage.Bulgarian -> "Събирай 1 жокер на всеки 5 верни отговора поред."
         AppLanguage.German -> "Sammle 1 Hinweis für jeweils 5 richtige Antworten in Folge."
       }
     HintDifficulty.Hard ->
       when (language) {
         AppLanguage.English -> "Collect 1 hint for every 10 correct answers in a row."
-        AppLanguage.Bulgarian -> "Вземай 1 жокер за всеки 10 поредни верни отговора."
+        AppLanguage.Bulgarian -> "Събирай 1 жокер на всеки 10 верни отговора поред."
         AppLanguage.German -> "Sammle 1 Hinweis für jeweils 10 richtige Antworten in Folge."
       }
     HintDifficulty.Impossible ->
       when (language) {
         AppLanguage.English -> "Collect 1 hint for every 50 correct answers in a row."
-        AppLanguage.Bulgarian -> "Вземай 1 жокер за всеки 50 поредни верни отговора."
+        AppLanguage.Bulgarian -> "Събирай 1 жокер на всеки 50 верни отговора поред."
         AppLanguage.German -> "Sammle 1 Hinweis für jeweils 50 richtige Antworten in Folge."
       }
   }
@@ -2944,31 +3137,46 @@ private fun localizedMedalTitle(
 private fun localizedMedalLabel(language: AppLanguage): String =
   when (language) {
     AppLanguage.English -> "Perfect quiz count"
-    AppLanguage.Bulgarian -> "Брой перфектни тестове"
-    AppLanguage.German -> "Perfekte Quiz-Anzahl"
+    AppLanguage.Bulgarian -> "Брояч за перфектни тестове"
+    AppLanguage.German -> "Zähler für fehlerfreie Quizze"
   }
 
 private fun localizedMedalIntro(language: AppLanguage): String =
   when (language) {
     AppLanguage.English -> "Perfect quiz counters"
-    AppLanguage.Bulgarian -> "Броячи за безгрешни тестове"
+    AppLanguage.Bulgarian -> "Броячи за перфектни тестове"
     AppLanguage.German -> "Zähler für fehlerfreie Quizze"
   }
 
 private fun localizedMedalInfo(language: AppLanguage): String =
   when (language) {
     AppLanguage.English ->
-      "Bronze: finish a 10-24 question quiz with 0 mistakes.\nSilver: finish a 25-49 question quiz with 0 mistakes.\nGold: finish a 50-99 question quiz with 0 mistakes.\nPlatinum: finish a 100-194 question quiz with 0 mistakes.\nDiamond: finish all 195 countries with 0 mistakes.\nHints are allowed for medals."
+      "Bronze: finish a 10-24 question quiz with 0 mistakes.\n" +
+        "Silver: finish a 25-49 question quiz with 0 mistakes.\n" +
+        "Gold: finish a 50-99 question quiz with 0 mistakes.\n" +
+        "Platinum: finish a 100-194 question quiz with 0 mistakes.\n" +
+        "Diamond: finish all 195 countries with 0 mistakes.\n" +
+        "Hints are allowed for medals."
     AppLanguage.Bulgarian ->
-      "Бронз: завърши тест с 10-24 въпроса и 0 грешки.\nСребро: завърши тест с 25-49 въпроса и 0 грешки.\nЗлато: завърши тест с 50-99 въпроса и 0 грешки.\nПлатина: завърши тест със 100-194 въпроса и 0 грешки.\nДиамант: завърши всичките 195 държави с 0 грешки.\nЖокерите са позволени за медали."
+      "Бронз: завърши тест с 10-24 въпроса без грешка.\n" +
+        "Сребро: завърши тест с 25-49 въпроса без грешка.\n" +
+        "Злато: завърши тест с 50-99 въпроса без грешка.\n" +
+        "Платина: завърши тест с 100-194 въпроса без грешка.\n" +
+        "Диамант: завърши всички 195 държави без грешка.\n" +
+        "Жокерите са позволени за медалите."
     AppLanguage.German ->
-      "Bronze: beende ein Quiz mit 10-24 Fragen und 0 Fehlern.\nSilber: beende ein Quiz mit 25-49 Fragen und 0 Fehlern.\nGold: beende ein Quiz mit 50-99 Fragen und 0 Fehlern.\nPlatin: beende ein Quiz mit 100-194 Fragen und 0 Fehlern.\nDiamant: beende alle 195 Länder mit 0 Fehlern.\nHinweise sind für Medaillen erlaubt."
+      "Bronze: beende ein Quiz mit 10-24 Fragen und 0 Fehlern.\n" +
+        "Silber: beende ein Quiz mit 25-49 Fragen und 0 Fehlern.\n" +
+        "Gold: beende ein Quiz mit 50-99 Fragen und 0 Fehlern.\n" +
+        "Platin: beende ein Quiz mit 100-194 Fragen und 0 Fehlern.\n" +
+        "Diamant: beende alle 195 Länder mit 0 Fehlern.\n" +
+        "Hinweise sind für Medaillen erlaubt."
   }
 
 private fun localizedAvatarUnlockInfo(language: AppLanguage): String =
   when (language) {
     AppLanguage.English -> "You unlock 5 more profile icons every time you level up. At level 1 you start with 5 unlocked icons, at level 2 you have 10, and so on."
-    AppLanguage.Bulgarian -> "При всяко качване на ниво отключваш още 5 профилни икони. На ниво 1 започваш с 5 отключени, на ниво 2 имаш 10 и така нататък."
+    AppLanguage.Bulgarian -> "При всяко качване на ниво отключваш по 5 нови профилни икони. На ниво 1 започваш с 5 отключени икони, на ниво 2 имаш 10 и така нататък."
     AppLanguage.German -> "Mit jedem Levelaufstieg schaltest du 5 weitere Profilsymbole frei. Auf Level 1 startest du mit 5 freigeschalteten Symbolen, auf Level 2 hast du 10 und so weiter."
   }
 
@@ -2980,13 +3188,13 @@ private fun localizedAchievementSectorTitle(
     AchievementSector.Continents ->
       when (language) {
         AppLanguage.English -> "Continent masters"
-        AppLanguage.Bulgarian -> "Майстори на континентите"
+        AppLanguage.Bulgarian -> "Майстори на континенти"
         AppLanguage.German -> "Kontinent-Meister"
       }
     AchievementSector.World ->
       when (language) {
         AppLanguage.English -> "World runs"
-        AppLanguage.Bulgarian -> "Световни рънове"
+        AppLanguage.Bulgarian -> "Световни серии"
         AppLanguage.German -> "Weltläufe"
       }
     AchievementSector.Collectors ->
@@ -3003,6 +3211,18 @@ private fun localizedAchievementSectorTitle(
       }
   }
 
+private fun localizedTitle(
+  language: AppLanguage,
+  en: String,
+  bg: String,
+  de: String,
+): String =
+  when (language) {
+    AppLanguage.English -> en
+    AppLanguage.Bulgarian -> bg
+    AppLanguage.German -> de
+  }
+
 private fun localizedAchievementTitle(
   achievementId: AchievementId,
   language: AppLanguage,
@@ -3014,17 +3234,17 @@ private fun localizedAchievementTitle(
     AchievementId.NorthAmericaPerfect -> localizedTitle(language, "North America Perfect", "Северна Америка без грешка", "Nordamerika fehlerfrei")
     AchievementId.OceaniaPerfect -> localizedTitle(language, "Oceania Perfect", "Океания без грешка", "Ozeanien fehlerfrei")
     AchievementId.SouthAmericaPerfect -> localizedTitle(language, "South America Perfect", "Южна Америка без грешка", "Südamerika fehlerfrei")
-    AchievementId.DiamondWorld -> localizedTitle(language, "Diamond World", "Диамантен свят", "Diamant-Welt")
-    AchievementId.NoBluffLegend -> localizedTitle(language, "No Bluff Legend", "Легенда без блъф", "Kein-Bluff-Legende")
-    AchievementId.WorldPurist -> localizedTitle(language, "World Purist", "Световен пурист", "Welt-Purist")
-    AchievementId.BronzeCollector -> localizedTitle(language, "Bronze Collector", "Бронзов събирач", "Bronze-Sammler")
-    AchievementId.SilverCollector -> localizedTitle(language, "Silver Collector", "Сребърен събирач", "Silber-Sammler")
-    AchievementId.GoldCollector -> localizedTitle(language, "Gold Collector", "Златен събирач", "Gold-Sammler")
-    AchievementId.PlatinumCollector -> localizedTitle(language, "Platinum Collector", "Платинен събирач", "Platin-Sammler")
-    AchievementId.DiamondCollector -> localizedTitle(language, "Diamond Collector", "Диамантен събирач", "Diamant-Sammler")
-    AchievementId.FirstPerfect -> localizedTitle(language, "First perfect score", "Първи перфектен резултат", "Erstes perfektes Ergebnis")
+    AchievementId.DiamondWorld -> localizedTitle(language, "Diamond World", "Диамантен свят", "Diamantene Welt")
+    AchievementId.NoBluffLegend -> localizedTitle(language, "No Bluff Legend", "Легенда без блъф", "Kein Bluff Legende")
+    AchievementId.WorldPurist -> localizedTitle(language, "World Purist", "Световен пурист", "Weltpurist")
+    AchievementId.BronzeCollector -> localizedTitle(language, "Bronze Collector", "Събирач на бронз", "Bronze-Sammler")
+    AchievementId.SilverCollector -> localizedTitle(language, "Silver Collector", "Събирач на сребро", "Silber-Sammler")
+    AchievementId.GoldCollector -> localizedTitle(language, "Gold Collector", "Събирач на злато", "Gold-Sammler")
+    AchievementId.PlatinumCollector -> localizedTitle(language, "Platinum Collector", "Събирач на платина", "Platin-Sammler")
+    AchievementId.DiamondCollector -> localizedTitle(language, "Diamond Collector", "Събирач на диаманти", "Diamant-Sammler")
+    AchievementId.FirstPerfect -> localizedTitle(language, "First Perfect", "Първи перфектен", "Erstes Perfekt")
     AchievementId.HintlessHero -> localizedTitle(language, "Hintless Hero", "Герой без жокери", "Hinweisloser Held")
-    AchievementId.VariantMaster -> localizedTitle(language, "Variant Master", "Майстор на вариантите", "Variantenmeister")
+    AchievementId.VariantMaster -> localizedTitle(language, "Variant Master", "Майстор на варианти", "Variantenmeister")
   }
 
 private fun localizedAchievementDescription(
@@ -3032,29 +3252,29 @@ private fun localizedAchievementDescription(
   language: AppLanguage,
 ): String =
   when (achievementId) {
-    AchievementId.AfricaPerfect -> localizedTitle(language, "Complete every African country perfectly without using hints.", "Завърши всички държави в Африка без грешка и без жокери.", "Schließe alle afrikanischen Länder fehlerfrei und ohne Hinweise ab.")
-    AchievementId.AsiaPerfect -> localizedTitle(language, "Complete every Asian country perfectly without using hints.", "Завърши всички държави в Азия без грешка и без жокери.", "Schließe alle asiatischen Länder fehlerfrei und ohne Hinweise ab.")
-    AchievementId.EuropePerfect -> localizedTitle(language, "Complete every European country perfectly without using hints.", "Завърши всички държави в Европа без грешка и без жокери.", "Schließe alle europäischen Länder fehlerfrei und ohne Hinweise ab.")
-    AchievementId.NorthAmericaPerfect -> localizedTitle(language, "Complete every North American country perfectly without using hints.", "Завърши всички държави в Северна Америка без грешка и без жокери.", "Schließe alle nordamerikanischen Länder fehlerfrei und ohne Hinweise ab.")
-    AchievementId.OceaniaPerfect -> localizedTitle(language, "Complete every Oceanian country perfectly without using hints.", "Завърши всички държави в Океания без грешка и без жокери.", "Schließe alle ozeanischen Länder fehlerfrei und ohne Hinweise ab.")
-    AchievementId.SouthAmericaPerfect -> localizedTitle(language, "South America Perfect", "???? ??????? ??? ??????", "Südamerika fehlerfrei")
-    AchievementId.DiamondWorld -> localizedTitle(language, "Complete all countries perfectly in one quiz.", "??????? ?????? ??????? ??? ?????? ? ???? ????.", "Schließe alle Länder in einem Quiz fehlerfrei ab.")
-    AchievementId.NoBluffLegend -> localizedTitle(language, "Perfectly clear No Bluff, All Tough with all three variants selected.", "Завърши „Без блъф, много зор“ без грешка с избрани всички 3 варианта.", "Schließe „Kein Bluff, nur knifflig“ fehlerfrei mit allen 3 Varianten ab.")
-    AchievementId.WorldPurist -> localizedTitle(language, "Complete all countries perfectly without using any hints.", "??????? ?????? ??????? ??? ?????? ? ??? ???? ???? ?????.", "Schließe alle Länder fehlerfrei und ohne Hinweise ab.")
-    AchievementId.BronzeCollector -> localizedTitle(language, "Earn bronze medals 50 times.", "Спечели бронзов медал 50 пъти.", "Verdiene 50 Bronzemedaillen.")
-    AchievementId.SilverCollector -> localizedTitle(language, "Earn silver medals 25 times.", "Спечели сребърен медал 25 пъти.", "Verdiene 25 Silbermedaillen.")
-    AchievementId.GoldCollector -> localizedTitle(language, "Earn gold medals 10 times.", "Спечели златен медал 10 пъти.", "Verdiene 10 Goldmedaillen.")
-    AchievementId.PlatinumCollector -> localizedTitle(language, "Earn platinum medals 5 times.", "Спечели платинен медал 5 пъти.", "Verdiene 5 Platinmedaillen.")
-    AchievementId.DiamondCollector -> localizedTitle(language, "Earn a diamond medal once.", "Спечели диамантен медал веднъж.", "Verdiene einmal eine Diamantmedaille.")
-    AchievementId.FirstPerfect -> localizedTitle(language, "Finish any medal-eligible quiz with 100% correct answers.", "??????? ????? ????, ????? ???? ?????, ??? 100% ????? ????????.", "Beende ein medaillenfähiges Quiz mit 100% richtigen Antworten.")
-    AchievementId.HintlessHero -> localizedTitle(language, "Finish a perfect medal-eligible quiz without using hints.", "??????? ????????? ???? ?? ????? ??? ??????.", "Beende ein perfektes medaillenfähiges Quiz ohne Hinweise.")
-    AchievementId.VariantMaster -> localizedTitle(language, "Finish a perfect quiz that includes all three question variants.", "Завърши безгрешен тест с всички три вида въпроси.", "Beende ein perfektes Quiz mit allen drei Fragetypen.")
+    AchievementId.AfricaPerfect -> localizedTitle(language, "Finish an Africa-only quiz with 0 mistakes.", "Завърши тест само за Африка без грешка.", "Beende ein Quiz nur für Afrika ohne Fehler.")
+    AchievementId.AsiaPerfect -> localizedTitle(language, "Finish an Asia-only quiz with 0 mistakes.", "Завърши тест само за Азия без грешка.", "Beende ein Quiz nur für Asien ohne Fehler.")
+    AchievementId.EuropePerfect -> localizedTitle(language, "Finish an Europe-only quiz with 0 mistakes.", "Завърши тест само за Европа без грешка.", "Beende ein Quiz nur für Europa ohne Fehler.")
+    AchievementId.NorthAmericaPerfect -> localizedTitle(language, "Finish a North America-only quiz with 0 mistakes.", "Завърши тест само за Северна Америка без грешка.", "Beende ein Quiz nur für Nordamerika ohne Fehler.")
+    AchievementId.OceaniaPerfect -> localizedTitle(language, "Finish an Oceania-only quiz with 0 mistakes.", "Завърши тест само за Океания без грешка.", "Beende ein Quiz nur für Ozeanien ohne Fehler.")
+    AchievementId.SouthAmericaPerfect -> localizedTitle(language, "Finish a South America-only quiz with 0 mistakes.", "Завърши тест само за Южна Америка без грешка.", "Beende ein Quiz nur für Südamerika ohne Fehler.")
+    AchievementId.DiamondWorld -> localizedTitle(language, "Finish all countries with 0 mistakes.", "Завърши всички държави без грешка.", "Beende alle Länder ohne Fehler.")
+    AchievementId.NoBluffLegend -> localizedTitle(language, "Finish No Bluff, All Tough with all three variants selected and 0 mistakes.", "Завърши Без блъф, само трудно с трите варианта и без грешка.", "Beende Kein Bluff, alles hart mit allen drei Varianten und ohne Fehler.")
+    AchievementId.WorldPurist -> localizedTitle(language, "Finish all countries with 0 mistakes and no hints.", "Завърши всички държави без грешка и без жокери.", "Beende alle Länder ohne Fehler und ohne Hinweise.")
+    AchievementId.BronzeCollector -> localizedTitle(language, "Earn bronze 50 times.", "Спечели бронз 50 пъти.", "Bronze 50-mal verdienen.")
+    AchievementId.SilverCollector -> localizedTitle(language, "Earn silver 25 times.", "Спечели сребро 25 пъти.", "Silber 25-mal verdienen.")
+    AchievementId.GoldCollector -> localizedTitle(language, "Earn gold 10 times.", "Спечели злато 10 пъти.", "Gold 10-mal verdienen.")
+    AchievementId.PlatinumCollector -> localizedTitle(language, "Earn platinum 5 times.", "Спечели платина 5 пъти.", "Platin 5-mal verdienen.")
+    AchievementId.DiamondCollector -> localizedTitle(language, "Earn diamond 1 time.", "Спечели диамант 1 път.", "Diamant 1-mal verdienen.")
+    AchievementId.FirstPerfect -> localizedTitle(language, "Finish any medal-eligible quiz with 100% correct answers.", "Завърши всеки тест за медал с 100% верни отговори.", "Beende ein medaillenfähiges Quiz mit 100% richtigen Antworten.")
+    AchievementId.HintlessHero -> localizedTitle(language, "Finish a perfect medal-eligible quiz without using hints.", "Завърши перфектен тест за медал без жокери.", "Beende ein perfektes medaillenfähiges Quiz ohne Hinweise.")
+    AchievementId.VariantMaster -> localizedTitle(language, "Finish a perfect quiz that includes all three question variants.", "Завърши перфектен тест с трите варианта въпроси.", "Beende ein perfektes Quiz mit allen drei Fragetypen.")
   }
 
 private fun localizedAchievementHint(language: AppLanguage): String =
   when (language) {
-    AppLanguage.English -> "Tap an achievement to see the unlock clue."
-    AppLanguage.Bulgarian -> "Докосни постижение, за да видиш как се отключва."
+    AppLanguage.English -> "Tap an achievement to see its unlock clue."
+    AppLanguage.Bulgarian -> "Докосни постижение, за да видиш подсказка за отключване."
     AppLanguage.German -> "Tippe auf einen Erfolg, um den Freischalt-Hinweis zu sehen."
   }
 
@@ -3075,54 +3295,367 @@ private fun localizedAchievementStatus(
       AppLanguage.German -> "Freigeschaltet am ${formatAchievementDate(unlockedAt)}"
     }
   }
-
-private fun localizedTitle(
+private fun cleanText(
   language: AppLanguage,
-  english: String,
-  bulgarian: String,
-  german: String,
+  text: UiText,
 ): String =
-  when (language) {
-    AppLanguage.English -> english
-    AppLanguage.Bulgarian -> bulgarian
-    AppLanguage.German -> german
+  when (text) {
+    UiText.WorldFlagGame ->
+      when (language) {
+        AppLanguage.English -> "World flag game"
+        AppLanguage.Bulgarian -> "Познай флага"
+        AppLanguage.German -> "Flaggen-Spiel"
+      }
+    UiText.HeroSubtitle ->
+      when (language) {
+        AppLanguage.English -> "Practice flags, earn achievements, collect medals, and track your progress across every country."
+        AppLanguage.Bulgarian -> "Упражнявай флагове, отключвай постижения, събирай медали и следи напредъка си."
+        AppLanguage.German -> "Übe Flaggen, sammle Erfolge und Medaillen und verfolge deinen Fortschritt."
+      }
+    UiText.Start ->
+      when (language) {
+        AppLanguage.English -> "Start"
+        AppLanguage.Bulgarian -> "Старт"
+        AppLanguage.German -> "Start"
+      }
+    UiText.Medals ->
+      when (language) {
+        AppLanguage.English -> "Medals"
+        AppLanguage.Bulgarian -> "Медали"
+        AppLanguage.German -> "Medaillen"
+      }
+    UiText.Achievements ->
+      when (language) {
+        AppLanguage.English -> "Achievements"
+        AppLanguage.Bulgarian -> "Постижения"
+        AppLanguage.German -> "Erfolge"
+      }
+    UiText.Settings ->
+      when (language) {
+        AppLanguage.English -> "Settings"
+        AppLanguage.Bulgarian -> "Настройки"
+        AppLanguage.German -> "Einstellungen"
+      }
+    UiText.Quit ->
+      when (language) {
+        AppLanguage.English -> "Quit"
+        AppLanguage.Bulgarian -> "Изход"
+        AppLanguage.German -> "Beenden"
+      }
+    UiText.Open ->
+      when (language) {
+        AppLanguage.English -> "Open"
+        AppLanguage.Bulgarian -> "Отвори"
+        AppLanguage.German -> "Öffnen"
+      }
+    UiText.Level ->
+      when (language) {
+        AppLanguage.English -> "Level"
+        AppLanguage.Bulgarian -> "Ниво"
+        AppLanguage.German -> "Level"
+      }
+    UiText.Profile ->
+      when (language) {
+        AppLanguage.English -> "Profile"
+        AppLanguage.Bulgarian -> "Профил"
+        AppLanguage.German -> "Profil"
+      }
+    UiText.AccountName ->
+      when (language) {
+        AppLanguage.English -> "Account name"
+        AppLanguage.Bulgarian -> "Име на профила"
+        AppLanguage.German -> "Profilname"
+      }
+    UiText.ChooseProfileIcon ->
+      when (language) {
+        AppLanguage.English -> "Choose profile icon"
+        AppLanguage.Bulgarian -> "Избери икона на профила"
+        AppLanguage.German -> "Profilsymbol wählen"
+      }
+    UiText.Close ->
+      when (language) {
+        AppLanguage.English -> "Close"
+        AppLanguage.Bulgarian -> "Затвори"
+        AppLanguage.German -> "Schließen"
+      }
+    UiText.LeaveQuizTitle ->
+      when (language) {
+        AppLanguage.English -> "Leave quiz?"
+        AppLanguage.Bulgarian -> "Да напуснеш теста?"
+        AppLanguage.German -> "Quiz verlassen?"
+      }
+    UiText.LeaveQuizBody ->
+      when (language) {
+        AppLanguage.English -> "This quiz will not count toward results, newly earned hints, medals, achievements, or level progression."
+        AppLanguage.Bulgarian -> "Този тест няма да се брои за резултатите, новите жокери, медали, постижения или прогреса към ниво."
+        AppLanguage.German -> "Dieses Quiz zählt nicht für Ergebnisse, neu verdiente Hinweise, Medaillen, Erfolge oder den Level-Fortschritt."
+      }
+    UiText.Leave ->
+      when (language) {
+        AppLanguage.English -> "Leave"
+        AppLanguage.Bulgarian -> "Напусни"
+        AppLanguage.German -> "Verlassen"
+      }
+    UiText.Stay ->
+      when (language) {
+        AppLanguage.English -> "Stay"
+        AppLanguage.Bulgarian -> "Остани"
+        AppLanguage.German -> "Bleiben"
+      }
+    UiText.Finish ->
+      when (language) {
+        AppLanguage.English -> "Finish"
+        AppLanguage.Bulgarian -> "Завърши"
+        AppLanguage.German -> "Fertig"
+      }
+    UiText.GuessTheFlag ->
+      when (language) {
+        AppLanguage.English -> "Guess the flag"
+        AppLanguage.Bulgarian -> "Познай флага"
+        AppLanguage.German -> "Errate die Flagge"
+      }
+    UiText.QuizInfo ->
+      when (language) {
+        AppLanguage.English -> "Score is revealed at the end. Newly earned hints and level progress count only after finishing the full quiz."
+        AppLanguage.Bulgarian -> "Резултатът се показва накрая. Новите жокери и прогресът към ниво се броят само след завършване на целия тест."
+        AppLanguage.German -> "Die Punktzahl wird am Ende gezeigt. Neu verdiente Hinweise und Level-Fortschritt zählen erst nach dem vollständigen Quiz."
+      }
+    UiText.NextUp ->
+      when (language) {
+        AppLanguage.English -> "Next up"
+        AppLanguage.Bulgarian -> "Следва"
+        AppLanguage.German -> "Als Nächstes"
+      }
+    UiText.Unanswered ->
+      when (language) {
+        AppLanguage.English -> "Unanswered"
+        AppLanguage.Bulgarian -> "Неотговорени"
+        AppLanguage.German -> "Unbeantwortet"
+      }
+    UiText.Skipped ->
+      when (language) {
+        AppLanguage.English -> "Skipped"
+        AppLanguage.Bulgarian -> "Пропуснати"
+        AppLanguage.German -> "Übersprungen"
+      }
+    UiText.CorrectAnswers ->
+      when (language) {
+        AppLanguage.English -> "correct answers"
+        AppLanguage.Bulgarian -> "верни отговори"
+        AppLanguage.German -> "richtige Antworten"
+      }
+    UiText.CompletedTests ->
+      when (language) {
+        AppLanguage.English -> "completed tests"
+        AppLanguage.Bulgarian -> "завършени тестове"
+        AppLanguage.German -> "abgeschlossene Tests"
+      }
+    UiText.LevelUpTitle ->
+      when (language) {
+        AppLanguage.English -> "Level up!"
+        AppLanguage.Bulgarian -> "Ново ниво!"
+        AppLanguage.German -> "Levelaufstieg!"
+      }
+    UiText.LevelUpBody ->
+      when (language) {
+        AppLanguage.English -> "You reached level %1\$d and earned 5 free hints."
+        AppLanguage.Bulgarian -> "Достигна ниво %1\$d и получи 5 безплатни жокера."
+        AppLanguage.German -> "Du hast Level %1\$d erreicht und 5 kostenlose Hinweise erhalten."
+      }
+    else -> t(language, text)
   }
 
-private fun modeBaseTitle(
-  base: MultiplayerQuizBase,
+private fun cleanModeSelectionTitle(language: AppLanguage): String =
+  when (language) {
+    AppLanguage.English -> "Choose mode"
+    AppLanguage.Bulgarian -> "Избери режим"
+    AppLanguage.German -> "Modus wählen"
+  }
+
+private fun cleanHeroPill(
+  index: Int,
   language: AppLanguage,
 ): String =
-  when (base) {
-    MultiplayerQuizBase.Continents ->
+  when (index) {
+    0 ->
+      when (language) {
+        AppLanguage.English -> "Global"
+        AppLanguage.Bulgarian -> "Глобално"
+        AppLanguage.German -> "Global"
+      }
+    1 ->
       when (language) {
         AppLanguage.English -> "Continents"
         AppLanguage.Bulgarian -> "Континенти"
         AppLanguage.German -> "Kontinente"
       }
-    MultiplayerQuizBase.AllIn ->
+    else ->
       when (language) {
-        AppLanguage.English -> "No Bluff, All Tough"
-        AppLanguage.Bulgarian -> "Без блъф, много зор"
-        AppLanguage.German -> "Kein Bluff, nur knifflig"
+        AppLanguage.English -> "Flags"
+        AppLanguage.Bulgarian -> "Флагове"
+        AppLanguage.German -> "Flaggen"
       }
   }
 
-private fun modeBaseDescription(
-  base: MultiplayerQuizBase,
+private fun cleanModeTitle(
+  mode: GameMode,
   language: AppLanguage,
 ): String =
-  when (base) {
-    MultiplayerQuizBase.Continents ->
+  when (mode) {
+    GameMode.Training ->
       when (language) {
-        AppLanguage.English -> "Use continent filtering for the quiz."
-        AppLanguage.Bulgarian -> "Използвай филтър по континенти за теста."
-        AppLanguage.German -> "Nutze Kontinent-Filter für das Quiz."
+        AppLanguage.English -> "Training"
+        AppLanguage.Bulgarian -> "Тренировка"
+        AppLanguage.German -> "Training"
       }
-    MultiplayerQuizBase.AllIn ->
+    GameMode.Continents ->
       when (language) {
-        AppLanguage.English -> "Use the full all-countries quiz."
-        AppLanguage.Bulgarian -> "Използвай пълния тест с всички държави."
-        AppLanguage.German -> "Nutze das vollständige Länder-Quiz."
+        AppLanguage.English -> "Continents"
+        AppLanguage.Bulgarian -> "Континенти"
+        AppLanguage.German -> "Kontinente"
+      }
+    GameMode.AllIn ->
+      when (language) {
+        AppLanguage.English -> "No Bluff, All Tough"
+        AppLanguage.Bulgarian -> "Без блъф, само трудно"
+        AppLanguage.German -> "Kein Bluff, alles hart"
+      }
+    GameMode.LocalMultiplayer ->
+      when (language) {
+        AppLanguage.English -> "Local multiplayer"
+        AppLanguage.Bulgarian -> "Локална игра"
+        AppLanguage.German -> "Lokaler Mehrspieler"
+      }
+  }
+
+private fun cleanModeShortLabel(
+  mode: GameMode,
+  language: AppLanguage,
+): String =
+  when (mode) {
+    GameMode.Training ->
+      when (language) {
+        AppLanguage.English -> "Practice freely."
+        AppLanguage.Bulgarian -> "Упражнявай свободно."
+        AppLanguage.German -> "Frei üben."
+      }
+    GameMode.Continents ->
+      when (language) {
+        AppLanguage.English -> "Pick continents."
+        AppLanguage.Bulgarian -> "Избери континенти."
+        AppLanguage.German -> "Kontinente wählen."
+      }
+    GameMode.AllIn ->
+      when (language) {
+        AppLanguage.English -> "All countries."
+        AppLanguage.Bulgarian -> "Всички държави."
+        AppLanguage.German -> "Alle Länder."
+      }
+    GameMode.LocalMultiplayer ->
+      when (language) {
+        AppLanguage.English -> "Play together."
+        AppLanguage.Bulgarian -> "Играй заедно."
+        AppLanguage.German -> "Zusammen spielen."
+      }
+  }
+
+private fun cleanModeDescription(
+  mode: GameMode,
+  language: AppLanguage,
+): String =
+  when (mode) {
+    GameMode.Training ->
+      when (language) {
+        AppLanguage.English -> "Mix flags, country names, and typed answers at your pace. Training does not give level-up progress."
+        AppLanguage.Bulgarian -> "Смесвай флагове, имена на държави и писмени отговори със свое темпо. Тренировката не дава прогрес към ниво."
+        AppLanguage.German -> "Mische Flaggen, Ländernamen und Texteingaben in deinem Tempo. Training bringt keinen Level-Fortschritt."
+      }
+    GameMode.Continents ->
+      when (language) {
+        AppLanguage.English -> "Build a quiz from the continents you want to practice."
+        AppLanguage.Bulgarian -> "Създай тест от континентите, които искаш да упражняваш."
+        AppLanguage.German -> "Erstelle ein Quiz aus den Kontinenten, die du üben möchtest."
+      }
+    GameMode.AllIn ->
+      when (language) {
+        AppLanguage.English -> "All countries with only the variants you choose."
+        AppLanguage.Bulgarian -> "Всички държави само с вариантите, които избереш."
+        AppLanguage.German -> "Alle Länder mit nur den Varianten, die du auswählst."
+      }
+    GameMode.LocalMultiplayer ->
+      when (language) {
+        AppLanguage.English -> "Up to 5 players pass one device and play turn by turn."
+        AppLanguage.Bulgarian -> "До 5 играчи използват едно устройство и играят поред."
+        AppLanguage.German -> "Bis zu 5 Spieler teilen sich ein Gerät und spielen reihum."
+      }
+  }
+
+private fun cleanMedalIntro(language: AppLanguage): String =
+  when (language) {
+    AppLanguage.English -> "Perfect quiz counters"
+    AppLanguage.Bulgarian -> "Броячи за перфектни тестове"
+    AppLanguage.German -> "Zähler für fehlerfreie Quizze"
+  }
+
+private fun cleanMedalInfo(language: AppLanguage): String =
+  when (language) {
+    AppLanguage.English ->
+      "Bronze: finish a 10-24 question quiz with 0 mistakes.\n" +
+        "Silver: finish a 25-49 question quiz with 0 mistakes.\n" +
+        "Gold: finish a 50-99 question quiz with 0 mistakes.\n" +
+        "Platinum: finish a 100-194 question quiz with 0 mistakes.\n" +
+        "Diamond: finish all 195 countries with 0 mistakes.\n" +
+        "Hints are allowed for medals."
+    AppLanguage.Bulgarian ->
+      "Бронз: завърши тест с 10-24 въпроса без грешка.\n" +
+        "Сребро: завърши тест с 25-49 въпроса без грешка.\n" +
+        "Злато: завърши тест с 50-99 въпроса без грешка.\n" +
+        "Платина: завърши тест със 100-194 въпроса без грешка.\n" +
+        "Диамант: завърши всички 195 държави без грешка.\n" +
+        "Жокерите са позволени за медали."
+    AppLanguage.German ->
+      "Bronze: Beende ein Quiz mit 10-24 Fragen ohne Fehler.\n" +
+        "Silber: Beende ein Quiz mit 25-49 Fragen ohne Fehler.\n" +
+        "Gold: Beende ein Quiz mit 50-99 Fragen ohne Fehler.\n" +
+        "Platin: Beende ein Quiz mit 100-194 Fragen ohne Fehler.\n" +
+        "Diamant: Beende alle 195 Länder ohne Fehler.\n" +
+        "Hinweise sind für Medaillen erlaubt."
+  }
+
+private fun cleanMedalTitle(
+  medalTier: MedalTier,
+  language: AppLanguage,
+): String =
+  when (medalTier) {
+    MedalTier.Bronze ->
+      when (language) {
+        AppLanguage.English -> "Bronze"
+        AppLanguage.Bulgarian -> "Бронз"
+        AppLanguage.German -> "Bronze"
+      }
+    MedalTier.Silver ->
+      when (language) {
+        AppLanguage.English -> "Silver"
+        AppLanguage.Bulgarian -> "Сребро"
+        AppLanguage.German -> "Silber"
+      }
+    MedalTier.Gold ->
+      when (language) {
+        AppLanguage.English -> "Gold"
+        AppLanguage.Bulgarian -> "Злато"
+        AppLanguage.German -> "Gold"
+      }
+    MedalTier.Titanium ->
+      when (language) {
+        AppLanguage.English -> "Platinum"
+        AppLanguage.Bulgarian -> "Платина"
+        AppLanguage.German -> "Platin"
+      }
+    MedalTier.Diamond ->
+      when (language) {
+        AppLanguage.English -> "Diamond"
+        AppLanguage.Bulgarian -> "Диамант"
+        AppLanguage.German -> "Diamant"
       }
   }
 
@@ -3219,6 +3752,454 @@ private fun t(
   language: AppLanguage,
   text: UiText,
 ): String =
+  when (text) {
+    UiText.ChooseMode ->
+      when (language) {
+        AppLanguage.English -> "Choose mode"
+        AppLanguage.Bulgarian -> "Избери режим"
+        AppLanguage.German -> "Modus wählen"
+      }
+    UiText.WorldFlagGame -> cleanText(language, UiText.WorldFlagGame)
+    UiText.HeroSubtitle -> cleanText(language, UiText.HeroSubtitle)
+    UiText.Menu ->
+      when (language) {
+        AppLanguage.English -> "Menu"
+        AppLanguage.Bulgarian -> "Меню"
+        AppLanguage.German -> "Menü"
+      }
+    UiText.Start -> cleanText(language, UiText.Start)
+    UiText.Medals -> cleanText(language, UiText.Medals)
+    UiText.Achievements -> cleanText(language, UiText.Achievements)
+    UiText.Settings -> cleanText(language, UiText.Settings)
+    UiText.Quit -> cleanText(language, UiText.Quit)
+    UiText.Profile ->
+      when (language) {
+        AppLanguage.English -> "Profile"
+        AppLanguage.Bulgarian -> "Профил"
+        AppLanguage.German -> "Profil"
+      }
+    UiText.AccountName ->
+      when (language) {
+        AppLanguage.English -> "Account name"
+        AppLanguage.Bulgarian -> "Име на профила"
+        AppLanguage.German -> "Profilname"
+      }
+    UiText.ProfileIcon ->
+      when (language) {
+        AppLanguage.English -> "Profile icon"
+        AppLanguage.Bulgarian -> "Икона на профила"
+        AppLanguage.German -> "Profilsymbol"
+      }
+    UiText.ChangeIcon ->
+      when (language) {
+        AppLanguage.English -> "Change icon"
+        AppLanguage.Bulgarian -> "Промени иконата"
+        AppLanguage.German -> "Symbol ändern"
+      }
+    UiText.ChooseProfileIcon ->
+      when (language) {
+        AppLanguage.English -> "Choose profile icon"
+        AppLanguage.Bulgarian -> "Избери икона на профила"
+        AppLanguage.German -> "Profilsymbol wählen"
+      }
+    UiText.Save ->
+      when (language) {
+        AppLanguage.English -> "Save"
+        AppLanguage.Bulgarian -> "Запази"
+        AppLanguage.German -> "Speichern"
+      }
+    UiText.Cancel ->
+      when (language) {
+        AppLanguage.English -> "Cancel"
+        AppLanguage.Bulgarian -> "Отказ"
+        AppLanguage.German -> "Abbrechen"
+      }
+    UiText.Close ->
+      when (language) {
+        AppLanguage.English -> "Close"
+        AppLanguage.Bulgarian -> "Затвори"
+        AppLanguage.German -> "Schließen"
+      }
+    UiText.Language,
+    UiText.LanguageLabel ->
+      when (language) {
+        AppLanguage.English -> "Language"
+        AppLanguage.Bulgarian -> "Език"
+        AppLanguage.German -> "Sprache"
+      }
+    UiText.AppLanguage ->
+      when (language) {
+        AppLanguage.English -> "App language"
+        AppLanguage.Bulgarian -> "Език на приложението"
+        AppLanguage.German -> "App-Sprache"
+      }
+    UiText.Hints ->
+      when (language) {
+        AppLanguage.English -> "Hints"
+        AppLanguage.Bulgarian -> "Жокери"
+        AppLanguage.German -> "Hinweise"
+      }
+    UiText.CollectedHints ->
+      when (language) {
+        AppLanguage.English -> "Collected hints"
+        AppLanguage.Bulgarian -> "Събрани жокери"
+        AppLanguage.German -> "Gesammelte Hinweise"
+      }
+    UiText.AddTenHints ->
+      when (language) {
+        AppLanguage.English -> "Add 10 hints"
+        AppLanguage.Bulgarian -> "Добави 10 жокера"
+        AppLanguage.German -> "10 Hinweise hinzufügen"
+      }
+    UiText.ResetHints ->
+      when (language) {
+        AppLanguage.English -> "Reset hints"
+        AppLanguage.Bulgarian -> "Нулирай жокерите"
+        AppLanguage.German -> "Hinweise zurücksetzen"
+      }
+    UiText.SwitchToNormalIcon ->
+      when (language) {
+        AppLanguage.English -> "Switch to normal icon"
+        AppLanguage.Bulgarian -> "Премини към нормалната икона"
+        AppLanguage.German -> "Zum normalen Symbol wechseln"
+      }
+    UiText.SwitchToInactiveIcon ->
+      when (language) {
+        AppLanguage.English -> "Switch to inactive icon"
+        AppLanguage.Bulgarian -> "Премини към неактивната икона"
+        AppLanguage.German -> "Zum inaktiven Symbol wechseln"
+      }
+    UiText.SendTestReminder ->
+      when (language) {
+        AppLanguage.English -> "Send test reminder"
+        AppLanguage.Bulgarian -> "Изпрати тестово напомняне"
+        AppLanguage.German -> "Test-Erinnerung senden"
+      }
+    UiText.ResetAchievementsAndMedals ->
+      when (language) {
+        AppLanguage.English -> "Reset medals"
+        AppLanguage.Bulgarian -> "Нулирай медалите"
+        AppLanguage.German -> "Medaillen zurücksetzen"
+      }
+    UiText.IconStatusInactive ->
+      when (language) {
+        AppLanguage.English -> "Icon status: inactive test icon enabled"
+        AppLanguage.Bulgarian -> "Статус на иконата: неактивна"
+        AppLanguage.German -> "Symbolstatus: inaktives Testsymbol aktiviert"
+      }
+    UiText.IconStatusNormal ->
+      when (language) {
+        AppLanguage.English -> "Icon status: normal icon enabled"
+        AppLanguage.Bulgarian -> "Статус на иконата: активна"
+        AppLanguage.German -> "Symbolstatus: normales Symbol aktiviert"
+      }
+    UiText.Player ->
+      when (language) {
+        AppLanguage.English -> "Player"
+        AppLanguage.Bulgarian -> "Играч"
+        AppLanguage.German -> "Spieler"
+      }
+    UiText.Remove ->
+      when (language) {
+        AppLanguage.English -> "Remove"
+        AppLanguage.Bulgarian -> "Премахни"
+        AppLanguage.German -> "Entfernen"
+      }
+    UiText.AddPlayer ->
+      when (language) {
+        AppLanguage.English -> "Add player"
+        AppLanguage.Bulgarian -> "Добави играч"
+        AppLanguage.German -> "Spieler hinzufügen"
+      }
+    UiText.QuizBase ->
+      when (language) {
+        AppLanguage.English -> "Quiz base"
+        AppLanguage.Bulgarian -> "Основа на теста"
+        AppLanguage.German -> "Quiz-Basis"
+      }
+    UiText.Continents ->
+      when (language) {
+        AppLanguage.English -> "Continents"
+        AppLanguage.Bulgarian -> "Континенти"
+        AppLanguage.German -> "Kontinente"
+      }
+    UiText.QuestionCount,
+    UiText.AmountOfQuestions ->
+      when (language) {
+        AppLanguage.English -> "Amount of questions"
+        AppLanguage.Bulgarian -> "Брой въпроси"
+        AppLanguage.German -> "Anzahl der Fragen"
+      }
+    UiText.ExampleQuestionCount ->
+      when (language) {
+        AppLanguage.English -> "Example: 10"
+        AppLanguage.Bulgarian -> "Пример: 10"
+        AppLanguage.German -> "Beispiel: 10"
+      }
+    UiText.AllowedRange ->
+      when (language) {
+        AppLanguage.English -> "Allowed range"
+        AppLanguage.Bulgarian -> "Позволен диапазон"
+        AppLanguage.German -> "Erlaubter Bereich"
+      }
+    UiText.PerfectRunNoMedal ->
+      when (language) {
+        AppLanguage.English -> "Quizzes under 10 questions do not earn medals."
+        AppLanguage.Bulgarian -> "Тестове под 10 въпроса не дават медали."
+        AppLanguage.German -> "Quizze unter 10 Fragen bringen keine Medaillen."
+      }
+    UiText.UseCustomAmount ->
+      when (language) {
+        AppLanguage.English -> "Use custom amount"
+        AppLanguage.Bulgarian -> "Използвай свой брой"
+        AppLanguage.German -> "Eigene Anzahl verwenden"
+      }
+    UiText.SurpriseMe ->
+      when (language) {
+        AppLanguage.English -> "Surprise me!"
+        AppLanguage.Bulgarian -> "Изненадай ме!"
+        AppLanguage.German -> "Überrasch mich!"
+      }
+    UiText.StartQuiz ->
+      when (language) {
+        AppLanguage.English -> "Start quiz"
+        AppLanguage.Bulgarian -> "Започни теста"
+        AppLanguage.German -> "Quiz starten"
+      }
+    UiText.LeaveQuizTitle ->
+      when (language) {
+        AppLanguage.English -> "Leave quiz?"
+        AppLanguage.Bulgarian -> "Да напуснеш теста?"
+        AppLanguage.German -> "Quiz verlassen?"
+      }
+    UiText.LeaveQuizBody ->
+      when (language) {
+        AppLanguage.English -> "This quiz will not count toward results, newly earned hints, medals, achievements, or level progression."
+        AppLanguage.Bulgarian -> "Този тест няма да се брои към резултати, нови жокери, медали, постижения или прогрес към ниво."
+        AppLanguage.German -> "Dieses Quiz zählt nicht für Ergebnisse, neue Hinweise, Medaillen, Erfolge oder Level-Fortschritt."
+      }
+    UiText.ExitAppTitle ->
+      when (language) {
+        AppLanguage.English -> "Exit app?"
+        AppLanguage.Bulgarian -> "Изход от приложението?"
+        AppLanguage.German -> "App schließen?"
+      }
+    UiText.ExitAppBody ->
+      when (language) {
+        AppLanguage.English -> "Do you really want to close World Flag Game?"
+        AppLanguage.Bulgarian -> "Наистина ли искаш да затвориш играта?"
+        AppLanguage.German -> "Möchtest du World Flag Game wirklich schließen?"
+      }
+    UiText.Exit ->
+      when (language) {
+        AppLanguage.English -> "Exit"
+        AppLanguage.Bulgarian -> "Изход"
+        AppLanguage.German -> "Schließen"
+      }
+    UiText.Leave ->
+      when (language) {
+        AppLanguage.English -> "Leave"
+        AppLanguage.Bulgarian -> "Напусни"
+        AppLanguage.German -> "Verlassen"
+      }
+    UiText.Stay ->
+      when (language) {
+        AppLanguage.English -> "Stay"
+        AppLanguage.Bulgarian -> "Остани"
+        AppLanguage.German -> "Bleiben"
+      }
+    UiText.QuizInfo ->
+      when (language) {
+        AppLanguage.English -> "Score is revealed at the end. Newly earned hints and level progress count only after finishing the full quiz."
+        AppLanguage.Bulgarian -> "Резултатът се показва накрая. Новите жокери и прогресът се броят само след завършен тест."
+        AppLanguage.German -> "Der Punktestand wird am Ende gezeigt. Neue Hinweise und Fortschritt zählen erst nach dem vollständigen Quiz."
+      }
+    UiText.GuessTheFlag,
+    UiText.QuestionPromptFlag ->
+      when (language) {
+        AppLanguage.English -> "Guess the flag"
+        AppLanguage.Bulgarian -> "Познай флага"
+        AppLanguage.German -> "Errate die Flagge"
+      }
+    UiText.CountryName,
+    UiText.QuestionPromptCountry ->
+      when (language) {
+        AppLanguage.English -> "Country name"
+        AppLanguage.Bulgarian -> "Име на държава"
+        AppLanguage.German -> "Ländername"
+      }
+    UiText.HintStartsWith ->
+      when (language) {
+        AppLanguage.English -> "Starts with"
+        AppLanguage.Bulgarian -> "Започва с"
+        AppLanguage.German -> "Beginnt mit"
+      }
+    UiText.Hint ->
+      when (language) {
+        AppLanguage.English -> "Hint"
+        AppLanguage.Bulgarian -> "Жокер"
+        AppLanguage.German -> "Hinweis"
+      }
+    UiText.Skip ->
+      when (language) {
+        AppLanguage.English -> UnskipArrowText
+        AppLanguage.Bulgarian -> UnskipArrowText
+        AppLanguage.German -> UnskipArrowText
+      }
+    UiText.Unskip ->
+      when (language) {
+        AppLanguage.English -> UnskipArrowText
+        AppLanguage.Bulgarian -> UnskipArrowText
+        AppLanguage.German -> UnskipArrowText
+      }
+    UiText.Finish ->
+      when (language) {
+        AppLanguage.English -> "Finish"
+        AppLanguage.Bulgarian -> "Финал"
+        AppLanguage.German -> "Fertig"
+      }
+    UiText.Next ->
+      when (language) {
+        AppLanguage.English -> "Next"
+        AppLanguage.Bulgarian -> "Напред"
+        AppLanguage.German -> "Weiter"
+      }
+    UiText.PlayAgain ->
+      when (language) {
+        AppLanguage.English -> "Play again"
+        AppLanguage.Bulgarian -> "Играй отново"
+        AppLanguage.German -> "Nochmal spielen"
+      }
+    UiText.QuizComplete ->
+      when (language) {
+        AppLanguage.English -> "Quiz complete"
+        AppLanguage.Bulgarian -> "Тестът е завършен"
+        AppLanguage.German -> "Quiz beendet"
+      }
+    UiText.FinalResults ->
+      when (language) {
+        AppLanguage.English -> "Final results"
+        AppLanguage.Bulgarian -> "Крайни резултати"
+        AppLanguage.German -> "Endergebnisse"
+      }
+    UiText.AnswerReview ->
+      when (language) {
+        AppLanguage.English -> "Answer review"
+        AppLanguage.Bulgarian -> "Преглед на отговорите"
+        AppLanguage.German -> "Antwortübersicht"
+      }
+    UiText.CorrectAnswers -> cleanText(language, UiText.CorrectAnswers)
+    UiText.Skipped ->
+      when (language) {
+        AppLanguage.English -> "Skipped"
+        AppLanguage.Bulgarian -> "Прескочени"
+        AppLanguage.German -> "Übersprungen"
+      }
+    UiText.Unanswered ->
+      when (language) {
+        AppLanguage.English -> "Unanswered"
+        AppLanguage.Bulgarian -> "Неотговорени"
+        AppLanguage.German -> "Unbeantwortet"
+      }
+    UiText.Unsure ->
+      when (language) {
+        AppLanguage.English -> "Unsure"
+        AppLanguage.Bulgarian -> "Несигурни"
+        AppLanguage.German -> "Unsicher"
+      }
+    UiText.NetScore ->
+      when (language) {
+        AppLanguage.English -> "Score"
+        AppLanguage.Bulgarian -> "Резултат"
+        AppLanguage.German -> "Punktestand"
+      }
+    UiText.HintPointsAvailable ->
+      when (language) {
+        AppLanguage.English -> "Won hint points"
+        AppLanguage.Bulgarian -> "Спечелени жокери"
+        AppLanguage.German -> "Gewonnene Hinweise"
+      }
+    UiText.QuestionReview ->
+      when (language) {
+        AppLanguage.English -> "Question"
+        AppLanguage.Bulgarian -> "Въпрос"
+        AppLanguage.German -> "Frage"
+      }
+    UiText.Correct ->
+      when (language) {
+        AppLanguage.English -> "Correct"
+        AppLanguage.Bulgarian -> "Правилен отговор"
+        AppLanguage.German -> "Richtig"
+      }
+    UiText.YourAnswer ->
+      when (language) {
+        AppLanguage.English -> "Your answer"
+        AppLanguage.Bulgarian -> "Твоят отговор"
+        AppLanguage.German -> "Deine Antwort"
+      }
+    UiText.NoAnswer ->
+      when (language) {
+        AppLanguage.English -> "No answer"
+        AppLanguage.Bulgarian -> "Няма отговор"
+        AppLanguage.German -> "Keine Antwort"
+      }
+    UiText.HintUsed ->
+      when (language) {
+        AppLanguage.English -> "Hint used (+0.5 point) - Hint streak is paused and stays X."
+        AppLanguage.Bulgarian -> "Използван жокер (+0.5 точки) - серията за жокери е на пауза и остава X."
+        AppLanguage.German -> "Hinweis verwendet (+0,5 Punkte) - die Hinweis-Serie pausiert und bleibt X."
+      }
+    UiText.NoHintUsed ->
+      when (language) {
+        AppLanguage.English -> "No hint used (+1 point) - Hint streak is now X."
+        AppLanguage.Bulgarian -> "Без използван жокер (+1 точка) - серията за жокери вече е X."
+        AppLanguage.German -> "Kein Hinweis verwendet (+1 Punkt) - die Hinweis-Serie ist jetzt X."
+      }
+    UiText.CompletedTests -> cleanText(language, UiText.CompletedTests)
+    UiText.Level -> cleanText(language, UiText.Level)
+    UiText.NextUp ->
+      when (language) {
+        AppLanguage.English -> "Next up"
+        AppLanguage.Bulgarian -> "Следва"
+        AppLanguage.German -> "Als Nächstes"
+      }
+    UiText.NextLevelRequirements ->
+      when (language) {
+        AppLanguage.English -> "Next level requirements"
+        AppLanguage.Bulgarian -> "Изисквания за следващо ниво"
+        AppLanguage.German -> "Anforderungen für das nächste Level"
+      }
+    UiText.Open -> cleanText(language, UiText.Open)
+    UiText.MedalsCountLabel ->
+      when (language) {
+        AppLanguage.English -> "Medals"
+        AppLanguage.Bulgarian -> "Медали"
+        AppLanguage.German -> "Medaillen"
+      }
+    UiText.PerfectQuizCount ->
+      when (language) {
+        AppLanguage.English -> "Perfect quiz count"
+        AppLanguage.Bulgarian -> "Брой перфектни тестове"
+        AppLanguage.German -> "Anzahl fehlerfreier Quizze"
+      }
+    UiText.LevelUpTitle ->
+      when (language) {
+        AppLanguage.English -> "Level up!"
+        AppLanguage.Bulgarian -> "Ново ниво!"
+        AppLanguage.German -> "Levelaufstieg!"
+      }
+    UiText.LevelUpBody ->
+      when (language) {
+        AppLanguage.English -> "You reached level %1\$d and earned 5 free hints."
+        AppLanguage.Bulgarian -> "Достигна ниво %1\$d и получи 5 безплатни жокера."
+        AppLanguage.German -> "Du hast Level %1\$d erreicht und 5 kostenlose Hinweise erhalten."
+      }
+  }
+
+private fun legacyT(
+  language: AppLanguage,
+  text: UiText,
+): String =
   when (language) {
     AppLanguage.English ->
       when (text) {
@@ -3262,8 +4243,8 @@ private fun t(
         UiText.GuessTheFlag -> "Guess the flag"
         UiText.CountryName -> "Country name"
         UiText.Hint -> "Hint"
-        UiText.Skip -> "↷"
-        UiText.Unskip -> "Unskip"
+        UiText.Skip -> UnskipArrowText
+        UiText.Unskip -> UnskipArrowText
         UiText.Finish -> "Finish"
         UiText.Next -> "Next"
         UiText.PlayAgain -> "Play again"
@@ -3290,69 +4271,69 @@ private fun t(
       }
     AppLanguage.Bulgarian ->
       when (text) {
-        UiText.WorldFlagGame -> "Познай флага"
-        UiText.HeroSubtitle -> "Тренирай флаговете, отключвай постижения, събирай медали и следи напредъка си."
-        UiText.Menu -> "Меню"
-        UiText.Start -> "Старт"
-        UiText.Medals -> "Медали"
-        UiText.Achievements -> "Постижения"
-        UiText.Settings -> "Настройки"
-        UiText.Quit -> "Изход"
-        UiText.Profile -> "Профил"
-        UiText.AccountName -> "Име на профила"
-        UiText.Language -> "Език"
-        UiText.Hints -> "Жокери"
-        UiText.CollectedHints -> "Събрани жокери"
-        UiText.AddTenHints -> "Добави 10 жокера"
-        UiText.ResetHints -> "Нулирай жокерите"
-        UiText.SwitchToNormalIcon -> "Смени към нормалната икона"
-        UiText.SwitchToInactiveIcon -> "Смени към неактивната икона"
-        UiText.SendTestReminder -> "Изпрати тестово напомняне"
-        UiText.ResetAchievementsAndMedals -> "Нулирай медалите"
-        UiText.CorrectAnswers -> "Верни отговори"
-        UiText.CompletedTests -> "Завършени тестове"
-        UiText.Level -> "Ниво"
-        UiText.LeaveQuizTitle -> "Да излезеш от теста?"
-        UiText.LeaveQuizBody -> "Този тест няма да се брои за резултати, нови жокери, медали, постижения или ниво."
-        UiText.ExitAppTitle -> "Да затвориш приложението?"
-        UiText.ExitAppBody -> "Наистина ли искаш да затвориш World Flag Game?"
-        UiText.Exit -> "Изход"
-        UiText.Leave -> "Излез"
-        UiText.Stay -> "Остани"
-        UiText.QuizInfo -> "Резултатът се показва накрая. Новите жокери и прогресът се броят само след завършен тест."
-        UiText.NextUp -> "Следва"
-        UiText.ChooseProfileIcon -> "Избери профилна икона"
-        UiText.ChangeIcon -> "Промени иконата"
-        UiText.Save -> "Запази"
-        UiText.Cancel -> "Отказ"
-        UiText.Close -> "Затвори"
-        UiText.Continents -> "Континенти"
-        UiText.GuessTheFlag -> "Познай флага"
-        UiText.CountryName -> "Име на държава"
-        UiText.Hint -> "Жокер"
-        UiText.Skip -> "↷"
-        UiText.Unskip -> "Отмени пропуска"
-        UiText.Finish -> "Финал"
-        UiText.Next -> "Напред"
-        UiText.PlayAgain -> "Играй отново"
-        UiText.FinalResults -> "Крайни резултати"
-        UiText.AnswerReview -> "Преглед на отговорите"
-        UiText.Skipped -> "Пропуснати"
-        UiText.NetScore -> "Краен резултат"
-        UiText.HintPointsAvailable -> "Спечелени жокери"
-        UiText.Correct -> "Верен отговор"
-        UiText.YourAnswer -> "Твоят отговор"
-        UiText.NoAnswer -> "Без отговор"
-        UiText.HintUsed -> "Използван жокер"
-        UiText.NoHintUsed -> "Без използван жокер"
-        UiText.NextLevelRequirements -> "Изисквания за следващо ниво"
-        UiText.Open -> "Отвори"
-        UiText.LevelUpTitle -> "Качено ниво!"
-        UiText.LevelUpBody -> "Достигна ниво %1\$d и получи 5 безплатни жокера."
+        UiText.WorldFlagGame -> "Р В Р’В Р РЋРЎСџР В Р’В Р РЋРІР‚СћР В Р’В Р вЂ™Р’В·Р В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В°Р В Р’В Р Р†РІР‚С›РІР‚вЂњ Р В Р Р‹Р Р†Р вЂљРЎвЂєР В Р’В Р вЂ™Р’В»Р В Р’В Р вЂ™Р’В°Р В Р’В Р РЋРІР‚вЂњР В Р’В Р вЂ™Р’В°"
+        UiText.HeroSubtitle -> "Р В Р’В Р РЋРЎвЂєР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’ВµР В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚ВР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’В°Р В Р’В Р Р†РІР‚С›РІР‚вЂњ Р В Р Р‹Р Р†Р вЂљРЎвЂєР В Р’В Р вЂ™Р’В»Р В Р’В Р вЂ™Р’В°Р В Р’В Р РЋРІР‚вЂњР В Р’В Р РЋРІР‚СћР В Р’В Р В РІР‚В Р В Р’В Р вЂ™Р’ВµР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’Вµ, Р В Р’В Р РЋРІР‚СћР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’В»Р В Р Р‹Р В РІР‚в„–Р В Р Р‹Р Р†Р вЂљР Р‹Р В Р’В Р В РІР‚В Р В Р’В Р вЂ™Р’В°Р В Р’В Р Р†РІР‚С›РІР‚вЂњ Р В Р’В Р РЋРІР‚вЂќР В Р’В Р РЋРІР‚СћР В Р Р‹Р В РЎвЂњР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚ВР В Р’В Р вЂ™Р’В¶Р В Р’В Р вЂ™Р’ВµР В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚ВР В Р Р‹Р В Р РЏ, Р В Р Р‹Р В РЎвЂњР В Р Р‹Р В РІР‚В°Р В Р’В Р вЂ™Р’В±Р В Р’В Р РЋРІР‚ВР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’В°Р В Р’В Р Р†РІР‚С›РІР‚вЂњ Р В Р’В Р РЋР’ВР В Р’В Р вЂ™Р’ВµР В Р’В Р СћРІР‚ВР В Р’В Р вЂ™Р’В°Р В Р’В Р вЂ™Р’В»Р В Р’В Р РЋРІР‚В Р В Р’В Р РЋРІР‚В Р В Р Р‹Р В РЎвЂњР В Р’В Р вЂ™Р’В»Р В Р’В Р вЂ™Р’ВµР В Р’В Р СћРІР‚ВР В Р’В Р РЋРІР‚В Р В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В°Р В Р’В Р РЋРІР‚вЂќР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’ВµР В Р’В Р СћРІР‚ВР В Р Р‹Р В РІР‚В°Р В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’В° Р В Р Р‹Р В РЎвЂњР В Р’В Р РЋРІР‚В."
+        UiText.Menu -> "Р В Р’В Р РЋРЎв„ўР В Р’В Р вЂ™Р’ВµР В Р’В Р В РІР‚В¦Р В Р Р‹Р В РІР‚в„–"
+        UiText.Start -> "Р В Р’В Р В Р вЂ№Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’В°Р В Р Р‹Р В РІР‚С™Р В Р Р‹Р Р†Р вЂљРЎв„ў"
+        UiText.Medals -> "Р В Р’В Р РЋРЎв„ўР В Р’В Р вЂ™Р’ВµР В Р’В Р СћРІР‚ВР В Р’В Р вЂ™Р’В°Р В Р’В Р вЂ™Р’В»Р В Р’В Р РЋРІР‚В"
+        UiText.Achievements -> "Р В Р’В Р РЋРЎСџР В Р’В Р РЋРІР‚СћР В Р Р‹Р В РЎвЂњР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚ВР В Р’В Р вЂ™Р’В¶Р В Р’В Р вЂ™Р’ВµР В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚ВР В Р Р‹Р В Р РЏ"
+        UiText.Settings -> "Р В Р’В Р РЋРЎС™Р В Р’В Р вЂ™Р’В°Р В Р Р‹Р В РЎвЂњР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚СћР В Р’В Р Р†РІР‚С›РІР‚вЂњР В Р’В Р РЋРІР‚СњР В Р’В Р РЋРІР‚В"
+        UiText.Quit -> "Р В Р’В Р вЂ™Р’ВР В Р’В Р вЂ™Р’В·Р В Р Р‹Р Р†Р вЂљР’В¦Р В Р’В Р РЋРІР‚СћР В Р’В Р СћРІР‚В"
+        UiText.Profile -> "Р В Р’В Р РЋРЎСџР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚СћР В Р Р‹Р Р†Р вЂљРЎвЂєР В Р’В Р РЋРІР‚ВР В Р’В Р вЂ™Р’В»"
+        UiText.AccountName -> "Р В Р’В Р вЂ™Р’ВР В Р’В Р РЋР’ВР В Р’В Р вЂ™Р’Вµ Р В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В° Р В Р’В Р РЋРІР‚вЂќР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚СћР В Р Р‹Р Р†Р вЂљРЎвЂєР В Р’В Р РЋРІР‚ВР В Р’В Р вЂ™Р’В»Р В Р’В Р вЂ™Р’В°"
+        UiText.Language -> "Р В Р’В Р Р†Р вЂљРЎС›Р В Р’В Р вЂ™Р’В·Р В Р’В Р РЋРІР‚ВР В Р’В Р РЋРІР‚Сњ"
+        UiText.Hints -> "Р В Р’В Р Р†Р вЂљРІР‚СљР В Р’В Р РЋРІР‚СћР В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚В"
+        UiText.CollectedHints -> "Р В Р’В Р В Р вЂ№Р В Р Р‹Р В РІР‚В°Р В Р’В Р вЂ™Р’В±Р В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’В°Р В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚В Р В Р’В Р вЂ™Р’В¶Р В Р’В Р РЋРІР‚СћР В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚В"
+        UiText.AddTenHints -> "Р В Р’В Р Р†Р вЂљРЎСљР В Р’В Р РЋРІР‚СћР В Р’В Р вЂ™Р’В±Р В Р’В Р вЂ™Р’В°Р В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚В 10 Р В Р’В Р вЂ™Р’В¶Р В Р’В Р РЋРІР‚СћР В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’В°"
+        UiText.ResetHints -> "Р В Р’В Р РЋРЎС™Р В Р Р‹Р РЋРІР‚СљР В Р’В Р вЂ™Р’В»Р В Р’В Р РЋРІР‚ВР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’В°Р В Р’В Р Р†РІР‚С›РІР‚вЂњ Р В Р’В Р вЂ™Р’В¶Р В Р’В Р РЋРІР‚СћР В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚ВР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’Вµ"
+        UiText.SwitchToNormalIcon -> "Р В Р’В Р В Р вЂ№Р В Р’В Р РЋР’ВР В Р’В Р вЂ™Р’ВµР В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚В Р В Р’В Р РЋРІР‚СњР В Р Р‹Р В РІР‚В°Р В Р’В Р РЋР’В Р В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚СћР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋР’ВР В Р’В Р вЂ™Р’В°Р В Р’В Р вЂ™Р’В»Р В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В°Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’В° Р В Р’В Р РЋРІР‚ВР В Р’В Р РЋРІР‚СњР В Р’В Р РЋРІР‚СћР В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В°"
+        UiText.SwitchToInactiveIcon -> "Р В Р’В Р В Р вЂ№Р В Р’В Р РЋР’ВР В Р’В Р вЂ™Р’ВµР В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚В Р В Р’В Р РЋРІР‚СњР В Р Р‹Р В РІР‚В°Р В Р’В Р РЋР’В Р В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’ВµР В Р’В Р вЂ™Р’В°Р В Р’В Р РЋРІР‚СњР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚ВР В Р’В Р В РІР‚В Р В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В°Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’В° Р В Р’В Р РЋРІР‚ВР В Р’В Р РЋРІР‚СњР В Р’В Р РЋРІР‚СћР В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В°"
+        UiText.SendTestReminder -> "Р В Р’В Р вЂ™Р’ВР В Р’В Р вЂ™Р’В·Р В Р’В Р РЋРІР‚вЂќР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’В°Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚В Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РЎвЂњР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚СћР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚Сћ Р В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В°Р В Р’В Р РЋРІР‚вЂќР В Р’В Р РЋРІР‚СћР В Р’В Р РЋР’ВР В Р’В Р В РІР‚В¦Р В Р Р‹Р В Р РЏР В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’Вµ"
+        UiText.ResetAchievementsAndMedals -> "Р В Р’В Р РЋРЎС™Р В Р Р‹Р РЋРІР‚СљР В Р’В Р вЂ™Р’В»Р В Р’В Р РЋРІР‚ВР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’В°Р В Р’В Р Р†РІР‚С›РІР‚вЂњ Р В Р’В Р РЋР’ВР В Р’В Р вЂ™Р’ВµР В Р’В Р СћРІР‚ВР В Р’В Р вЂ™Р’В°Р В Р’В Р вЂ™Р’В»Р В Р’В Р РЋРІР‚ВР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’Вµ"
+        UiText.CorrectAnswers -> "Р В Р’В Р Р†Р вЂљРІвЂћСћР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РІР‚С™Р В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚В Р В Р’В Р РЋРІР‚СћР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚вЂњР В Р’В Р РЋРІР‚СћР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚СћР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚В"
+        UiText.CompletedTests -> "Р В Р’В Р Р†Р вЂљРІР‚СњР В Р’В Р вЂ™Р’В°Р В Р’В Р В РІР‚В Р В Р Р‹Р В РІР‚В°Р В Р Р‹Р В РІР‚С™Р В Р Р‹Р Р†РІР‚С™Р’В¬Р В Р’В Р вЂ™Р’ВµР В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚В Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РЎвЂњР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚СћР В Р’В Р В РІР‚В Р В Р’В Р вЂ™Р’Вµ"
+        UiText.Level -> "Р В Р’В Р РЋРЎС™Р В Р’В Р РЋРІР‚ВР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚Сћ"
+        UiText.LeaveQuizTitle -> "Р В Р’В Р Р†Р вЂљРЎСљР В Р’В Р вЂ™Р’В° Р В Р’В Р РЋРІР‚ВР В Р’В Р вЂ™Р’В·Р В Р’В Р вЂ™Р’В»Р В Р’В Р вЂ™Р’ВµР В Р’В Р вЂ™Р’В·Р В Р’В Р вЂ™Р’ВµР В Р Р‹Р Р†РІР‚С™Р’В¬ Р В Р’В Р РЋРІР‚СћР В Р Р‹Р Р†Р вЂљРЎв„ў Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РЎвЂњР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’В°?"
+        UiText.LeaveQuizBody -> "Р В Р’В Р РЋРЎвЂєР В Р’В Р РЋРІР‚СћР В Р’В Р вЂ™Р’В·Р В Р’В Р РЋРІР‚В Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РЎвЂњР В Р Р‹Р Р†Р вЂљРЎв„ў Р В Р’В Р В РІР‚В¦Р В Р Р‹Р В Р РЏР В Р’В Р РЋР’ВР В Р’В Р вЂ™Р’В° Р В Р’В Р СћРІР‚ВР В Р’В Р вЂ™Р’В° Р В Р Р‹Р В РЎвЂњР В Р’В Р вЂ™Р’Вµ Р В Р’В Р вЂ™Р’В±Р В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚СћР В Р’В Р РЋРІР‚В Р В Р’В Р вЂ™Р’В·Р В Р’В Р вЂ™Р’В° Р В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’ВµР В Р’В Р вЂ™Р’В·Р В Р Р‹Р РЋРІР‚СљР В Р’В Р вЂ™Р’В»Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’В°Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚В, Р В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚СћР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚В Р В Р’В Р вЂ™Р’В¶Р В Р’В Р РЋРІР‚СћР В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚В, Р В Р’В Р РЋР’ВР В Р’В Р вЂ™Р’ВµР В Р’В Р СћРІР‚ВР В Р’В Р вЂ™Р’В°Р В Р’В Р вЂ™Р’В»Р В Р’В Р РЋРІР‚В, Р В Р’В Р РЋРІР‚вЂќР В Р’В Р РЋРІР‚СћР В Р Р‹Р В РЎвЂњР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚ВР В Р’В Р вЂ™Р’В¶Р В Р’В Р вЂ™Р’ВµР В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚ВР В Р Р‹Р В Р РЏ Р В Р’В Р РЋРІР‚ВР В Р’В Р вЂ™Р’В»Р В Р’В Р РЋРІР‚В Р В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚ВР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚Сћ."
+        UiText.ExitAppTitle -> "Р В Р’В Р Р†Р вЂљРЎСљР В Р’В Р вЂ™Р’В° Р В Р’В Р вЂ™Р’В·Р В Р’В Р вЂ™Р’В°Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚СћР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚ВР В Р Р‹Р Р†РІР‚С™Р’В¬ Р В Р’В Р РЋРІР‚вЂќР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚ВР В Р’В Р вЂ™Р’В»Р В Р’В Р РЋРІР‚СћР В Р’В Р вЂ™Р’В¶Р В Р’В Р вЂ™Р’ВµР В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚ВР В Р’В Р вЂ™Р’ВµР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚Сћ?"
+        UiText.ExitAppBody -> "Р В Р’В Р РЋРЎС™Р В Р’В Р вЂ™Р’В°Р В Р’В Р РЋРІР‚ВР В Р Р‹Р В РЎвЂњР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚ВР В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В° Р В Р’В Р вЂ™Р’В»Р В Р’В Р РЋРІР‚В Р В Р’В Р РЋРІР‚ВР В Р Р‹Р В РЎвЂњР В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’В°Р В Р Р‹Р Р†РІР‚С™Р’В¬ Р В Р’В Р СћРІР‚ВР В Р’В Р вЂ™Р’В° Р В Р’В Р вЂ™Р’В·Р В Р’В Р вЂ™Р’В°Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚СћР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚ВР В Р Р‹Р Р†РІР‚С™Р’В¬ World Flag Game?"
+        UiText.Exit -> "Р В Р’В Р вЂ™Р’ВР В Р’В Р вЂ™Р’В·Р В Р Р‹Р Р†Р вЂљР’В¦Р В Р’В Р РЋРІР‚СћР В Р’В Р СћРІР‚В"
+        UiText.Leave -> "Р В Р’В Р вЂ™Р’ВР В Р’В Р вЂ™Р’В·Р В Р’В Р вЂ™Р’В»Р В Р’В Р вЂ™Р’ВµР В Р’В Р вЂ™Р’В·"
+        UiText.Stay -> "Р В Р’В Р РЋРІР‚С”Р В Р Р‹Р В РЎвЂњР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’В°Р В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚В"
+        UiText.QuizInfo -> "Р В Р’В Р вЂ™Р’В Р В Р’В Р вЂ™Р’ВµР В Р’В Р вЂ™Р’В·Р В Р Р‹Р РЋРІР‚СљР В Р’В Р вЂ™Р’В»Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’В°Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р Р‹Р В РІР‚В°Р В Р Р‹Р Р†Р вЂљРЎв„ў Р В Р Р‹Р В РЎвЂњР В Р’В Р вЂ™Р’Вµ Р В Р’В Р РЋРІР‚вЂќР В Р’В Р РЋРІР‚СћР В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’В°Р В Р’В Р вЂ™Р’В·Р В Р’В Р В РІР‚В Р В Р’В Р вЂ™Р’В° Р В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В°Р В Р’В Р РЋРІР‚СњР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’В°Р В Р Р‹Р В Р РЏ. Р В Р’В Р РЋРЎС™Р В Р’В Р РЋРІР‚СћР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚ВР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’Вµ Р В Р’В Р вЂ™Р’В¶Р В Р’В Р РЋРІР‚СћР В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚В Р В Р’В Р РЋРІР‚В Р В Р’В Р РЋРІР‚вЂќР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚СћР В Р’В Р РЋРІР‚вЂњР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РЎвЂњР В Р Р‹Р В РІР‚В°Р В Р Р‹Р Р†Р вЂљРЎв„ў Р В Р Р‹Р В РЎвЂњР В Р’В Р вЂ™Р’Вµ Р В Р’В Р вЂ™Р’В±Р В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚СћР В Р Р‹Р В Р РЏР В Р Р‹Р Р†Р вЂљРЎв„ў Р В Р Р‹Р В РЎвЂњР В Р’В Р вЂ™Р’В°Р В Р’В Р РЋР’ВР В Р’В Р РЋРІР‚Сћ Р В Р Р‹Р В РЎвЂњР В Р’В Р вЂ™Р’В»Р В Р’В Р вЂ™Р’ВµР В Р’В Р СћРІР‚В Р В Р’В Р вЂ™Р’В·Р В Р’В Р вЂ™Р’В°Р В Р’В Р В РІР‚В Р В Р Р‹Р В РІР‚В°Р В Р Р‹Р В РІР‚С™Р В Р Р‹Р Р†РІР‚С™Р’В¬Р В Р’В Р вЂ™Р’ВµР В Р’В Р В РІР‚В¦ Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РЎвЂњР В Р Р‹Р Р†Р вЂљРЎв„ў."
+        UiText.NextUp -> "Р В Р’В Р В Р вЂ№Р В Р’В Р вЂ™Р’В»Р В Р’В Р вЂ™Р’ВµР В Р’В Р СћРІР‚ВР В Р’В Р В РІР‚В Р В Р’В Р вЂ™Р’В°"
+        UiText.ChooseProfileIcon -> "Р В Р’В Р вЂ™Р’ВР В Р’В Р вЂ™Р’В·Р В Р’В Р вЂ™Р’В±Р В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚В Р В Р’В Р РЋРІР‚вЂќР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚СћР В Р Р‹Р Р†Р вЂљРЎвЂєР В Р’В Р РЋРІР‚ВР В Р’В Р вЂ™Р’В»Р В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В° Р В Р’В Р РЋРІР‚ВР В Р’В Р РЋРІР‚СњР В Р’В Р РЋРІР‚СћР В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В°"
+        UiText.ChangeIcon -> "Р В Р’В Р РЋРЎСџР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚СћР В Р’В Р РЋР’ВР В Р’В Р вЂ™Р’ВµР В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚В Р В Р’В Р РЋРІР‚ВР В Р’В Р РЋРІР‚СњР В Р’В Р РЋРІР‚СћР В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В°Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’В°"
+        UiText.Save -> "Р В Р’В Р Р†Р вЂљРІР‚СњР В Р’В Р вЂ™Р’В°Р В Р’В Р РЋРІР‚вЂќР В Р’В Р вЂ™Р’В°Р В Р’В Р вЂ™Р’В·Р В Р’В Р РЋРІР‚В"
+        UiText.Cancel -> "Р В Р’В Р РЋРІР‚С”Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’В°Р В Р’В Р вЂ™Р’В·"
+        UiText.Close -> "Р В Р’В Р Р†Р вЂљРІР‚СњР В Р’В Р вЂ™Р’В°Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚СћР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚В"
+        UiText.Continents -> "Р В Р’В Р РЋРІвЂћСћР В Р’В Р РЋРІР‚СћР В Р’В Р В РІР‚В¦Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚ВР В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’ВµР В Р’В Р В РІР‚В¦Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚В"
+        UiText.GuessTheFlag -> "Р В Р’В Р РЋРЎСџР В Р’В Р РЋРІР‚СћР В Р’В Р вЂ™Р’В·Р В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В°Р В Р’В Р Р†РІР‚С›РІР‚вЂњ Р В Р Р‹Р Р†Р вЂљРЎвЂєР В Р’В Р вЂ™Р’В»Р В Р’В Р вЂ™Р’В°Р В Р’В Р РЋРІР‚вЂњР В Р’В Р вЂ™Р’В°"
+        UiText.CountryName -> "Р В Р’В Р вЂ™Р’ВР В Р’В Р РЋР’ВР В Р’В Р вЂ™Р’Вµ Р В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В° Р В Р’В Р СћРІР‚ВР В Р Р‹Р В РІР‚В°Р В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’В¶Р В Р’В Р вЂ™Р’В°Р В Р’В Р В РІР‚В Р В Р’В Р вЂ™Р’В°"
+        UiText.Hint -> "Р В Р’В Р Р†Р вЂљРІР‚СљР В Р’В Р РЋРІР‚СћР В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РІР‚С™"
+        UiText.Skip -> UnskipArrowText
+        UiText.Unskip -> UnskipArrowText
+        UiText.Finish -> "Р В Р’В Р вЂ™Р’В¤Р В Р’В Р РЋРІР‚ВР В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В°Р В Р’В Р вЂ™Р’В»"
+        UiText.Next -> "Р В Р’В Р РЋРЎС™Р В Р’В Р вЂ™Р’В°Р В Р’В Р РЋРІР‚вЂќР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’ВµР В Р’В Р СћРІР‚В"
+        UiText.PlayAgain -> "Р В Р’В Р вЂ™Р’ВР В Р’В Р РЋРІР‚вЂњР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’В°Р В Р’В Р Р†РІР‚С›РІР‚вЂњ Р В Р’В Р РЋРІР‚СћР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚СћР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚Сћ"
+        UiText.FinalResults -> "Р В Р’В Р РЋРІвЂћСћР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’В°Р В Р’В Р Р†РІР‚С›РІР‚вЂњР В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚В Р В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’ВµР В Р’В Р вЂ™Р’В·Р В Р Р‹Р РЋРІР‚СљР В Р’В Р вЂ™Р’В»Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’В°Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚В"
+        UiText.AnswerReview -> "Р В Р’В Р РЋРЎСџР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’ВµР В Р’В Р РЋРІР‚вЂњР В Р’В Р вЂ™Р’В»Р В Р’В Р вЂ™Р’ВµР В Р’В Р СћРІР‚В Р В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В° Р В Р’В Р РЋРІР‚СћР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚вЂњР В Р’В Р РЋРІР‚СћР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚СћР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚ВР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’Вµ"
+        UiText.Skipped -> "Р В Р’В Р РЋРЎСџР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚СћР В Р’В Р РЋРІР‚вЂќР В Р Р‹Р РЋРІР‚СљР В Р Р‹Р В РЎвЂњР В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В°Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚В"
+        UiText.NetScore -> "Р В Р’В Р РЋРІвЂћСћР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’В°Р В Р’В Р вЂ™Р’ВµР В Р’В Р В РІР‚В¦ Р В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’ВµР В Р’В Р вЂ™Р’В·Р В Р Р‹Р РЋРІР‚СљР В Р’В Р вЂ™Р’В»Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р вЂ™Р’В°Р В Р Р‹Р Р†Р вЂљРЎв„ў"
+        UiText.HintPointsAvailable -> "Р В Р’В Р В Р вЂ№Р В Р’В Р РЋРІР‚вЂќР В Р’В Р вЂ™Р’ВµР В Р Р‹Р Р†Р вЂљР Р‹Р В Р’В Р вЂ™Р’ВµР В Р’В Р вЂ™Р’В»Р В Р’В Р вЂ™Р’ВµР В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚В Р В Р’В Р вЂ™Р’В¶Р В Р’В Р РЋРІР‚СћР В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚В"
+        UiText.Correct -> "Р В Р’В Р Р†Р вЂљРІвЂћСћР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’ВµР В Р’В Р В РІР‚В¦ Р В Р’В Р РЋРІР‚СћР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚вЂњР В Р’В Р РЋРІР‚СћР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚СћР В Р Р‹Р В РІР‚С™"
+        UiText.YourAnswer -> "Р В Р’В Р РЋРЎвЂєР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚СћР В Р Р‹Р В Р РЏР В Р Р‹Р Р†Р вЂљРЎв„ў Р В Р’В Р РЋРІР‚СћР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚вЂњР В Р’В Р РЋРІР‚СћР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚СћР В Р Р‹Р В РІР‚С™"
+        UiText.NoAnswer -> "Р В Р’В Р Р†Р вЂљР’ВР В Р’В Р вЂ™Р’ВµР В Р’В Р вЂ™Р’В· Р В Р’В Р РЋРІР‚СћР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚вЂњР В Р’В Р РЋРІР‚СћР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚СћР В Р Р‹Р В РІР‚С™"
+        UiText.HintUsed -> "Р В Р’В Р вЂ™Р’ВР В Р’В Р вЂ™Р’В·Р В Р’В Р РЋРІР‚вЂќР В Р’В Р РЋРІР‚СћР В Р’В Р вЂ™Р’В»Р В Р’В Р вЂ™Р’В·Р В Р’В Р В РІР‚В Р В Р’В Р вЂ™Р’В°Р В Р’В Р В РІР‚В¦ Р В Р’В Р вЂ™Р’В¶Р В Р’В Р РЋРІР‚СћР В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РІР‚С™"
+        UiText.NoHintUsed -> "Р В Р’В Р Р†Р вЂљР’ВР В Р’В Р вЂ™Р’ВµР В Р’В Р вЂ™Р’В· Р В Р’В Р РЋРІР‚ВР В Р’В Р вЂ™Р’В·Р В Р’В Р РЋРІР‚вЂќР В Р’В Р РЋРІР‚СћР В Р’В Р вЂ™Р’В»Р В Р’В Р вЂ™Р’В·Р В Р’В Р В РІР‚В Р В Р’В Р вЂ™Р’В°Р В Р’В Р В РІР‚В¦ Р В Р’В Р вЂ™Р’В¶Р В Р’В Р РЋРІР‚СћР В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РІР‚С™"
+        UiText.NextLevelRequirements -> "Р В Р’В Р вЂ™Р’ВР В Р’В Р вЂ™Р’В·Р В Р’В Р РЋРІР‚ВР В Р Р‹Р В РЎвЂњР В Р’В Р РЋРІР‚СњР В Р’В Р В РІР‚В Р В Р’В Р вЂ™Р’В°Р В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚ВР В Р Р‹Р В Р РЏ Р В Р’В Р вЂ™Р’В·Р В Р’В Р вЂ™Р’В° Р В Р Р‹Р В РЎвЂњР В Р’В Р вЂ™Р’В»Р В Р’В Р вЂ™Р’ВµР В Р’В Р СћРІР‚ВР В Р’В Р В РІР‚В Р В Р’В Р вЂ™Р’В°Р В Р Р‹Р Р†Р вЂљР’В°Р В Р’В Р РЋРІР‚Сћ Р В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚ВР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚Сћ"
+        UiText.Open -> "Р В Р’В Р РЋРІР‚С”Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚СћР В Р Р‹Р В РІР‚С™Р В Р’В Р РЋРІР‚В"
+        UiText.LevelUpTitle -> "Р В Р’В Р РЋРІвЂћСћР В Р’В Р вЂ™Р’В°Р В Р Р‹Р Р†Р вЂљР Р‹Р В Р’В Р вЂ™Р’ВµР В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚Сћ Р В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚ВР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚Сћ!"
+        UiText.LevelUpBody -> "Р В Р’В Р Р†Р вЂљРЎСљР В Р’В Р РЋРІР‚СћР В Р Р‹Р В РЎвЂњР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚ВР В Р’В Р РЋРІР‚вЂњР В Р’В Р В РІР‚В¦Р В Р’В Р вЂ™Р’В° Р В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚ВР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚Сћ %1\$d Р В Р’В Р РЋРІР‚В Р В Р’В Р РЋРІР‚вЂќР В Р’В Р РЋРІР‚СћР В Р’В Р вЂ™Р’В»Р В Р Р‹Р РЋРІР‚СљР В Р Р‹Р Р†Р вЂљР Р‹Р В Р’В Р РЋРІР‚В 5 Р В Р’В Р вЂ™Р’В±Р В Р’В Р вЂ™Р’ВµР В Р’В Р вЂ™Р’В·Р В Р’В Р РЋРІР‚вЂќР В Р’В Р вЂ™Р’В»Р В Р’В Р вЂ™Р’В°Р В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚В Р В Р’В Р вЂ™Р’В¶Р В Р’В Р РЋРІР‚СћР В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’В°."
         else ->
           when (text) {
-            UiText.Unanswered -> "Неотговорени"
-            UiText.Unsure -> "Несигурни"
+            UiText.Unanswered -> "Р В Р’В Р РЋРЎС™Р В Р’В Р вЂ™Р’ВµР В Р’В Р РЋРІР‚СћР В Р Р‹Р Р†Р вЂљРЎв„ўР В Р’В Р РЋРІР‚вЂњР В Р’В Р РЋРІР‚СћР В Р’В Р В РІР‚В Р В Р’В Р РЋРІР‚СћР В Р Р‹Р В РІР‚С™Р В Р’В Р вЂ™Р’ВµР В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚В"
+            UiText.Unsure -> "Р В Р’В Р РЋРЎС™Р В Р’В Р вЂ™Р’ВµР В Р Р‹Р В РЎвЂњР В Р’В Р РЋРІР‚ВР В Р’В Р РЋРІР‚вЂњР В Р Р‹Р РЋРІР‚СљР В Р Р‹Р В РІР‚С™Р В Р’В Р В РІР‚В¦Р В Р’В Р РЋРІР‚В"
             else -> ""
           }
       }
@@ -3360,7 +4341,7 @@ private fun t(
       when (text) {
         UiText.WorldFlagGame -> "Flagge erraten"
         UiText.HeroSubtitle -> "Trainiere Flagge, sammle Erfolge und Medaillen und verfolge deinen Fortschritt."
-        UiText.Menu -> "Menü"
+        UiText.Menu -> "MenР В РІР‚СљР РЋР’В"
         UiText.Start -> "Start"
         UiText.Medals -> "Medaillen"
         UiText.Achievements -> "Erfolge"
@@ -3371,41 +4352,41 @@ private fun t(
         UiText.Language -> "Sprache"
         UiText.Hints -> "Hinweise"
         UiText.CollectedHints -> "Gesammelte Hinweise"
-        UiText.AddTenHints -> "10 Hinweise hinzufügen"
-        UiText.ResetHints -> "Hinweise zurücksetzen"
+        UiText.AddTenHints -> "10 Hinweise hinzufР В РІР‚СљР РЋР’Вgen"
+        UiText.ResetHints -> "Hinweise zurР В РІР‚СљР РЋР’Вcksetzen"
         UiText.SwitchToNormalIcon -> "Zum normalen Symbol wechseln"
         UiText.SwitchToInactiveIcon -> "Zum inaktiven Symbol wechseln"
         UiText.SendTestReminder -> "Test-Erinnerung senden"
-        UiText.ResetAchievementsAndMedals -> "Medaillen zurücksetzen"
+        UiText.ResetAchievementsAndMedals -> "Medaillen zurР В РІР‚СљР РЋР’Вcksetzen"
         UiText.CorrectAnswers -> "richtige Antworten"
         UiText.CompletedTests -> "abgeschlossene Tests"
         UiText.Level -> "Level"
         UiText.LeaveQuizTitle -> "Quiz verlassen?"
-        UiText.LeaveQuizBody -> "Dieses Quiz zählt nicht für Ergebnisse, neue Hinweise, Medaillen, Erfolge oder Level-Fortschritt."
-        UiText.ExitAppTitle -> "App schließen?"
-        UiText.ExitAppBody -> "Möchtest du World Flag Game wirklich schließen?"
-        UiText.Exit -> "Schließen"
+        UiText.LeaveQuizBody -> "Dieses Quiz zР В РІР‚СљР вЂ™Р’В¤hlt nicht fР В РІР‚СљР РЋР’Вr Ergebnisse, neue Hinweise, Medaillen, Erfolge oder Level-Fortschritt."
+        UiText.ExitAppTitle -> "App schlieР В РІР‚СљР РЋРЎСџen?"
+        UiText.ExitAppBody -> "MР В РІР‚СљР вЂ™Р’В¶chtest du World Flag Game wirklich schlieР В РІР‚СљР РЋРЎСџen?"
+        UiText.Exit -> "SchlieР В РІР‚СљР РЋРЎСџen"
         UiText.Leave -> "Verlassen"
         UiText.Stay -> "Bleiben"
-        UiText.QuizInfo -> "Der Score wird am Ende gezeigt. Neue Hinweise und Fortschritt zählen erst nach dem vollständigen Quiz."
-        UiText.NextUp -> "Als Nächstes"
-        UiText.ChooseProfileIcon -> "Profilsymbol wählen"
-        UiText.ChangeIcon -> "Symbol ändern"
+        UiText.QuizInfo -> "Der Score wird am Ende gezeigt. Neue Hinweise und Fortschritt zР В РІР‚СљР вЂ™Р’В¤hlen erst nach dem vollstР В РІР‚СљР вЂ™Р’В¤ndigen Quiz."
+        UiText.NextUp -> "Als NР В РІР‚СљР вЂ™Р’В¤chstes"
+        UiText.ChooseProfileIcon -> "Profilsymbol wР В РІР‚СљР вЂ™Р’В¤hlen"
+        UiText.ChangeIcon -> "Symbol Р В РІР‚СљР вЂ™Р’В¤ndern"
         UiText.Save -> "Speichern"
         UiText.Cancel -> "Abbrechen"
-        UiText.Close -> "Schließen"
+        UiText.Close -> "SchlieР В РІР‚СљР РЋРЎСџen"
         UiText.Continents -> "Kontinente"
         UiText.GuessTheFlag -> "Errate die Flagge"
-        UiText.CountryName -> "Ländername"
+        UiText.CountryName -> "LР В РІР‚СљР вЂ™Р’В¤ndername"
         UiText.Hint -> "Hinweis"
-        UiText.Skip -> "↷"
-        UiText.Unskip -> "Überspringen zurücknehmen"
+        UiText.Skip -> UnskipArrowText
+        UiText.Unskip -> UnskipArrowText
         UiText.Finish -> "Fertig"
         UiText.Next -> "Weiter"
         UiText.PlayAgain -> "Nochmal spielen"
         UiText.FinalResults -> "Endergebnisse"
-        UiText.AnswerReview -> "Antwortübersicht"
-        UiText.Skipped -> "Übersprungen"
+        UiText.AnswerReview -> "AntwortР В РІР‚СљР РЋР’Вbersicht"
+        UiText.Skipped -> "Р В РІР‚СљР РЋРЎв„ўbersprungen"
         UiText.NetScore -> "Punktestand"
         UiText.HintPointsAvailable -> "Hinweise gewonnen"
         UiText.Correct -> "Richtig"
@@ -3413,8 +4394,8 @@ private fun t(
         UiText.NoAnswer -> "Keine Antwort"
         UiText.HintUsed -> "Hinweis verwendet"
         UiText.NoHintUsed -> "Kein Hinweis verwendet"
-        UiText.NextLevelRequirements -> "Anforderungen für das nächste Level"
-        UiText.Open -> "Öffnen"
+        UiText.NextLevelRequirements -> "Anforderungen fР В РІР‚СљР РЋР’Вr das nР В РІР‚СљР вЂ™Р’В¤chste Level"
+        UiText.Open -> "Р В РІР‚СљР Р†Р вЂљРІР‚Сљffnen"
         UiText.LevelUpTitle -> "Levelaufstieg!"
         UiText.LevelUpBody -> "Du hast Level %1\$d erreicht und 5 kostenlose Hinweise erhalten."
         else ->
@@ -3438,10 +4419,10 @@ private fun displayModeTitle(
   language: AppLanguage,
 ): String =
   when (mode) {
-    GameMode.Training -> if (language == AppLanguage.German) "Training" else if (language == AppLanguage.Bulgarian) "Тренировка" else "Training"
-    GameMode.Continents -> if (language == AppLanguage.German) "Kontinente" else if (language == AppLanguage.Bulgarian) "Континенти" else "Continents"
-    GameMode.AllIn -> localizedModeTitle(GameMode.AllIn, language)
-    GameMode.LocalMultiplayer -> if (language == AppLanguage.German) "Lokaler Multiplayer" else if (language == AppLanguage.Bulgarian) "Локален мултиплейър" else "Local Multiplayer"
+    GameMode.Training -> cleanModeTitle(GameMode.Training, language)
+    GameMode.Continents -> cleanModeTitle(GameMode.Continents, language)
+    GameMode.AllIn -> cleanModeTitle(GameMode.AllIn, language)
+    GameMode.LocalMultiplayer -> cleanModeTitle(GameMode.LocalMultiplayer, language)
     null ->
       when (language) {
         AppLanguage.English -> "Quiz"
@@ -3458,3 +4439,10 @@ private fun buttonContentColor(background: Color): Color {
     else -> if (background.luminance() > 0.5f) Color.Black else Color.White
   }
 }
+
+
+
+
+
+
+

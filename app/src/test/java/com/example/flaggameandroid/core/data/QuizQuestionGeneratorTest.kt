@@ -135,6 +135,25 @@ class QuizQuestionGeneratorTest {
   }
 
   @Test
+  fun training_doesNotRepeatCountriesWhenQuestionCountIsWithinPoolSize() {
+    val generator = QuizQuestionGenerator(Random(8))
+
+    val questions =
+      generator.buildQuestions(
+        countries = repository.getCountries(),
+        config =
+          QuizConfig(
+            mode = GameMode.Training,
+            variants = QuizVariant.entries.toSet(),
+            questionCount = 195,
+          ),
+      )
+
+    assertEquals(195, questions.size)
+    assertEquals(questions.size, questions.map { it.correctCountry.code }.distinct().size)
+  }
+
+  @Test
   fun nonWeightedModes_keepThreeVariantsEvenlyDistributed() {
     val generator = QuizQuestionGenerator(Random(8))
 

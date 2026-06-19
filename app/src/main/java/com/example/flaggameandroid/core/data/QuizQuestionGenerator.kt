@@ -28,7 +28,16 @@ class QuizQuestionGenerator(
     val variants = buildWeightedVariants(config, targetCount)
     val correctCountries =
       if (config.mode == GameMode.Training) {
-        List(config.questionCount.coerceIn(1, 999)) { pool.random(random) }
+        if (targetCount <= pool.size) {
+          pool.shuffled(random).take(targetCount)
+        } else {
+          buildList {
+            repeat(targetCount / pool.size) {
+              addAll(pool.shuffled(random))
+            }
+            addAll(pool.shuffled(random).take(targetCount % pool.size))
+          }.take(targetCount)
+        }
       } else {
         pool.shuffled(random).take(targetCount)
       }

@@ -395,10 +395,11 @@ class FlagGameViewModel(
   }
 
   fun onCountryAnswerSelected(country: FlagCountry) {
-    updateCurrentQuestionDraft { draft ->
+    updateCurrentQuestionDraft { draft ->  
       draft.copy(
         status = QuestionStatus.Answered,
         selectedCountry = country,
+        locked = _uiState.value.quiz.mode == GameMode.Training,
       )
     }
   }
@@ -406,8 +407,31 @@ class FlagGameViewModel(
   fun onTypedAnswerChanged(answer: String) {
     updateCurrentQuestionDraft { draft ->
       draft.copy(
-        status = if (answer.isBlank()) QuestionStatus.Unanswered else QuestionStatus.Answered,
         typedAnswer = answer,
+      )
+    }
+  }
+
+  fun onVerifyTypedAnswer() {
+    val state = _uiState.value
+    val quiz = state.quiz
+    val currentDraft = quiz.currentQuestionState
+    if (quiz.currentQuestion?.variant != QuizVariant.TypeCountryName) return
+    if (currentDraft.typedAnswer.isBlank() || currentDraft.locked) return
+
+    _uiState.update {
+      it.copy(
+        quiz =
+          quiz.copy(
+            questionStates =
+              quiz.questionStates.replaceAt(
+                quiz.currentQuestionIndex,
+                currentDraft.copy(
+                  status = QuestionStatus.Answered,
+                  locked = true,
+                ),
+              ),
+          ),
       )
     }
   }
@@ -417,6 +441,7 @@ class FlagGameViewModel(
     val quiz = state.quiz
     val question = quiz.currentQuestion ?: return
     val currentDraft = quiz.currentQuestionState
+    if (currentDraft.locked || currentDraft.status == QuestionStatus.Answered) return
     if (currentDraft.hintUses >= 2 || quiz.currentPlayer.hintPoints < 1) return
 
     val players = quiz.players.toMutableList()
@@ -498,6 +523,7 @@ class FlagGameViewModel(
       currentDraft.copy(
         status = QuestionStatus.Answered,
         typedAnswer = currentDraft.typedAnswer,
+        locked = quiz.mode == GameMode.Training && currentDraft.status == QuestionStatus.Answered,
       )
     val updatedQuestionStates = quiz.questionStates.replaceAt(quiz.currentQuestionIndex, updatedDraft)
     val isCorrect =
@@ -580,11 +606,22 @@ class FlagGameViewModel(
     val state = _uiState.value
     val quiz = state.quiz
     val currentDraft = quiz.currentQuestionState
+    val currentQuestion = quiz.currentQuestion
     val updatedQuestionStates =
-      if (currentDraft.status == QuestionStatus.Unanswered) {
-        quiz.questionStates.replaceAt(quiz.currentQuestionIndex, currentDraft.copy(status = QuestionStatus.Skipped))
-      } else {
-        quiz.questionStates
+      when {
+        currentQuestion?.variant == QuizVariant.TypeCountryName && currentDraft.typedAnswer.isNotBlank() ->
+          quiz.questionStates.replaceAt(
+            quiz.currentQuestionIndex,
+            currentDraft.copy(
+              status = QuestionStatus.Answered,
+              locked = true,
+            ),
+          )
+        currentQuestion?.variant != QuizVariant.TypeCountryName && currentDraft.status == QuestionStatus.Unanswered ->
+          quiz.questionStates.replaceAt(quiz.currentQuestionIndex, currentDraft.copy(status = QuestionStatus.Skipped))
+        quiz.mode == GameMode.Training && currentDraft.status == QuestionStatus.Answered ->
+          quiz.questionStates.replaceAt(quiz.currentQuestionIndex, currentDraft.copy(locked = true))
+        else -> quiz.questionStates
       }
     val targetIndex = (quiz.currentQuestionIndex + 1).takeIf { it <= quiz.questions.lastIndex } ?: return
     _uiState.update {
@@ -633,6 +670,7 @@ class FlagGameViewModel(
     _uiState.update { state ->
       val quiz = state.quiz
       val currentQuestion = quiz.currentQuestion ?: return@update state
+      if (quiz.mode == GameMode.Training && quiz.currentQuestionState.locked) return@update state
       val updatedDraft = transform(quiz.currentQuestionState)
       state.copy(
         quiz =
@@ -758,6 +796,7 @@ class FlagGameViewModel(
       hiddenOptionCodes = draft.hiddenOptionCodes,
       typedHintPrefix = draft.typedHintPrefix,
       hintUsedOnCurrentQuestion = draft.hintUses > 0,
+      questionStates = questionStates,
     )
   }
 

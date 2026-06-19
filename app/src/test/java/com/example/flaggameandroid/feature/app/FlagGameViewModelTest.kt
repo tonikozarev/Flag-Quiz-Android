@@ -103,7 +103,10 @@ class FlagGameViewModelTest {
   @Test
   fun changedAnswerBeforeNext_usesFinalSelectionForScore() {
     val viewModel = viewModel()
-    startSingleVariantQuiz(viewModel, QuizVariant.FlagToCountry, count = 3)
+    viewModel.onModeSelected(GameMode.Continents)
+    QuizVariant.entries.filterNot { it == QuizVariant.FlagToCountry }.forEach(viewModel::onVariantToggled)
+    viewModel.onQuestionCountChanged(3)
+    viewModel.onStartQuiz()
 
     val question = viewModel.uiState.value.quiz.currentQuestion!!
     val correct = question.correctCountry
@@ -117,6 +120,26 @@ class FlagGameViewModelTest {
 
     assertEquals(0, viewModel.uiState.value.quiz.players.first().score)
     assertEquals(false, viewModel.uiState.value.quiz.results.first().isCorrect)
+  }
+
+  @Test
+  fun trainingAnsweredQuestionLocksAfterAdvancingAndCannotBeChangedOnReturn() {
+    val viewModel = viewModel()
+    startSingleVariantQuiz(viewModel, QuizVariant.FlagToCountry, count = 2)
+
+    val question = viewModel.uiState.value.quiz.currentQuestion!!
+    val correct = question.correctCountry
+    val wrong = question.options.first { it.code != correct.code }
+
+    viewModel.onCountryAnswerSelected(correct)
+    viewModel.onNextQuestionPreview()
+    viewModel.onPreviousQuestion()
+
+    assertTrue(viewModel.uiState.value.quiz.questionStates.first().locked)
+    assertEquals(correct, viewModel.uiState.value.quiz.questionStates.first().selectedCountry)
+
+    viewModel.onCountryAnswerSelected(wrong)
+    assertEquals(correct, viewModel.uiState.value.quiz.questionStates.first().selectedCountry)
   }
 
   @Test

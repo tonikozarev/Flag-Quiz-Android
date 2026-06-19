@@ -94,6 +94,7 @@ data class QuestionDraftState(
   val typedHintPrefix: String? = null,
   val hintUses: Int = 0,
   val hintUsed: Boolean = false,
+  val locked: Boolean = false,
 )
 
 data class QuizState(
