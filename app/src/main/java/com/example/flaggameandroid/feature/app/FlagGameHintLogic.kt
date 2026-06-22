@@ -26,7 +26,7 @@ internal fun applyHintToCurrentQuestion(
   val firstHint = currentDraft.hintUses == 0
   val speedRunPenaltySeconds =
     if (quiz.mode == GameMode.SpeedRun) {
-      if (firstHint) 5 else 10
+      if (firstHint) 1 else 2
     } else {
       0
     }

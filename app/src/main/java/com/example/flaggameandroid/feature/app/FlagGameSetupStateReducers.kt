@@ -32,6 +32,11 @@ internal fun FlagGameUiState.withQuestionCountInput(questionCount: String): Flag
     it.copy(questionCountInput = questionCount.filter { char -> char.isDigit() }, surpriseMe = false)
   }
 
+internal fun FlagGameUiState.withSpeedRunSecondsPerAnswerInput(speedRunSeconds: String): FlagGameUiState =
+  withUpdatedSetup {
+    it.copy(speedRunSecondsPerAnswerInput = speedRunSeconds.filter { char -> char.isDigit() })
+  }
+
 internal fun FlagGameUiState.withSurpriseMeToggled(): FlagGameUiState {
   val surpriseMe = !setup.surpriseMe
   return withUpdatedSetup {

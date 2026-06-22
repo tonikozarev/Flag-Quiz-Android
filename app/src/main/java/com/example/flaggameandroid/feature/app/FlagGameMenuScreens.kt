@@ -107,11 +107,6 @@ fun MenuScreen(
       onSettingsClick = onSettingsClick,
       onQuitClick = onQuitClick,
     )
-
-    PracticeSummaryCard(
-      language = language,
-      countryPracticeStats = countryPracticeStats,
-    )
   }
 }
 
@@ -119,7 +114,7 @@ fun MenuScreen(
 fun GameModesScreen(
   language: AppLanguage,
   dailyChallengeCache: DailyChallengeCache?,
-  mistakeReviewUnlocked: Boolean,
+  mistakeReviewEligibleCount: Int,
   onBack: () -> Unit,
   onModeSelected: (GameMode) -> Unit,
   modifier: Modifier = Modifier,
@@ -137,7 +132,7 @@ fun GameModesScreen(
         openEnabled =
           when (mode) {
             GameMode.DailyChallenge -> dailyChallengeCache?.completed != true
-            GameMode.MistakeReview -> mistakeReviewUnlocked
+            GameMode.MistakeReview -> mistakeReviewEligibleCount >= com.example.flaggameandroid.core.model.MistakeReviewUnlockCountryCount
             else -> true
           },
         openLabel =

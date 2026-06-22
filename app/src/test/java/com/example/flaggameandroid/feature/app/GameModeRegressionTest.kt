@@ -98,6 +98,62 @@ class GameModeRegressionTest {
   }
 
   @Test
+  fun mistakeReviewMode_locksQuestionCountToEligibleCountryCount() {
+    val countries = StaticFlagCatalogRepository().getCountries()
+    val initialStats =
+      countries.take(12).associate { country ->
+        country.code to CountryPracticeStats(wrongCount = 10)
+      }
+    val viewModel =
+      viewModel(
+        initialPersistedState =
+          PersistedAppState(
+            countryPracticeStats = initialStats,
+            mistakeReviewUnlocked = true,
+          ),
+      )
+
+    viewModel.onModeSelected(GameMode.MistakeReview)
+
+    assertEquals("12", viewModel.uiState.value.setup.questionCountInput)
+    assertEquals(12, viewModel.uiState.value.questionCountLimit)
+  }
+
+  @Test
+  fun mistakeReview_restartAfterCompletionDoesNotCrashWhenPoolDropsBelowUnlockThreshold() {
+    val countries = StaticFlagCatalogRepository().getCountries()
+    val initialStats =
+      countries.take(10).associate { country ->
+        country.code to CountryPracticeStats(wrongCount = 10)
+      }
+    val viewModel =
+      viewModel(
+        initialPersistedState =
+          PersistedAppState(
+            countryPracticeStats = initialStats,
+            mistakeReviewUnlocked = true,
+          ),
+      )
+
+    viewModel.onModeSelected(GameMode.MistakeReview)
+    viewModel.onStartQuiz()
+
+    repeat(viewModel.uiState.value.quiz.totalQuestions) {
+      val question = viewModel.uiState.value.quiz.currentQuestion!!
+      viewModel.onCountryAnswerSelected(question.correctCountry)
+      viewModel.onNextQuestion()
+    }
+
+    assertEquals(AppScreen.Results, viewModel.uiState.value.screen)
+    assertTrue(viewModel.uiState.value.countryPracticeStats.values.count { it.isMistakeReviewEligible } < 10)
+
+    viewModel.onPlayAgain()
+
+    assertEquals(AppScreen.Results, viewModel.uiState.value.screen)
+    assertEquals("No missed countries to review yet.", viewModel.uiState.value.setupError)
+  }
+
+  @Test
   fun continentsModeUsesOnlySelectedContinentCountries() {
     val viewModel = viewModel()
 

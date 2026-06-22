@@ -33,7 +33,7 @@ class QuizQuestionGenerator(
       if (config.mode == GameMode.Training) {
         buildTrainingCountries(pool, targetCount)
       } else if (config.poolSource == QuizPoolSource.MistakeReview) {
-        buildRepeatedReviewCountries(pool, targetCount)
+        buildUniqueReviewCountries(pool, targetCount)
       } else {
         pickWeightedCountries(pool, targetCount, practiceStats)
       }
@@ -100,16 +100,12 @@ class QuizQuestionGenerator(
     return picked
   }
 
-  private fun buildRepeatedReviewCountries(
+  private fun buildUniqueReviewCountries(
     pool: List<FlagCountry>,
     targetCount: Int,
   ): List<FlagCountry> {
     if (pool.isEmpty()) return emptyList()
-    return buildList {
-      repeat(targetCount) {
-        add(pool[random.nextInt(pool.size)])
-      }
-    }
+    return pool.shuffled(random).take(minOf(targetCount, pool.size))
   }
 
   private fun countrySelectionWeight(

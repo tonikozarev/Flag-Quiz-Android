@@ -73,6 +73,7 @@ data class SetupState(
   val variants: Set<QuizVariant> = QuizVariant.entries.toSet(),
   val selectedContinents: Set<String> = emptySet(),
   val questionCountInput: String = "10",
+  val speedRunSecondsPerAnswerInput: String = "5",
   val surpriseMe: Boolean = false,
   val allInType: AllInType = AllInType.NoBluffAllTough,
   val multiplayerBase: MultiplayerQuizBase = MultiplayerQuizBase.Continents,
@@ -81,6 +82,9 @@ data class SetupState(
 ) {
   val questionCount: Int?
     get() = questionCountInput.toIntOrNull()
+
+  val speedRunSecondsPerAnswer: Int?
+    get() = speedRunSecondsPerAnswerInput.toIntOrNull()
 
   val needsContinents: Boolean
     get() = mode == GameMode.Continents || mode == GameMode.SpeedRun
@@ -122,7 +126,9 @@ data class QuizState(
   val typedHintPrefix: String? = null,
   val hintUsedOnCurrentQuestion: Boolean = false,
   val startedAtEpochMillis: Long = 0L,
+  val speedRunSecondsPerAnswer: Int = 5,
   val speedRunPenaltySeconds: Int = 0,
+  val timedOut: Boolean = false,
   val poolSource: com.example.flaggameandroid.core.model.QuizPoolSource = com.example.flaggameandroid.core.model.QuizPoolSource.Standard,
   val dailyChallengeTheme: com.example.flaggameandroid.core.model.DailyChallengeTheme? = null,
   val results: List<QuestionResult> = emptyList(),
@@ -152,7 +158,7 @@ data class QuizState(
         when {
           index == currentQuestionIndex ->
             state.status == QuestionStatus.Answered ||
-              (state.status == QuestionStatus.Unanswered && currentQuestionHasPendingAnswer)
+              (state.status != QuestionStatus.Answered && currentQuestionHasPendingAnswer)
           else -> state.status == QuestionStatus.Answered
         }
       }

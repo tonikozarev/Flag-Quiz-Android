@@ -5,6 +5,7 @@ data class QuizConfig(
   val variants: Set<QuizVariant>,
   val selectedContinents: Set<String> = emptySet(),
   val questionCount: Int,
+  val speedRunSecondsPerAnswer: Int = 3,
   val surpriseMe: Boolean = false,
   val allInType: AllInType? = null,
   val hintDifficulty: HintDifficulty = HintDifficulty.Medium,

@@ -44,6 +44,7 @@ internal fun FlagGameScreenContent(
   onVariantToggled: (QuizVariant) -> Unit,
   onContinentToggled: (String) -> Unit,
   onQuestionCountChanged: (String) -> Unit,
+  onSpeedRunSecondsChanged: (String) -> Unit,
   onSurpriseMeClicked: () -> Unit,
   onAllInTypeSelected: (AllInType) -> Unit,
   onMultiplayerBaseSelected: (MultiplayerQuizBase) -> Unit,
@@ -59,6 +60,7 @@ internal fun FlagGameScreenContent(
   onNextQuestionPreview: () -> Unit,
   onUnskipQuestion: () -> Unit,
   onFinishQuiz: () -> Unit,
+  onSpeedRunTimeExpired: () -> Unit,
   onPlayAgain: () -> Unit,
   onBackToMenuClick: () -> Unit,
   onBackToGameModesClick: () -> Unit,
@@ -114,7 +116,7 @@ internal fun FlagGameScreenContent(
       GameModesScreen(
         language = uiState.settings.language,
         dailyChallengeCache = uiState.dailyChallengeCache,
-        mistakeReviewUnlocked = uiState.mistakeReviewUnlocked,
+        mistakeReviewEligibleCount = mistakeReviewEligibleCountryCount(uiState.countryPracticeStats),
         onBack = onBackToMenuClick,
         onModeSelected = onModeSelected,
         modifier = modifier,
@@ -165,6 +167,7 @@ internal fun FlagGameScreenContent(
         onVariantToggle = onVariantToggled,
         onContinentToggle = onContinentToggled,
         onQuestionCountChange = onQuestionCountChanged,
+        onSpeedRunSecondsChange = onSpeedRunSecondsChanged,
         onSurpriseMe = onSurpriseMeClicked,
         onAllInTypeSelected = onAllInTypeSelected,
         onMultiplayerBaseSelected = onMultiplayerBaseSelected,
@@ -187,6 +190,7 @@ internal fun FlagGameScreenContent(
         onNextQuestionPreview = onNextQuestionPreview,
         onUnskipQuestion = onUnskipQuestion,
         onFinishQuiz = onFinishQuiz,
+        onSpeedRunTimeExpired = onSpeedRunTimeExpired,
         modifier = modifier,
       )
     AppScreen.Results ->

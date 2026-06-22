@@ -59,6 +59,7 @@ fun QuizScreen(
   onNextQuestionPreview: () -> Unit,
   onUnskipQuestion: () -> Unit,
   onFinishQuiz: () -> Unit,
+  onSpeedRunTimeExpired: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val question = quiz.currentQuestion ?: return
@@ -80,10 +81,14 @@ fun QuizScreen(
   var showQuizInfo by remember { mutableStateOf(false) }
   var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
   BackHandler { showQuitDialog = true }
-  LaunchedEffect(quiz.mode, quiz.startedAtEpochMillis) {
+  LaunchedEffect(quiz.mode, quiz.startedAtEpochMillis, quiz.speedRunPenaltySeconds, quiz.speedRunSecondsPerAnswer, quiz.questions.size) {
     if (quiz.mode == GameMode.SpeedRun && quiz.startedAtEpochMillis > 0L) {
       while (true) {
         nowMillis = System.currentTimeMillis()
+        if (speedRunRemainingMillis(quiz, nowMillis) <= 0L) {
+          onSpeedRunTimeExpired()
+          break
+        }
         kotlinx.coroutines.delay(1_000)
       }
     }
@@ -94,7 +99,7 @@ fun QuizScreen(
   val skippedQuestions = quiz.questionStates.mapIndexedNotNull { index, state -> if (state.status == QuestionStatus.Skipped) index + 1 else null }
   val speedRunElapsedLabel =
     if (quiz.mode == GameMode.SpeedRun) {
-      formatElapsedTime(speedRunElapsedMillis(quiz, nowMillis))
+      formatElapsedTime(speedRunRemainingMillis(quiz, nowMillis))
     } else {
       null
     }
@@ -146,12 +151,7 @@ fun QuizScreen(
           verticalAlignment = Alignment.CenterVertically,
         ) {
           Text(
-            text =
-              when (language) {
-                AppLanguage.English -> "Speed run"
-                AppLanguage.Bulgarian -> "Скоростна игра"
-                AppLanguage.German -> "Schnelllauf"
-              },
+            text = localizedSpeedRunTimeLeftLabel(language),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
           )
@@ -353,18 +353,23 @@ fun ResultsScreen(
     }
 
     if (quiz.mode == GameMode.SpeedRun) {
-      SectionCard(title = when (language) {
-        AppLanguage.English -> "Speed run time"
-        AppLanguage.Bulgarian -> "Време за скоростна игра"
-        AppLanguage.German -> "Zeit im Schnelllauf"
-      }) {
+      val speedRunStartTime =
+        java.time.Instant.ofEpochMilli(quiz.startedAtEpochMillis)
+          .atZone(java.time.ZoneId.systemDefault())
+          .toLocalTime()
+          .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+      val speedRunResultLabel =
+        "${localizedSpeedRunTimeStartLabel(language)}: $speedRunStartTime | ${localizedSpeedRunTimeLeftLabel(language)}: ${formatElapsedTime(speedRunRemainingMillis(quiz, completedAtEpochMillis))}"
+      SectionCard(
+        title =
+          if (quiz.timedOut) {
+            localizedSpeedRunGameOverLabel(language)
+          } else {
+            cleanModeTitle(GameMode.SpeedRun, language)
+          },
+      ) {
         Text(
-          text =
-            when (language) {
-              AppLanguage.English -> "Final time: ${formatElapsedTime(speedRunElapsedMillis(quiz, completedAtEpochMillis))}"
-              AppLanguage.Bulgarian -> "Краен резултат: ${formatElapsedTime(speedRunElapsedMillis(quiz, completedAtEpochMillis))}"
-              AppLanguage.German -> "Endzeit: ${formatElapsedTime(speedRunElapsedMillis(quiz, completedAtEpochMillis))}"
-            },
+          text = speedRunResultLabel,
         )
       }
     }

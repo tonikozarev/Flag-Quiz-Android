@@ -125,14 +125,22 @@ class FlagGameViewModel(
 
   fun onModeSelected(mode: GameMode) {
     val setup = buildSetupForMode(mode, selectableContinents, countries, _uiState.value.profile.displayName)
+    val practiceStats = _uiState.value.countryPracticeStats
+    val questionCountLimit = questionLimitFor(setup, countries, practiceStats)
+    val preparedSetup =
+      if (mode == GameMode.MistakeReview) {
+        setup.copy(questionCountInput = questionCountLimit.toString())
+      } else {
+        setup
+      }
     if (mode == GameMode.DailyChallenge) {
       val state = _uiState.value.copy(
-        setup = setup,
-        questionCountLimit = questionLimitFor(setup, countries),
+        setup = preparedSetup,
+        questionCountLimit = questionCountLimit,
       )
       val result =
         buildQuizStartResult(
-          setup = setup,
+          setup = preparedSetup,
           countries = countries,
           questionGenerator = questionGenerator,
           hintDifficulty = state.settings.hintDifficulty,
@@ -153,8 +161,8 @@ class FlagGameViewModel(
         val quiz = requireNotNull(result.quiz)
         it.copy(
           screen = AppScreen.Quiz,
-          setup = setup,
-          questionCountLimit = questionLimitFor(setup, countries),
+          setup = preparedSetup,
+          questionCountLimit = questionCountLimit,
           quiz = quiz,
           dailyChallengeCache = result.dailyChallengeCache ?: it.dailyChallengeCache,
           setupError = null,
@@ -164,8 +172,8 @@ class FlagGameViewModel(
       updateState {
         it.copy(
           screen = AppScreen.Setup,
-          setup = setup,
-          questionCountLimit = questionLimitFor(setup, countries),
+          setup = preparedSetup,
+          questionCountLimit = questionCountLimit,
           setupError = null,
         )
       }
@@ -282,6 +290,10 @@ class FlagGameViewModel(
     updateState { it.withQuestionCountInput(questionCount) }
   }
 
+  fun onSpeedRunSecondsChanged(seconds: String) {
+    updateState { it.withSpeedRunSecondsPerAnswerInput(seconds) }
+  }
+
   fun onSurpriseMeClicked() {
     updateState { it.withSurpriseMeToggled() }
   }
@@ -385,6 +397,22 @@ class FlagGameViewModel(
     val quiz = state.quiz
     if (!quiz.canFinish) return
     completeQuiz(state, quiz.withCurrentQuestionSubmitted() ?: quiz)
+  }
+
+  fun onSpeedRunTimeExpired() {
+    val state = _uiState.value
+    val quiz = state.quiz
+    if (quiz.mode != GameMode.SpeedRun || quiz.timedOut) return
+    updateState {
+      it.copy(
+        screen = AppScreen.Results,
+        quiz =
+          quiz.copy(
+            timedOut = true,
+            results = buildQuizResults(quiz, state.settings.language),
+          ),
+      )
+    }
   }
 
   fun onPreviousQuestion() {

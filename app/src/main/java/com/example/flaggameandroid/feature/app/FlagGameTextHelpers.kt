@@ -205,6 +205,44 @@ internal fun speedRunElapsedMillis(
   return (nowMillis - quiz.startedAtEpochMillis + (quiz.speedRunPenaltySeconds * 1000L)).coerceAtLeast(0L)
 }
 
+internal fun speedRunTotalBudgetMillis(quiz: QuizState): Long {
+  if (quiz.mode != GameMode.SpeedRun || quiz.questions.isEmpty()) return 0L
+  val secondsPerAnswer = quiz.speedRunSecondsPerAnswer.coerceAtLeast(1)
+  val totalSeconds =
+    quiz.questions.sumOf { question ->
+      if (question.variant == QuizVariant.TypeCountryName) {
+        secondsPerAnswer * 2
+      } else {
+        secondsPerAnswer
+      }
+    }
+  val bonusSeconds =
+    if (secondsPerAnswer == 1 && quiz.questions.size >= 10) {
+      5
+    } else {
+      0
+    }
+  return (totalSeconds + bonusSeconds).coerceAtLeast(0) * 1000L
+}
+
+internal fun speedRunRemainingMillis(
+  quiz: QuizState,
+  nowMillis: Long,
+): Long =
+  (speedRunTotalBudgetMillis(quiz) - speedRunElapsedMillis(quiz, nowMillis)).coerceAtLeast(0L)
+
+internal fun localizedSpeedRunTimeLeftLabel(language: AppLanguage): String =
+  tr(language, "Time left", "Оставащо време", "Verbleibende Zeit")
+
+internal fun localizedSpeedRunTimeStartLabel(language: AppLanguage): String =
+  tr(language, "Time start", "Начало", "Startzeit")
+
+internal fun localizedSpeedRunGameOverLabel(language: AppLanguage): String =
+  tr(language, "Game over", "Край на играта", "Spiel vorbei")
+
+internal fun localizedSpeedRunTimeUpLabel(language: AppLanguage): String =
+  tr(language, "Time is up!", "Времето изтече!", "Zeit abgelaufen!")
+
 internal fun formatElapsedTime(totalMillis: Long): String {
   val totalSeconds = (totalMillis / 1000L).coerceAtLeast(0L)
   val minutes = totalSeconds / 60L

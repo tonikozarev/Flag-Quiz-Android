@@ -38,6 +38,7 @@ enum class AchievementId(
   WorldPurist(AchievementSector.World, "World Purist", "\uD83C\uDF10", "Complete all countries perfectly without using any hints."),
   SpeedRunStarter(AchievementSector.SpeedRuns, "Speed Run Starter", "\u23F1\uFE0F", "Finish any Speed Run quiz."),
   SpeedRunPurist(AchievementSector.SpeedRuns, "Speed Run Purist", "\uD83D\uDD25", "Finish a perfect Speed Run quiz without using hints."),
+  SpeedRunOneSecond(AchievementSector.SpeedRuns, "Speed Run One Second", "\u26A1", "Finish a perfect Speed Run quiz with 1 second per question."),
   BronzeCollector(AchievementSector.Collectors, "Bronze Collector", "\uD83E\uDD49", "Earn bronze medals 50 times."),
   SilverCollector(AchievementSector.Collectors, "Silver Collector", "\uD83E\uDD48", "Earn silver medals 25 times."),
   GoldCollector(AchievementSector.Collectors, "Gold Collector", "\uD83E\uDD47", "Earn gold medals 10 times."),

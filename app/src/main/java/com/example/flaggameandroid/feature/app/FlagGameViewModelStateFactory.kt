@@ -111,7 +111,9 @@ internal fun buildSetupForMode(
         GameMode.AllIn -> countries.size.toString()
         GameMode.DailyChallenge -> "10"
         GameMode.MistakeReview -> "10"
+        GameMode.SpeedRun -> "10"
         else -> "10"
       },
+    speedRunSecondsPerAnswerInput = if (mode == GameMode.SpeedRun) "5" else "5",
     playerNames = listOf(displayName, "Player 2"),
   )

@@ -39,6 +39,68 @@ class FlagGameQuizBootstrapLogicTest {
   }
 
   @Test
+  fun buildStartedQuizState_usesEligibleMistakeReviewCountryCount() {
+    val countries = StaticFlagCatalogRepository().getCountries()
+    val setup =
+      buildSetupForMode(
+        GameMode.MistakeReview,
+        listOf("Africa", "Asia", "Europe", "North America", "Oceania", "South America"),
+        countries,
+        "Tony",
+      ).copy(variants = setOf(QuizVariant.FlagToCountry))
+    val practiceStats =
+      countries.take(12).associate { country ->
+        country.code to CountryPracticeStats(wrongCount = 10)
+      }
+
+    val quiz =
+      buildStartedQuizState(
+        setup = setup,
+        countries = countries,
+        questionGenerator = QuizQuestionGenerator(Random(25)),
+        hintDifficulty = HintDifficulty.Medium,
+        random = Random(26),
+        hintCount = 3,
+        displayName = "Tony",
+        practiceStats = practiceStats,
+      )
+
+    assertEquals(12, quiz.totalQuestions)
+    assertEquals(12, quiz.questions.size)
+  }
+
+  @Test
+  fun buildStartedQuizState_mistakeReviewQuestionsAreUnique() {
+    val countries = StaticFlagCatalogRepository().getCountries()
+    val setup =
+      buildSetupForMode(
+        GameMode.MistakeReview,
+        listOf("Africa", "Asia", "Europe", "North America", "Oceania", "South America"),
+        countries,
+        "Tony",
+      ).copy(variants = setOf(QuizVariant.FlagToCountry))
+    val practiceStats =
+      countries.take(12).associate { country ->
+        country.code to CountryPracticeStats(wrongCount = 10)
+      }
+
+    val quiz =
+      buildStartedQuizState(
+        setup = setup,
+        countries = countries,
+        questionGenerator = QuizQuestionGenerator(Random(27)),
+        hintDifficulty = HintDifficulty.Medium,
+        random = Random(28),
+        hintCount = 3,
+        displayName = "Tony",
+        practiceStats = practiceStats,
+      )
+
+    val codes = quiz.questions.map { it.correctCountry.code }
+    assertEquals(codes.size, codes.distinct().size)
+  }
+
+  @Test
   fun buildQuizStartResult_returnsValidationErrorForInvalidSetup() {
     val countries = StaticFlagCatalogRepository().getCountries()
     val setup =
@@ -173,7 +235,7 @@ class FlagGameQuizBootstrapLogicTest {
   }
 
   @Test
-  fun mistakeReview_staysAvailableAfterBeingUnlocked() {
+  fun mistakeReview_requiresTenEligibleCountriesEvenWithPersistedUnlockBit() {
     val countries = StaticFlagCatalogRepository().getCountries()
     val setup =
       buildSetupForMode(
@@ -200,8 +262,8 @@ class FlagGameQuizBootstrapLogicTest {
         mistakeReviewUnlocked = true,
       )
 
-    assertNotNull(unlockedResult.quiz)
-    assertEquals(null, unlockedResult.validationError)
+    assertEquals("No missed countries to review yet.", unlockedResult.validationError)
+    assertNull(unlockedResult.quiz)
   }
 
   @Test
@@ -217,6 +279,9 @@ class FlagGameQuizBootstrapLogicTest {
         questionCountInput = "10",
         variants = setOf(QuizVariant.FlagToCountry),
       )
+
+    assertEquals("5", setup.speedRunSecondsPerAnswerInput)
+    assertEquals(5, setup.speedRunSecondsPerAnswer)
 
     val quiz =
       buildStartedQuizState(

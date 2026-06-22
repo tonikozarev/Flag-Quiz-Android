@@ -40,8 +40,8 @@ class FlagGameHintLogicTest {
     val firstHint = applyHintToCurrentQuestion(state)
     assertNotNull(firstHint)
     assertEquals(1, firstHint!!.hintCount)
-    assertEquals(5, firstHint.speedRunPenaltySeconds)
-    assertEquals(5, firstHint.quiz.speedRunPenaltySeconds)
+    assertEquals(1, firstHint.speedRunPenaltySeconds)
+    assertEquals(1, firstHint.quiz.speedRunPenaltySeconds)
 
     val secondState = state.copy(
       quiz = firstHint.quiz,
@@ -50,7 +50,7 @@ class FlagGameHintLogicTest {
     val secondHint = applyHintToCurrentQuestion(secondState)
     assertNotNull(secondHint)
     assertEquals(0, secondHint!!.hintCount)
-    assertEquals(10, secondHint.speedRunPenaltySeconds)
-    assertEquals(15, secondHint.quiz.speedRunPenaltySeconds)
+    assertEquals(2, secondHint.speedRunPenaltySeconds)
+    assertEquals(3, secondHint.quiz.speedRunPenaltySeconds)
   }
 }

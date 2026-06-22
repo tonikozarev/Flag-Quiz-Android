@@ -39,6 +39,7 @@ fun SetupScreen(
   onVariantToggle: (QuizVariant) -> Unit,
   onContinentToggle: (String) -> Unit,
   onQuestionCountChange: (String) -> Unit,
+  onSpeedRunSecondsChange: (String) -> Unit,
   onSurpriseMe: () -> Unit,
   onAllInTypeSelected: (AllInType) -> Unit,
   onMultiplayerBaseSelected: (MultiplayerQuizBase) -> Unit,
@@ -138,14 +139,27 @@ fun SetupScreen(
     }
 
     if (setup.mode != GameMode.AllIn && !(setup.mode == GameMode.LocalMultiplayer && setup.multiplayerBase == MultiplayerQuizBase.AllIn)) {
+      val isMistakeReview = setup.mode == GameMode.MistakeReview
+      val questionCount = setup.questionCount
+      val questionCountChangeHandler: (String) -> Unit =
+        if (isMistakeReview) {
+          { _: String -> }
+        } else {
+          onQuestionCountChange
+        }
+      val questionCountOverLimit =
+        !setup.surpriseMe &&
+          !isMistakeReview &&
+          questionCount != null &&
+          questionCount > questionCountLimit
       SectionCard(title = when (language) {
         AppLanguage.English -> "Question count"
         AppLanguage.Bulgarian -> "Брой въпроси"
         AppLanguage.German -> "Fragenanzahl"
       }) {
         OutlinedTextField(
-          value = setup.questionCountInput,
-          onValueChange = onQuestionCountChange,
+          value = if (isMistakeReview) questionCountLimit.toString() else setup.questionCountInput,
+          onValueChange = questionCountChangeHandler,
           label = {
             Text(
               when (language) {
@@ -172,55 +186,119 @@ fun SetupScreen(
               },
             )
           },
+          supportingText = if (isMistakeReview) {
+            null
+          } else {
+            {
+              Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                  when (language) {
+                    AppLanguage.English -> "Allowed range: 1-$questionCountLimit"
+                    AppLanguage.Bulgarian -> "Допустим диапазон: 1-$questionCountLimit"
+                    AppLanguage.German -> "Erlaubter Bereich: 1-$questionCountLimit"
+                  },
+                )
+                if (questionCountOverLimit) {
+                  Text(
+                    when (language) {
+                      AppLanguage.English -> "Selected question count is over the allowed limit."
+                      AppLanguage.Bulgarian -> "Избраният брой въпроси е над позволения лимит."
+                      AppLanguage.German -> "Die gewählte Fragenzahl liegt über dem erlaubten Limit."
+                    },
+                    color = AccentRed,
+                  )
+                } else if (ProgressionRules.shouldWarnNoMedal(setup.questionCount)) {
+                  Text(
+                    when (language) {
+                      AppLanguage.English -> "Perfect runs under 10 questions do not earn a medal."
+                      AppLanguage.Bulgarian -> "Перфектен тест под 10 въпроса не носи медал."
+                      AppLanguage.German -> "Perfekte Läufe unter 10 Fragen geben keine Medaille."
+                    },
+                  )
+                }
+              }
+            }
+          },
+          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+          singleLine = true,
+          enabled = !setup.surpriseMe && !isMistakeReview,
+          isError = questionCountOverLimit,
+          modifier = Modifier.fillMaxWidth(),
+        )
+        if (!isMistakeReview) {
+          OutlinedButton(onClick = onSurpriseMe, modifier = Modifier.fillMaxWidth()) {
+            Text(
+              if (setup.surpriseMe) {
+                when (language) {
+                  AppLanguage.English -> "Use custom amount"
+                  AppLanguage.Bulgarian -> "Използвай собствен брой"
+                  AppLanguage.German -> "Eigene Anzahl verwenden"
+                }
+              } else {
+                when (language) {
+                  AppLanguage.English -> "Surprise me! (1-$questionCountLimit)"
+                  AppLanguage.Bulgarian -> "Изненадай ме! (1-$questionCountLimit)"
+                  AppLanguage.German -> "Überrasche mich! (1-$questionCountLimit)"
+                }
+              },
+            )
+          }
+        }
+      }
+    }
+
+    if (setup.mode == GameMode.SpeedRun) {
+      SectionCard(title = when (language) {
+        AppLanguage.English -> "Seconds per answer"
+        AppLanguage.Bulgarian -> "Секунди за отговор"
+        AppLanguage.German -> "Sekunden pro Antwort"
+      }) {
+        val secondsPerAnswer = setup.speedRunSecondsPerAnswer
+        val secondsOutOfRange = secondsPerAnswer != null && secondsPerAnswer !in 1..10
+        OutlinedTextField(
+          value = setup.speedRunSecondsPerAnswerInput,
+          onValueChange = onSpeedRunSecondsChange,
+          label = {
+            Text(
+              when (language) {
+                AppLanguage.English -> "Example: 5"
+                AppLanguage.Bulgarian -> "Пример: 5"
+                AppLanguage.German -> "Beispiel: 5"
+              },
+            )
+          },
           supportingText = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
               Text(
                 when (language) {
-                  AppLanguage.English -> "Allowed range: 1-$questionCountLimit"
-                  AppLanguage.Bulgarian -> "Допустим диапазон: 1-$questionCountLimit"
-                  AppLanguage.German -> "Erlaubter Bereich: 1-$questionCountLimit"
+                  AppLanguage.English -> "Allowed range: 1-10"
+                  AppLanguage.Bulgarian -> "Допустим диапазон: 1-10"
+                  AppLanguage.German -> "Erlaubter Bereich: 1-10"
                 },
               )
               Text(
                 when (language) {
-                  AppLanguage.English -> "Questions repeat only if you ask for more than 195; otherwise each country appears once."
-                  AppLanguage.Bulgarian -> "Въпросите се повтарят само ако поискаш повече от 195. Иначе всяка държава се показва само веднъж."
-                  AppLanguage.German -> "Fragen wiederholen sich nur, wenn du mehr als 195 willst; sonst erscheint jedes Land nur einmal."
+                  AppLanguage.English -> "1-second bonus: +5 seconds only for quizzes with 10 or more questions."
+                  AppLanguage.Bulgarian -> "Бонус за 1 секунда: +5 секунди само при тестове с 10 или повече въпроса."
+                  AppLanguage.German -> "1-Sekunden-Bonus: +5 Sekunden nur bei Quiz mit 10 oder mehr Fragen."
                 },
               )
-              if (ProgressionRules.shouldWarnNoMedal(setup.questionCount)) {
+              if (secondsOutOfRange) {
                 Text(
                   when (language) {
-                    AppLanguage.English -> "Perfect runs under 10 questions do not earn a medal."
-                    AppLanguage.Bulgarian -> "Перфектен тест под 10 въпроса не носи медал."
-                    AppLanguage.German -> "Perfekte Läufe unter 10 Fragen geben keine Medaille."
+                    AppLanguage.English -> "Enter a value between 1 and 10 to start."
+                    AppLanguage.Bulgarian -> "Въведи стойност между 1 и 10, за да стартираш."
+                    AppLanguage.German -> "Gib einen Wert zwischen 1 und 10 ein, um zu starten."
                   },
+                  color = AccentRed,
                 )
               }
             }
           },
           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
           singleLine = true,
-          enabled = !setup.surpriseMe,
           modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedButton(onClick = onSurpriseMe, modifier = Modifier.fillMaxWidth()) {
-          Text(
-            if (setup.surpriseMe) {
-              when (language) {
-                AppLanguage.English -> "Use custom amount"
-                AppLanguage.Bulgarian -> "Използвай собствен брой"
-                AppLanguage.German -> "Eigene Anzahl verwenden"
-              }
-            } else {
-              when (language) {
-                AppLanguage.English -> "Surprise me! (1-$questionCountLimit)"
-                AppLanguage.Bulgarian -> "Изненадай ме! (1-$questionCountLimit)"
-                AppLanguage.German -> "Überrasche mich! (1-$questionCountLimit)"
-              }
-            },
-          )
-        }
       }
     }
 

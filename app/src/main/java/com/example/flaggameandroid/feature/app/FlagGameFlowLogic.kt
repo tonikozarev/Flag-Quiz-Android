@@ -167,11 +167,16 @@ internal fun validateSetup(
   if ((setup.mode == GameMode.Continents || setup.mode == GameMode.SpeedRun || setup.usesContinentsBase()) && countryPoolFor(setup).size < 4) {
     return "Choose continents with at least 4 countries."
   }
+  if (setup.mode == GameMode.SpeedRun) {
+    val secondsPerAnswer = setup.speedRunSecondsPerAnswer ?: return "Write how many seconds each answer should get."
+    if (secondsPerAnswer !in 1..10) return "Seconds per answer must be between 1 and 10."
+  }
   if (!setup.surpriseMe) {
+    val maxQuestions = countryPoolFor(setup).size
+    if (setup.mode == GameMode.MistakeReview) return null
     val questionCount = setup.questionCount ?: return "Write how many questions you want."
     if (questionCount <= 0) return "Question count must be at least 1."
-    val maxQuestions = countryPoolFor(setup).size
-    val limit = if (setup.mode == GameMode.Training || setup.mode == GameMode.MistakeReview) 999 else maxQuestions
+    val limit = if (setup.mode == GameMode.Training) 999 else maxQuestions
     if (questionCount > limit) return "Question count must be between 1 and $limit."
   }
 
@@ -188,6 +193,7 @@ internal fun configFor(
   poolSize: Int,
   hintDifficulty: HintDifficulty,
   random: Random,
+  practiceStats: Map<String, CountryPracticeStats> = emptyMap(),
 ): QuizConfig {
   val variants = setup.variants
 
@@ -197,13 +203,15 @@ internal fun configFor(
     } else if (setup.mode == GameMode.DailyChallenge) {
       (setup.questionCount?.coerceIn(1, minOf(poolSize, 10)) ?: minOf(poolSize, 10)).coerceAtLeast(1)
     } else if (setup.mode == GameMode.MistakeReview) {
-      setup.questionCount?.coerceIn(1, 999) ?: 10
+      mistakeReviewEligibleCountryCount(practiceStats)
     } else if (setup.mode == GameMode.Training) {
       if (setup.surpriseMe) {
         random.nextInt(from = 1, until = 1000)
       } else {
         setup.questionCount?.coerceIn(1, 999) ?: 1
       }
+    } else if (setup.mode == GameMode.SpeedRun) {
+      setup.questionCount?.coerceIn(1, poolSize) ?: 1
     } else if (setup.surpriseMe) {
       random.nextInt(from = 1, until = poolSize + 1)
     } else {
@@ -222,6 +230,7 @@ internal fun configFor(
     variants = variants,
     selectedContinents = setup.selectedContinents,
     questionCount = questionCount,
+    speedRunSecondsPerAnswer = setup.speedRunSecondsPerAnswer ?: 3,
     surpriseMe = setup.surpriseMe,
     allInType = setup.allInType,
     hintDifficulty = hintDifficulty,
@@ -251,11 +260,12 @@ internal fun countryPoolFor(
 internal fun questionLimitFor(
   setup: SetupState,
   countries: List<FlagCountry>,
+  practiceStats: Map<String, CountryPracticeStats> = emptyMap(),
 ): Int =
   if (setup.mode == GameMode.Training) {
     999
   } else if (setup.mode == GameMode.MistakeReview) {
-    999
+    mistakeReviewEligibleCountryCount(practiceStats)
   } else if (setup.mode == GameMode.DailyChallenge) {
     10
   } else {
@@ -381,6 +391,9 @@ internal fun awardAchievementsIfEligible(
     updatedAchievements = updatedAchievements.unlock(AchievementId.SpeedRunStarter, completedAtEpochMillis)
     if (completedResults.all { it.isCorrect } && completedResults.none { it.hintUsed }) {
       updatedAchievements = updatedAchievements.unlock(AchievementId.SpeedRunPurist, completedAtEpochMillis)
+    }
+    if (quiz.speedRunSecondsPerAnswer == 1 && completedResults.all { it.isCorrect }) {
+      updatedAchievements = updatedAchievements.unlock(AchievementId.SpeedRunOneSecond, completedAtEpochMillis)
     }
   }
 

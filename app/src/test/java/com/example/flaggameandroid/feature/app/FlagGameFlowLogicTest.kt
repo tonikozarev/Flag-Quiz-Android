@@ -2,8 +2,14 @@ package com.example.flaggameandroid.feature.app
 
 import com.example.flaggameandroid.core.data.QuizQuestionGenerator
 import com.example.flaggameandroid.core.data.StaticFlagCatalogRepository
+import com.example.flaggameandroid.core.model.AchievementsProgress
+import com.example.flaggameandroid.core.model.AchievementId
+import com.example.flaggameandroid.core.model.FlagCountry
+import com.example.flaggameandroid.core.model.FlagQuestion
 import com.example.flaggameandroid.core.model.GameMode
 import com.example.flaggameandroid.core.model.HintDifficulty
+import com.example.flaggameandroid.core.model.QuestionResult
+import com.example.flaggameandroid.core.model.RatingsProgress
 import com.example.flaggameandroid.core.model.QuizVariant
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertFalse
@@ -170,5 +176,136 @@ class FlagGameFlowLogicTest {
       )
 
     assertTrue(completedQuiz.canFinish)
+  }
+
+  @Test
+  fun canFinish_allowsSkippedQuestionWithPendingAnswerToFinishWithoutExtraNavigation() {
+    val country = FlagCountry(code = "DE", name = "Germany", emoji = "🇩🇪", continent = "Europe")
+    val question =
+      FlagQuestion(
+        correctCountry = country,
+        options = listOf(country),
+        variant = QuizVariant.TypeCountryName,
+      )
+    val quiz =
+      QuizState(
+        mode = GameMode.Continents,
+        questions = listOf(question, question),
+        currentQuestionIndex = 0,
+        questionStates =
+          listOf(
+            QuestionDraftState(status = QuestionStatus.Skipped, typedAnswer = "Germany"),
+            QuestionDraftState(status = QuestionStatus.Answered, typedAnswer = "Germany"),
+          ),
+        typedAnswer = "Germany",
+      )
+
+    assertTrue(quiz.canFinish)
+  }
+
+  @Test
+  fun updateCountryPracticeStats_countsWrongAnswersAcrossNonTrainingModesByCountry() {
+    val country = FlagCountry(code = "DE", name = "Germany", emoji = "🇩🇪", continent = "Europe")
+    val flagQuestion =
+      FlagQuestion(
+        correctCountry = country,
+        options = listOf(country),
+        variant = QuizVariant.FlagToCountry,
+      )
+    val typedQuestion =
+      FlagQuestion(
+        correctCountry = country,
+        options = listOf(country),
+        variant = QuizVariant.TypeCountryName,
+      )
+    val flagMiss =
+      QuestionResult(
+        question = flagQuestion,
+        playerName = "Tony",
+        selectedCountry = null,
+        typedAnswer = "",
+        isCorrect = false,
+        hintUsed = false,
+      )
+    val typedMiss =
+      QuestionResult(
+        question = typedQuestion,
+        playerName = "Tony",
+        selectedCountry = null,
+        typedAnswer = "wrong",
+        isCorrect = false,
+        hintUsed = false,
+      )
+
+    val afterContinents = updateCountryPracticeStats(emptyMap(), listOf(flagMiss), 1L, GameMode.Continents)
+    val afterSpeedRun = updateCountryPracticeStats(afterContinents, listOf(typedMiss), 2L, GameMode.SpeedRun)
+    val afterTraining = updateCountryPracticeStats(afterSpeedRun, listOf(typedMiss), 3L, GameMode.Training)
+
+    assertEquals(2, afterSpeedRun[country.code]?.wrongCount)
+    assertEquals(2, afterTraining[country.code]?.wrongCount)
+  }
+
+  @Test
+  fun validateSetup_blocksQuestionCountAboveSelectedContinentPoolLimit() {
+    val countries = StaticFlagCatalogRepository().getCountries()
+    val setup =
+      buildSetupForMode(
+        GameMode.Continents,
+        listOf("Africa", "Asia", "Europe", "North America", "Oceania", "South America"),
+        countries,
+        "Tony",
+      ).copy(
+        selectedContinents = setOf("Europe"),
+        questionCountInput = "999",
+        variants = setOf(QuizVariant.FlagToCountry),
+      )
+    val limit = questionLimitFor(setup, countries)
+
+    val validationError = validateSetup(setup) { countryPoolFor(it, countries) }
+
+    assertEquals("Question count must be between 1 and $limit.", validationError)
+  }
+
+  @Test
+  fun awardAchievementsIfEligible_unlocksSpeedRunOneSecondForPerfectRun() {
+    val country = FlagCountry(code = "SR", name = "Speedland", emoji = "SR", continent = "Europe")
+    val question =
+      FlagQuestion(
+        correctCountry = country,
+        options = listOf(country),
+        variant = QuizVariant.FlagToCountry,
+      )
+    val quiz =
+      QuizState(
+        mode = GameMode.SpeedRun,
+        questions = listOf(question),
+        questionStates = listOf(QuestionDraftState(status = QuestionStatus.Answered, selectedCountry = country)),
+        speedRunSecondsPerAnswer = 1,
+      )
+    val results =
+      listOf(
+        QuestionResult(
+          question = question,
+          playerName = "Tony",
+          selectedCountry = country,
+          typedAnswer = "",
+          isCorrect = true,
+          hintUsed = false,
+        ),
+      )
+
+    val achievements =
+      awardAchievementsIfEligible(
+        achievements = AchievementsProgress(),
+        ratings = RatingsProgress(),
+        quiz = quiz,
+        completedResults = results,
+        distinctCountries = 1,
+        completedAtEpochMillis = 1_000L,
+        totalCatalogCountries = 1,
+        availableCountriesForSelectedContinent = 1,
+      )
+
+    assertTrue(achievements.isUnlocked(AchievementId.SpeedRunOneSecond))
   }
 }

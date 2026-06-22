@@ -40,7 +40,7 @@ internal fun buildStartedQuizState(
       timeZone = timeZone,
     )
   val pool = poolResolution.pool
-  val config = configFor(setup, pool.size, hintDifficulty, random)
+  val config = configFor(setup, pool.size, hintDifficulty, random, practiceStats)
   val generator =
     if (setup.mode == GameMode.DailyChallenge) {
       QuizQuestionGenerator(Random(poolResolution.dailyChallengeCache?.seed ?: nowEpochMillis))
@@ -60,6 +60,7 @@ internal fun buildStartedQuizState(
     questionStates = questionStates,
     players = players,
     startedAtEpochMillis = System.currentTimeMillis(),
+    speedRunSecondsPerAnswer = config.speedRunSecondsPerAnswer,
     poolSource = config.poolSource,
     dailyChallengeTheme = config.dailyChallengeTheme ?: poolResolution.dailyChallengeCache?.theme,
   ).loadQuestionDraft(0)
@@ -93,7 +94,7 @@ internal fun buildQuizStartResult(
   }
   if (setup.mode == GameMode.MistakeReview) {
     val eligibleCount = mistakeReviewEligibleCountryCount(practiceStats)
-    if (!mistakeReviewUnlocked && eligibleCount < MistakeReviewUnlockCountryCount) {
+    if (eligibleCount < MistakeReviewUnlockCountryCount) {
       return QuizStartResult(validationError = "No missed countries to review yet.")
     }
   }
