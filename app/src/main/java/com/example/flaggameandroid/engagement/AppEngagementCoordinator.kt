@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.flaggameandroid.persistence.ProgressStore
 import com.example.flaggameandroid.persistence.SettingsStore
 import kotlinx.coroutines.runBlocking
+import java.time.ZoneOffset
 
 class AppEngagementCoordinator(
   private val context: Context,
@@ -37,8 +38,7 @@ class AppEngagementCoordinator(
   }
 
   fun scheduleDailyCheck() {
-    val zoneId = runBlocking { settingsStore.loadTimeZone().zoneId }
-    reminderScheduler.scheduleDailyCheck(zoneId)
+    reminderScheduler.scheduleDailyCheck(ZoneOffset.UTC)
   }
 
   fun triggerTestingReminderNotification() {

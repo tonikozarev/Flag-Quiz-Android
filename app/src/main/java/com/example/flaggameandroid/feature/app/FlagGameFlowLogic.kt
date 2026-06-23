@@ -4,6 +4,8 @@ import com.example.flaggameandroid.core.data.QuizAnswerChecker
 import com.example.flaggameandroid.core.model.AllInType
 import com.example.flaggameandroid.core.model.AchievementId
 import com.example.flaggameandroid.core.model.AchievementsProgress
+import com.example.flaggameandroid.core.model.CreateQuizPreset
+import com.example.flaggameandroid.core.model.CreateQuizSource
 import com.example.flaggameandroid.core.model.CountryPracticeStats
 import com.example.flaggameandroid.core.model.FlagCountry
 import com.example.flaggameandroid.core.model.FlagQuestion
@@ -161,6 +163,9 @@ internal fun validateSetup(
   countryPoolFor: (SetupState) -> List<FlagCountry>,
 ): String? {
   if (setup.variants.isEmpty()) return "Choose at least one question variant."
+  if (setup.mode == GameMode.CreateQuiz && setup.createQuizSource == CreateQuizSource.ManualCountries && setup.selectedCountryCodes.isEmpty()) {
+    return "Choose at least one country."
+  }
   if ((setup.mode == GameMode.Continents || setup.mode == GameMode.SpeedRun || setup.usesContinentsBase()) && setup.selectedContinents.isEmpty()) {
     return "Choose at least one continent."
   }
@@ -199,6 +204,8 @@ internal fun configFor(
 
   val questionCount =
     if (setup.mode == GameMode.AllIn || setup.usesAllInBase()) {
+      poolSize
+    } else if (setup.mode == GameMode.CreateQuiz && setup.createQuizSource == CreateQuizSource.ManualCountries) {
       poolSize
     } else if (setup.mode == GameMode.DailyChallenge) {
       (setup.questionCount?.coerceIn(1, minOf(poolSize, 10)) ?: minOf(poolSize, 10)).coerceAtLeast(1)
@@ -249,7 +256,12 @@ internal fun countryPoolFor(
   setup: SetupState,
   countries: List<FlagCountry>,
 ): List<FlagCountry> =
-  if (setup.mode == GameMode.Continents || setup.mode == GameMode.SpeedRun || setup.usesContinentsBase()) {
+  if (setup.mode == GameMode.CreateQuiz) {
+    when (setup.createQuizSource) {
+      CreateQuizSource.PresetFilter -> countries.filter { country -> matchesCreateQuizPreset(country, setup.createQuizPreset) }
+      CreateQuizSource.ManualCountries -> countries.filter { country -> country.code in setup.selectedCountryCodes }
+    }
+  } else if (setup.mode == GameMode.Continents || setup.mode == GameMode.SpeedRun || setup.usesContinentsBase()) {
     countries.filter { it.continent in setup.selectedContinents }
   } else if (setup.mode == GameMode.DailyChallenge || setup.mode == GameMode.MistakeReview) {
     countries
@@ -264,6 +276,8 @@ internal fun questionLimitFor(
 ): Int =
   if (setup.mode == GameMode.Training) {
     999
+  } else if (setup.mode == GameMode.CreateQuiz) {
+    countryPoolFor(setup, countries).size
   } else if (setup.mode == GameMode.MistakeReview) {
     mistakeReviewEligibleCountryCount(practiceStats)
   } else if (setup.mode == GameMode.DailyChallenge) {
@@ -440,6 +454,107 @@ internal fun SetupState.usesContinentsBase(): Boolean =
 
 internal fun SetupState.usesAllInBase(): Boolean =
   mode == GameMode.LocalMultiplayer && multiplayerBase == MultiplayerQuizBase.AllIn
+
+private fun matchesCreateQuizPreset(
+  country: FlagCountry,
+  preset: CreateQuizPreset,
+): Boolean {
+  val code = country.code
+  return when (preset) {
+    CreateQuizPreset.TwoColors -> code in createQuizTwoColorCountries
+    CreateQuizPreset.ThreeColors -> code in createQuizThreeColorCountries
+    CreateQuizPreset.FourPlusColors -> code in createQuizFourPlusColorCountries
+
+    CreateQuizPreset.HorizontalStripes -> code in createQuizHorizontalStripeCountries
+    CreateQuizPreset.VerticalStripes -> code in createQuizVerticalStripeCountries
+    CreateQuizPreset.Stars -> code in createQuizStarCountries
+    CreateQuizPreset.Crosses -> code in createQuizCrossCountries
+    CreateQuizPreset.NoSymbols -> code in createQuizNoSymbolCountries
+    CreateQuizPreset.Animals -> code in createQuizAnimalCountries
+  }
+}
+
+private val createQuizAllCountries =
+  setOf(
+    "AD", "AE", "AF", "AG", "AL", "AM", "AO", "AR", "AT", "AU", "AZ", "BA", "BB", "BD",
+    "BE", "BF", "BG", "BH", "BI", "BJ", "BN", "BO", "BR", "BS", "BT", "BW", "BY", "BZ",
+    "CA", "CD", "CF", "CG", "CH", "CI", "CL", "CM", "CN", "CO", "CR", "CU", "CV", "CY",
+    "CZ", "DE", "DJ", "DK", "DM", "DO", "DZ", "EC", "EE", "EG", "ER", "ES", "ET", "FI",
+    "FJ", "FM", "FR", "GA", "GB", "GD", "GE", "GH", "GM", "GN", "GQ", "GR", "GT", "GW",
+    "GY", "HN", "HR", "HT", "HU", "ID", "IE", "IL", "IN", "IQ", "IR", "IS", "IT", "JM",
+    "JO", "JP", "KE", "KG", "KH", "KI", "KM", "KN", "KP", "KR", "KW", "KZ", "LA", "LB",
+    "LC", "LI", "LK", "LR", "LS", "LT", "LU", "LV", "LY", "MA", "MC", "MD", "ME", "MG",
+    "MH", "MK", "ML", "MM", "MN", "MR", "MT", "MU", "MV", "MW", "MX", "MY", "MZ", "NA",
+    "NE", "NG", "NI", "NL", "NO", "NP", "NR", "NZ", "OM", "PA", "PE", "PG", "PH", "PK",
+    "PL", "PS", "PT", "PW", "PY", "QA", "RO", "RS", "RU", "RW", "SA", "SB", "SC", "SD",
+    "SE", "SG", "SI", "SK", "SL", "SM", "SN", "SO", "SR", "SS", "ST", "SV", "SY", "SZ",
+    "TD", "TG", "TH", "TJ", "TL", "TM", "TN", "TO", "TR", "TT", "TV", "TZ", "UA", "UG",
+    "US", "UY", "UZ", "VA", "VC", "VE", "VN", "VU", "WS", "YE", "ZA", "ZM", "ZW"
+  )
+
+private val createQuizTwoColorCountries =
+  setOf(
+    "AL", "AT", "BD", "BH", "CA", "CH", "CN", "DK", "FI", "FM", "GE", "GR", "HN", "ID",
+    "IL", "JP", "KG", "KZ", "LV", "MA", "MC", "MK", "NG", "PE", "PK", "PL", "PW", "QA",
+    "SA", "SC", "SE", "SG", "SO", "TN", "TO", "TR", "UA", "VN",
+  )
+
+private val createQuizThreeColorCountries =
+  setOf(
+    "AM", "AO", "AR", "AU", "BA", "BB", "BE", "BF", "BI", "BG", "BJ", "BO", "BS", "BW",
+    "BY", "CD", "CG", "CI", "CL", "CM", "CO", "CR", "CU", "CV", "CY", "CZ", "DZ", "EE",
+    "FR", "GA", "GB", "GN", "HU", "IE", "IR", "IS", "JM", "KH", "KP", "LA", "LB", "LI",
+    "LT", "LU", "MH", "MG", "ML", "MN", "MR", "MV", "MW", "NE", "NL", "NO", "NP", "NR",
+    "NZ", "PA", "RO", "RU", "RW", "VC", "WS", "SI", "SK", "SL", "SN", "TH", "TT", "US",
+    "UY", "YE",
+  )
+
+private val createQuizFourPlusColorCountries =
+  createQuizAllCountries.filterNot { code -> code in createQuizTwoColorCountries || code in createQuizThreeColorCountries }.toSet()
+
+private val createQuizHorizontalStripeCountries =
+  setOf(
+    "AR", "AM", "AT", "AZ", "BS", "BJ", "BY", "BO", "BW", "BG", "BF", "CV", "KH", "CF",
+    "CO", "KM", "CR", "HR", "EC", "EG", "SV", "GQ", "EE", "SZ", "ET", "GA", "GM", "DE",
+    "GH", "GR", "GW", "HT", "HN", "HU", "IN", "ID", "IR", "IQ", "JO", "KE", "KW", "LA",
+    "LB", "LS", "LR", "LY", "LI", "LT", "LU", "MG", "MW", "MY", "MU", "NR", "NL", "NI",
+    "NE", "KP", "OM", "PS", "PY", "PL", "RU", "RW", "SL", "SG", "SK", "SI", "SS", "ES",
+    "SD", "SR", "SY", "TJ", "TH", "TG", "AE", "US", "UY", "UZ", "VU", "VE", "YE", "ZW"
+  )
+
+private val createQuizVerticalStripeCountries =
+  setOf(
+    "DZ", "AD", "BH", "BB", "BE", "BJ", "CM", "CA", "TD", "CI", "FR", "GT", "GN", "IE",
+    "IT", "ML", "MX", "MD", "MN", "NG", "PK", "PE", "PT", "QA", "RO", "VC", "SN", "VA"
+  )
+
+private val createQuizStarCountries =
+  setOf(
+    "DZ", "AO", "AU", "AZ", "BA", "BR", "BF", "BI", "CV", "CM", "CL", "CN", "KM", "HR",
+    "CU", "CD", "DJ", "DM", "ET", "GH", "GD", "GW", "HN", "IL", "JO", "LR", "LY", "MY",
+    "MH", "FM", "MD", "MA", "MZ", "MM", "NR", "NZ", "KP", "PK", "PA", "PG", "PY", "PH",
+    "KN", "WS", "ST", "SN", "SG", "SI", "SB", "SO", "SS", "SR", "SY", "TJ", "TG", "TN",
+    "TR", "TM", "TV", "US", "UZ", "VE", "VN", "ZW"
+  )
+
+private val createQuizCrossCountries =
+  setOf(
+    "AU", "BI", "CH", "DK", "DM", "DO", "FI", "FJ", "GB", "GE", "GR", "IS", "JM", "MT",
+    "NZ", "TO", "TV", "NO", "SE",
+  )
+
+private val createQuizNoSymbolCountries =
+  setOf(
+    "AM", "BS", "BH", "BJ", "BO", "BW", "CF", "TD", "CO", "CG", "CR", "CI", "CZ", "EE",
+    "GA", "GM", "GN", "GY", "ID", "KW", "LV", "LT", "MG", "ML", "MU", "MC", "NE", "NG",
+    "PS", "PE", "QA", "SC", "SL", "ZA", "SD", "TZ", "TH", "TT", "AE", "YE",
+  )
+
+private val createQuizAnimalCountries =
+  setOf(
+    "AD", "AL", "BO", "BN", "BT", "DM", "EC", "EG", "ES", "FJ", "GT", "HR", "KI", "KZ",
+    "LK", "ME", "MD", "MX", "PG", "RS", "UG", "ZM", "ZW",
+  )
 
 internal data class QuestionAdvanceOutcome(
   val quiz: QuizState,

@@ -1,6 +1,5 @@
 package com.example.flaggameandroid.feature.app
 
-import com.example.flaggameandroid.core.data.QuizQuestionGenerator
 import com.example.flaggameandroid.core.model.AppTimeZone
 import com.example.flaggameandroid.core.model.CountryPracticeStats
 import com.example.flaggameandroid.core.model.FlagCountry
@@ -10,6 +9,7 @@ import com.example.flaggameandroid.core.model.PlayerProgress
 import com.example.flaggameandroid.core.model.DailyChallengeCache
 import kotlin.random.Random
 import com.example.flaggameandroid.core.model.MistakeReviewUnlockCountryCount
+import com.example.flaggameandroid.core.data.QuizQuestionGenerator
 
 internal data class QuizStartResult(
   val quiz: QuizState? = null,
@@ -28,7 +28,7 @@ internal fun buildStartedQuizState(
   practiceStats: Map<String, CountryPracticeStats> = emptyMap(),
   dailyChallengeCache: DailyChallengeCache? = null,
   nowEpochMillis: Long = System.currentTimeMillis(),
-  timeZone: AppTimeZone = AppTimeZone.default(),
+  timeZone: AppTimeZone = AppTimeZone.Utc,
 ): QuizState {
   val poolResolution =
     resolveQuizPool(
@@ -41,13 +41,14 @@ internal fun buildStartedQuizState(
     )
   val pool = poolResolution.pool
   val config = configFor(setup, pool.size, hintDifficulty, random, practiceStats)
-  val generator =
-    if (setup.mode == GameMode.DailyChallenge) {
-      QuizQuestionGenerator(Random(poolResolution.dailyChallengeCache?.seed ?: nowEpochMillis))
-    } else {
-      questionGenerator
+  val quizSeed =
+    when (setup.mode) {
+      GameMode.DailyChallenge -> poolResolution.dailyChallengeCache?.seed ?: nowEpochMillis
+      GameMode.CreateQuiz -> setup.createQuizSeed.takeIf { it != 0L } ?: random.nextLong()
+      else -> random.nextLong()
     }
-  val questions = generator.buildQuestions(pool, config, practiceStats)
+  val generator = QuizQuestionGenerator(Random(quizSeed))
+  val questions = generator.buildQuestions(pool, config, practiceStats, countries)
   val players = config.players.map { PlayerProgress(name = it, hintPoints = hintCount) }
   val questionStates = List(questions.size) { QuestionDraftState() }
 
@@ -63,6 +64,8 @@ internal fun buildStartedQuizState(
     speedRunSecondsPerAnswer = config.speedRunSecondsPerAnswer,
     poolSource = config.poolSource,
     dailyChallengeTheme = config.dailyChallengeTheme ?: poolResolution.dailyChallengeCache?.theme,
+    quizSeed = quizSeed,
+    savedQuizTemplateId = setup.savedQuizTemplateId,
   ).loadQuestionDraft(0)
 }
 
@@ -77,7 +80,7 @@ internal fun buildQuizStartResult(
   practiceStats: Map<String, CountryPracticeStats> = emptyMap(),
   dailyChallengeCache: DailyChallengeCache? = null,
   nowEpochMillis: Long = System.currentTimeMillis(),
-  timeZone: AppTimeZone = AppTimeZone.default(),
+  timeZone: AppTimeZone = AppTimeZone.Utc,
   mistakeReviewUnlocked: Boolean = false,
 ): QuizStartResult {
   val poolResolution =

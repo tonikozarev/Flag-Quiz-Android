@@ -1,6 +1,8 @@
 package com.example.flaggameandroid.feature.app
 
 import com.example.flaggameandroid.core.model.AllInType
+import com.example.flaggameandroid.core.model.CreateQuizPreset
+import com.example.flaggameandroid.core.model.CreateQuizSource
 import com.example.flaggameandroid.core.model.FlagCountry
 import com.example.flaggameandroid.core.model.QuizVariant
 
@@ -31,6 +33,62 @@ internal fun FlagGameUiState.withQuestionCountInput(questionCount: String): Flag
   withUpdatedSetup {
     it.copy(questionCountInput = questionCount.filter { char -> char.isDigit() }, surpriseMe = false)
   }
+
+internal fun FlagGameUiState.withCreateQuizSourceSelected(
+  source: CreateQuizSource,
+  countries: List<FlagCountry>,
+): FlagGameUiState {
+  val nextSetup =
+    setup.copy(
+      createQuizSource = source,
+      selectedCountryCodes = if (source == CreateQuizSource.ManualCountries) setup.selectedCountryCodes else emptySet(),
+      createQuizSeed = 0L,
+      questionCountInput =
+        when (source) {
+          CreateQuizSource.PresetFilter -> setup.questionCountInput.ifBlank { "10" }
+          CreateQuizSource.ManualCountries -> setup.selectedCountryCodes.size.toString()
+        },
+      surpriseMe = if (source == CreateQuizSource.ManualCountries) false else setup.surpriseMe,
+    )
+  return copy(
+    setup = nextSetup,
+    questionCountLimit = questionLimitFor(nextSetup, countries),
+    setupError = null,
+  )
+}
+
+internal fun FlagGameUiState.withCreateQuizPresetSelected(
+  preset: CreateQuizPreset,
+  countries: List<FlagCountry>,
+): FlagGameUiState {
+  val nextSetup = setup.copy(createQuizSource = CreateQuizSource.PresetFilter, createQuizPreset = preset)
+  return copy(
+    setup = nextSetup.copy(createQuizSeed = 0L),
+    questionCountLimit = questionLimitFor(nextSetup, countries),
+    setupError = null,
+  )
+}
+
+internal fun FlagGameUiState.withCreateQuizCountryToggled(
+  countryCode: String,
+  countries: List<FlagCountry>,
+): FlagGameUiState {
+  val current = setup.selectedCountryCodes
+  val next = if (countryCode in current) current - countryCode else current + countryCode
+  val nextSetup =
+    setup.copy(
+      createQuizSource = CreateQuizSource.ManualCountries,
+      selectedCountryCodes = next,
+      createQuizSeed = 0L,
+      questionCountInput = next.size.toString(),
+      surpriseMe = false,
+    )
+  return copy(
+    setup = nextSetup,
+    questionCountLimit = questionLimitFor(nextSetup, countries),
+    setupError = null,
+  )
+}
 
 internal fun FlagGameUiState.withSpeedRunSecondsPerAnswerInput(speedRunSeconds: String): FlagGameUiState =
   withUpdatedSetup {

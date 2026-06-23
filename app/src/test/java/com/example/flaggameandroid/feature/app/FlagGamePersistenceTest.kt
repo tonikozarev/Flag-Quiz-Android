@@ -2,12 +2,13 @@ package com.example.flaggameandroid.feature.app
 
 import com.example.flaggameandroid.core.data.QuizQuestionGenerator
 import com.example.flaggameandroid.core.data.StaticFlagCatalogRepository
-import com.example.flaggameandroid.core.model.AppTimeZone
 import com.example.flaggameandroid.core.model.DailyChallengeCache
 import com.example.flaggameandroid.core.model.DailyChallengeTheme
+import com.example.flaggameandroid.core.model.CreateQuizSource
 import com.example.flaggameandroid.core.model.GameMode
 import com.example.flaggameandroid.core.model.HintDifficulty
 import com.example.flaggameandroid.core.model.QuizVariant
+import com.example.flaggameandroid.core.model.SavedQuizTemplate
 import com.example.flaggameandroid.persistence.PersistedAppState
 import com.example.flaggameandroid.persistence.PersistedQuizHistory
 import com.example.flaggameandroid.persistence.ProgressStore
@@ -64,16 +65,6 @@ class FlagGamePersistenceTest {
     viewModel.onReminderEnabledChanged(false)
 
     assertEquals(false, settingsStore.savedReminderEnabled)
-  }
-
-  @Test
-  fun changingTimeZone_savesToSettingsStore() {
-    val settingsStore = RecordingSettingsStore()
-    val viewModel = viewModel(settingsStore = settingsStore)
-
-    viewModel.onTimeZoneSelected(AppTimeZone.UtcPlus3)
-
-    assertEquals(AppTimeZone.UtcPlus3, settingsStore.savedTimeZone)
   }
 
   @Test
@@ -143,6 +134,35 @@ class FlagGamePersistenceTest {
     assertEquals(0L, progressStore.savedProgressSnapshots.last().dailyChallengeCache?.completedAtEpochMillis)
   }
 
+  @Test
+  fun openingSavedQuizTemplate_onlyLoadsSetupInsteadOfStartingQuiz() {
+    val template =
+      SavedQuizTemplate(
+        id = "saved-1",
+        createdAtEpochMillis = 1L,
+        title = "My quiz",
+        source = CreateQuizSource.ManualCountries,
+        selectedCountryCodes = setOf("DE", "BG", "AT"),
+        variants = setOf(QuizVariant.FlagToCountry),
+        questionCount = 3,
+        seed = 99L,
+      )
+    val viewModel =
+      viewModel(
+        initialPersistedState =
+          PersistedAppState(
+            savedQuizTemplates = listOf(template),
+          ),
+      )
+
+    viewModel.onOpenSavedQuizTemplate("saved-1")
+
+    assertEquals(AppScreen.Setup, viewModel.uiState.value.screen)
+    assertEquals(GameMode.CreateQuiz, viewModel.uiState.value.setup.mode)
+    assertEquals(3, viewModel.uiState.value.setup.selectedCountryCodes.size)
+    assertTrue(viewModel.uiState.value.quiz.questions.isEmpty())
+  }
+
   private fun viewModel(
     settingsStore: SettingsStore = RecordingSettingsStore(),
     progressStore: ProgressStore = RecordingProgressStore(),
@@ -160,13 +180,10 @@ class FlagGamePersistenceTest {
   private class RecordingSettingsStore : SettingsStore {
     var savedHintDifficulty: HintDifficulty? = null
     var savedReminderEnabled: Boolean? = null
-    var savedTimeZone: AppTimeZone? = null
 
     override suspend fun loadHintDifficulty(): HintDifficulty = HintDifficulty.Medium
 
     override suspend fun loadReminderEnabled(): Boolean = true
-
-    override suspend fun loadTimeZone(): AppTimeZone = AppTimeZone.Utc
 
     override suspend fun saveHintDifficulty(hintDifficulty: HintDifficulty) {
       savedHintDifficulty = hintDifficulty
@@ -174,10 +191,6 @@ class FlagGamePersistenceTest {
 
     override suspend fun saveReminderEnabled(enabled: Boolean) {
       savedReminderEnabled = enabled
-    }
-
-    override suspend fun saveTimeZone(timeZone: AppTimeZone) {
-      savedTimeZone = timeZone
     }
   }
 

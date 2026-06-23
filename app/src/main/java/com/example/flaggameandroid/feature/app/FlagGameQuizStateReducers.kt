@@ -8,9 +8,21 @@ internal fun QuizState.withSelectedCountry(country: FlagCountry): QuizState {
   if (currentQuestion == null) return this
   if (mode == GameMode.Training && currentQuestionState.locked) return this
 
+  if (mode != GameMode.Training && currentQuestionState.selectedCountry?.code == country.code) {
+    val clearedDraft =
+      currentQuestionState.copy(
+        status = QuestionStatus.Unanswered,
+        selectedCountry = null,
+      )
+    return copy(
+      questionStates = questionStates.replaceAt(currentQuestionIndex, clearedDraft),
+      selectedCountry = null,
+    )
+  }
+
   val updatedDraft =
     currentQuestionState.copy(
-      status = if (mode == GameMode.Training) QuestionStatus.Answered else QuestionStatus.Unanswered,
+      status = QuestionStatus.Answered,
       selectedCountry = country,
       locked = mode == GameMode.Training,
     )

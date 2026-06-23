@@ -9,13 +9,16 @@ import com.example.flaggameandroid.core.data.FlagCatalogRepository
 import com.example.flaggameandroid.core.data.QuizQuestionGenerator
 import com.example.flaggameandroid.core.data.StaticFlagCatalogRepository
 import com.example.flaggameandroid.core.model.AllInType
-import com.example.flaggameandroid.core.model.AppTimeZone
+import com.example.flaggameandroid.core.model.CreateQuizPreset
+import com.example.flaggameandroid.core.model.CreateQuizSource
 import com.example.flaggameandroid.core.model.FlagCountry
 import com.example.flaggameandroid.core.model.GameMode
 import com.example.flaggameandroid.core.model.HintDifficulty
 import com.example.flaggameandroid.core.model.CountryPracticeStats
 import com.example.flaggameandroid.core.model.ProgressionRules
+import com.example.flaggameandroid.core.model.SavedQuizTemplate
 import com.example.flaggameandroid.core.model.QuizVariant
+import com.example.flaggameandroid.core.model.hasSameQuizConfiguration
 import com.example.flaggameandroid.engagement.AppEngagementCoordinator
 import com.example.flaggameandroid.persistence.AppGraph
 import com.example.flaggameandroid.persistence.persistProgress
@@ -63,6 +66,7 @@ class FlagGameViewModel(
         allContinents = allContinents,
         selectableContinents = selectableContinents,
         countries = countries,
+        nowEpochMillis = System.currentTimeMillis(),
       ),
   )
   val uiState: StateFlow<FlagGameUiState> = _uiState.asStateFlow()
@@ -86,17 +90,58 @@ class FlagGameViewModel(
   }
 
   fun onBackToMenu() {
-    updateState {
-      it.resetToMenu(
-        allContinents = allContinents,
-        selectableContinents = selectableContinents,
-        questionCountLimit = countries.size,
-      )
+    val state = _uiState.value
+    when (state.screen) {
+      AppScreen.Quiz,
+      AppScreen.Setup,
+      AppScreen.Results ->
+        updateState {
+          it.copy(
+            screen = state.quizReturnTarget,
+            setupError = null,
+          )
+        }
+      AppScreen.GameModesHub -> navigateTo(AppScreen.GameModes)
+      AppScreen.GameModes,
+      AppScreen.Medals,
+      AppScreen.Achievements,
+      AppScreen.Favorites,
+      AppScreen.Settings,
+      AppScreen.Menu -> {
+        updateState {
+          it.resetToMenu(
+            allContinents = allContinents,
+            selectableContinents = selectableContinents,
+            questionCountLimit = countries.size,
+          )
+        }
+      }
+    }
+  }
+
+  fun refreshDailyChallengeAvailability() {
+    val nowEpochMillis = System.currentTimeMillis()
+    updateState { state ->
+      val refreshedCache =
+        buildDailyChallengeCache(
+          countries = countries,
+          dailyChallengeCache = state.dailyChallengeCache,
+          nowEpochMillis = nowEpochMillis,
+        )
+      if (refreshedCache == state.dailyChallengeCache) {
+        state
+      } else {
+        state.copy(dailyChallengeCache = refreshedCache)
+      }
     }
   }
 
   fun onStartClicked() {
     navigateTo(AppScreen.GameModes)
+  }
+
+  fun onGameModesClicked() {
+    navigateTo(AppScreen.GameModesHub)
   }
 
   fun onSettingsClicked() {
@@ -116,7 +161,7 @@ class FlagGameViewModel(
   }
 
   fun onBackToGameModes() {
-    navigateTo(AppScreen.GameModes)
+    onBackToMenu()
   }
 
   fun onLevelUpSeen() {
@@ -124,6 +169,11 @@ class FlagGameViewModel(
   }
 
   fun onModeSelected(mode: GameMode) {
+    val currentReturnTarget =
+      when (_uiState.value.screen) {
+        AppScreen.GameModesHub -> AppScreen.GameModesHub
+        else -> AppScreen.GameModes
+      }
     val setup = buildSetupForMode(mode, selectableContinents, countries, _uiState.value.profile.displayName)
     val practiceStats = _uiState.value.countryPracticeStats
     val questionCountLimit = questionLimitFor(setup, countries, practiceStats)
@@ -135,6 +185,7 @@ class FlagGameViewModel(
       }
     if (mode == GameMode.DailyChallenge) {
       val state = _uiState.value.copy(
+        quizReturnTarget = currentReturnTarget,
         setup = preparedSetup,
         questionCountLimit = questionCountLimit,
       )
@@ -150,7 +201,6 @@ class FlagGameViewModel(
           practiceStats = state.countryPracticeStats,
           dailyChallengeCache = state.dailyChallengeCache,
           nowEpochMillis = System.currentTimeMillis(),
-          timeZone = state.settings.timeZone,
           mistakeReviewUnlocked = state.mistakeReviewUnlocked,
         )
       if (result.validationError != null) {
@@ -161,6 +211,7 @@ class FlagGameViewModel(
         val quiz = requireNotNull(result.quiz)
         it.copy(
           screen = AppScreen.Quiz,
+          quizReturnTarget = currentReturnTarget,
           setup = preparedSetup,
           questionCountLimit = questionCountLimit,
           quiz = quiz,
@@ -172,6 +223,7 @@ class FlagGameViewModel(
       updateState {
         it.copy(
           screen = AppScreen.Setup,
+          quizReturnTarget = currentReturnTarget,
           setup = preparedSetup,
           questionCountLimit = questionCountLimit,
           setupError = null,
@@ -190,11 +242,6 @@ class FlagGameViewModel(
 
   fun onLanguageSelected(language: AppLanguage) {
     updateStateAndPersistProgress { it.copy(settings = it.settings.copy(language = language)) }
-  }
-
-  fun onTimeZoneSelected(timeZone: AppTimeZone) {
-    updateSettings { it.copy(timeZone = timeZone) }
-    engagementCoordinator?.scheduleDailyCheck()
   }
 
   fun onAccountNameChanged(name: String) {
@@ -278,6 +325,18 @@ class FlagGameViewModel(
     updateState { it.withSelectedVariantsToggled(variant) }
   }
 
+  fun onCreateQuizSourceSelected(source: CreateQuizSource) {
+    updateState { it.withCreateQuizSourceSelected(source, countries) }
+  }
+
+  fun onCreateQuizPresetSelected(preset: CreateQuizPreset) {
+    updateState { it.withCreateQuizPresetSelected(preset, countries) }
+  }
+
+  fun onCreateQuizCountryToggled(countryCode: String) {
+    updateState { it.withCreateQuizCountryToggled(countryCode, countries) }
+  }
+
   fun onContinentToggled(continent: String) {
     updateState { it.withContinentToggled(continent, countries) }
   }
@@ -321,11 +380,11 @@ class FlagGameViewModel(
     updateState { it.withPlayerRemoved() }
   }
 
-  fun onStartQuiz() {
+  private fun startQuizWithSetup(setup: SetupState) {
     val state = _uiState.value
     val result =
       buildQuizStartResult(
-        setup = state.setup,
+        setup = setup,
         countries = countries,
         questionGenerator = questionGenerator,
         hintDifficulty = state.settings.hintDifficulty,
@@ -335,7 +394,6 @@ class FlagGameViewModel(
         practiceStats = state.countryPracticeStats,
         dailyChallengeCache = state.dailyChallengeCache,
         nowEpochMillis = System.currentTimeMillis(),
-        timeZone = state.settings.timeZone,
         mistakeReviewUnlocked = state.mistakeReviewUnlocked,
       )
     if (result.validationError != null) {
@@ -347,11 +405,16 @@ class FlagGameViewModel(
       val quiz = requireNotNull(result.quiz)
       it.copy(
         screen = AppScreen.Quiz,
+        quizReturnTarget = state.quizReturnTarget,
         quiz = quiz,
         dailyChallengeCache = result.dailyChallengeCache ?: it.dailyChallengeCache,
         setupError = null,
       )
     }
+  }
+
+  fun onStartQuiz() {
+    startQuizWithSetup(_uiState.value.setup)
   }
 
   fun onCountryAnswerSelected(country: FlagCountry) {
@@ -465,6 +528,161 @@ class FlagGameViewModel(
     )
   }
 
+  fun onSaveCreateQuizClicked(
+    templateName: String,
+    replaceTemplateId: String? = null,
+  ): SaveQuizResult {
+    val state = _uiState.value
+    val setup = state.setup
+    if (setup.mode != GameMode.CreateQuiz) return SaveQuizResult.NoOp
+
+    val seed = if (setup.createQuizSeed != 0L) setup.createQuizSeed else random.nextLong()
+    val exactQuestionCount =
+      when (setup.createQuizSource) {
+        CreateQuizSource.ManualCountries -> setup.selectedCountryCodes.size.coerceAtLeast(1)
+        CreateQuizSource.PresetFilter -> setup.questionCount ?: state.questionCountLimit
+      }
+    val templateTitle =
+      when (setup.createQuizSource) {
+        CreateQuizSource.PresetFilter -> {
+          val presetTitle =
+            when (state.settings.language) {
+              AppLanguage.English -> setup.createQuizPreset.title
+              AppLanguage.Bulgarian ->
+                when (setup.createQuizPreset) {
+                  CreateQuizPreset.TwoColors -> "2 цвята"
+                  CreateQuizPreset.ThreeColors -> "3 цвята"
+                  CreateQuizPreset.FourPlusColors -> "4+ цвята"
+                  CreateQuizPreset.HorizontalStripes -> "Хоризонтални ивици"
+                  CreateQuizPreset.VerticalStripes -> "Вертикални ивици"
+                  CreateQuizPreset.Stars -> "Звезди"
+                  CreateQuizPreset.Crosses -> "Кръстове"
+                  CreateQuizPreset.NoSymbols -> "Без символи"
+                  CreateQuizPreset.Animals -> "Животни"
+                }
+              AppLanguage.German ->
+                when (setup.createQuizPreset) {
+                  CreateQuizPreset.TwoColors -> "2 Farben"
+                  CreateQuizPreset.ThreeColors -> "3 Farben"
+                  CreateQuizPreset.FourPlusColors -> "4+ Farben"
+                  CreateQuizPreset.HorizontalStripes -> "Horizontale Streifen"
+                  CreateQuizPreset.VerticalStripes -> "Vertikale Streifen"
+                  CreateQuizPreset.Stars -> "Sterne"
+                  CreateQuizPreset.Crosses -> "Kreuze"
+                  CreateQuizPreset.NoSymbols -> "Ohne Symbole"
+                  CreateQuizPreset.Animals -> "Tiere"
+                }
+            }
+          when (state.settings.language) {
+            AppLanguage.English -> "$presetTitle quiz"
+            AppLanguage.Bulgarian -> "Тест с $presetTitle"
+            AppLanguage.German -> "Quiz mit $presetTitle"
+          }
+        }
+        CreateQuizSource.ManualCountries ->
+          when (state.settings.language) {
+            AppLanguage.English -> "Manual quiz"
+            AppLanguage.Bulgarian -> "Ръчен тест"
+            AppLanguage.German -> "Manuelles Quiz"
+          }
+      }
+    val template =
+      SavedQuizTemplate(
+        id = "saved-${seed}-${setup.createQuizSource.name.lowercase()}",
+        createdAtEpochMillis = System.currentTimeMillis(),
+        title = templateName.trim().take(30).ifBlank { templateTitle },
+        source = setup.createQuizSource,
+        preset = if (setup.createQuizSource == CreateQuizSource.PresetFilter) setup.createQuizPreset else null,
+        selectedCountryCodes = setup.selectedCountryCodes,
+        variants = setup.variants,
+        questionCount = exactQuestionCount.coerceAtLeast(1),
+        seed = seed,
+      )
+
+    val sameConfigurationTemplate = state.savedQuizTemplates.firstOrNull { it.hasSameQuizConfiguration(template) }
+    if (sameConfigurationTemplate != null) {
+      return SaveQuizResult.DuplicateConfiguration(existingName = sameConfigurationTemplate.title)
+    }
+
+    val normalizedTargetName = template.title.trim().lowercase()
+    val sameNameTemplate = state.savedQuizTemplates.firstOrNull { it.title.trim().lowercase() == normalizedTargetName }
+    if (sameNameTemplate != null && sameNameTemplate.id != replaceTemplateId) {
+      return SaveQuizResult.NameConflict(
+        existingTemplateId = sameNameTemplate.id,
+        existingName = sameNameTemplate.title,
+      )
+    }
+
+    updateStateAndPersistProgress { current ->
+      val templates =
+        (listOf(template) +
+          current.savedQuizTemplates
+            .filterNot { it.id == template.id }
+            .filterNot { it.id == replaceTemplateId })
+          .take(10)
+      current.copy(
+        setup = current.setup.copy(createQuizSeed = seed),
+        savedQuizTemplates = templates,
+      )
+    }
+
+    return SaveQuizResult.Saved(
+      when (state.settings.language) {
+        AppLanguage.English -> "Saved \"${template.title}\"."
+        AppLanguage.Bulgarian -> "Запазен е \"${template.title}\"."
+        AppLanguage.German -> "\"${template.title}\" wurde gespeichert."
+      },
+    )
+  }
+
+  fun onRemoveSavedQuizTemplate(templateId: String) {
+    updateStateAndPersistProgress { current ->
+      current.copy(savedQuizTemplates = current.savedQuizTemplates.filterNot { it.id == templateId })
+    }
+  }
+
+  fun onOpenSavedQuizTemplate(templateId: String) {
+    val state = _uiState.value
+    val template = state.savedQuizTemplates.firstOrNull { it.id == templateId } ?: return
+    val setup =
+      SetupState(
+        mode = GameMode.CreateQuiz,
+        variants = template.variants,
+        createQuizSource = template.source,
+        createQuizPreset = template.preset ?: CreateQuizPreset.TwoColors,
+        selectedCountryCodes = template.selectedCountryCodes,
+        createQuizSeed = template.seed,
+        savedQuizTemplateId = template.id,
+        questionCountInput = template.questionCount.toString(),
+      )
+    updateState {
+      it.copy(
+        screen = AppScreen.Setup,
+        quizReturnTarget = AppScreen.Favorites,
+        setup = setup,
+        questionCountLimit = questionLimitFor(setup, countries),
+        setupError = null,
+      )
+    }
+  }
+
+  sealed interface SaveQuizResult {
+    data object NoOp : SaveQuizResult
+
+    data class Saved(
+      val message: String,
+    ) : SaveQuizResult
+
+    data class DuplicateConfiguration(
+      val existingName: String,
+    ) : SaveQuizResult
+
+    data class NameConflict(
+      val existingTemplateId: String,
+      val existingName: String,
+    ) : SaveQuizResult
+  }
+
   companion object {
     fun factory(context: Context): ViewModelProvider.Factory =
       viewModelFactory {
@@ -474,9 +692,8 @@ class FlagGameViewModel(
             runBlocking {
               val hintDifficulty = container.settingsStore.loadHintDifficulty()
               val reminderEnabled = container.settingsStore.loadReminderEnabled()
-              val timeZone = container.settingsStore.loadTimeZone()
               val progress = container.progressStore.loadProgress()
-              progress.copy(hintDifficulty = hintDifficulty, reminderEnabled = reminderEnabled, timeZone = timeZone)
+              progress.copy(hintDifficulty = hintDifficulty, reminderEnabled = reminderEnabled)
             }
           FlagGameViewModel(
             settingsStore = container.settingsStore,

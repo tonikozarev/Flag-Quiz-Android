@@ -59,7 +59,8 @@ fun FlagGameRoute(
       AppScreen.Achievements,
       AppScreen.Favorites,
       AppScreen.Settings,
-      AppScreen.Results -> resolvedViewModel.onBackToMenu()
+      AppScreen.Results -> resolvedViewModel.onBackToGameModes()
+      AppScreen.GameModesHub -> resolvedViewModel.onBackToGameModes()
       AppScreen.Setup -> resolvedViewModel.onBackToGameModes()
       AppScreen.Quiz -> Unit
     }
@@ -72,6 +73,7 @@ fun FlagGameRoute(
     onAchievementsClicked = resolvedViewModel::onAchievementsClicked,
     onFavoritesClicked = resolvedViewModel::onFavoritesClicked,
     onSettingsClicked = resolvedViewModel::onSettingsClicked,
+    onGameModesClicked = resolvedViewModel::onGameModesClicked,
     onQuitClicked = { showExitDialog = true },
     onLevelUpSeen = resolvedViewModel::onLevelUpSeen,
     onAccountNameChanged = resolvedViewModel::onAccountNameChanged,
@@ -79,9 +81,9 @@ fun FlagGameRoute(
     onModeSelected = resolvedViewModel::onModeSelected,
     onBackToMenu = resolvedViewModel::onBackToMenu,
     onBackToGameModes = resolvedViewModel::onBackToGameModes,
-    onHintDifficultySelected = resolvedViewModel::onHintDifficultySelected,
-    onLanguageSelected = resolvedViewModel::onLanguageSelected,
-    onTimeZoneSelected = resolvedViewModel::onTimeZoneSelected,
+    onRefreshDailyChallengeAvailability = resolvedViewModel::refreshDailyChallengeAvailability,
+  onHintDifficultySelected = resolvedViewModel::onHintDifficultySelected,
+  onLanguageSelected = resolvedViewModel::onLanguageSelected,
     onReminderEnabledChanged = { enabled ->
       resolvedViewModel.onReminderEnabledChanged(enabled)
       if (enabled &&
@@ -112,6 +114,10 @@ fun FlagGameRoute(
     onAddPlayer = resolvedViewModel::onAddPlayer,
     onRemovePlayer = resolvedViewModel::onRemovePlayer,
     onStartQuiz = resolvedViewModel::onStartQuiz,
+    onCreateQuizSourceSelected = resolvedViewModel::onCreateQuizSourceSelected,
+    onCreateQuizPresetSelected = resolvedViewModel::onCreateQuizPresetSelected,
+    onCreateQuizCountryToggled = resolvedViewModel::onCreateQuizCountryToggled,
+    onSaveCreateQuizClicked = resolvedViewModel::onSaveCreateQuizClicked,
     onCountryAnswerSelected = resolvedViewModel::onCountryAnswerSelected,
     onTypedAnswerChanged = resolvedViewModel::onTypedAnswerChanged,
     onVerifyTypedAnswer = resolvedViewModel::onVerifyTypedAnswer,
@@ -127,5 +133,7 @@ fun FlagGameRoute(
     onQuestionBack = resolvedViewModel::onQuestionBack,
     onQuestionForward = resolvedViewModel::onQuestionForward,
     onToggleFavoriteCountry = resolvedViewModel::onToggleFavoriteCountry,
+    onOpenSavedQuizTemplate = resolvedViewModel::onOpenSavedQuizTemplate,
+    onRemoveSavedQuizTemplate = resolvedViewModel::onRemoveSavedQuizTemplate,
   )
 }

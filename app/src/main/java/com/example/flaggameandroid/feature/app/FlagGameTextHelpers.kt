@@ -172,6 +172,7 @@ internal fun displayModeTitle(
 ): String =
   when (mode) {
     GameMode.Training -> cleanModeTitle(GameMode.Training, language)
+    GameMode.CreateQuiz -> cleanModeTitle(GameMode.CreateQuiz, language)
     GameMode.Continents -> cleanModeTitle(GameMode.Continents, language)
     GameMode.DailyChallenge -> cleanModeTitle(GameMode.DailyChallenge, language)
     GameMode.MistakeReview -> cleanModeTitle(GameMode.MistakeReview, language)

@@ -10,14 +10,15 @@ internal fun buildInitialUiState(
   allContinents: List<String>,
   selectableContinents: List<String>,
   countries: List<FlagCountry>,
+  nowEpochMillis: Long = System.currentTimeMillis(),
 ): FlagGameUiState =
   FlagGameUiState(
+    quizReturnTarget = AppScreen.GameModes,
     settings =
       SettingsState(
         hintDifficulty = initialPersistedState.hintDifficulty,
         reminderEnabled = initialPersistedState.reminderEnabled,
         language = initialPersistedState.language,
-        timeZone = initialPersistedState.timeZone,
       ),
     availableContinents = allContinents,
     setup = SetupState(selectedContinents = selectableContinents.toSet()),
@@ -46,7 +47,13 @@ internal fun buildInitialUiState(
     inactiveIconActive = initialPersistedState.inactiveIconActive,
     countryPracticeStats = initialPersistedState.countryPracticeStats,
     activityCalendar = initialPersistedState.activityCalendar,
-    dailyChallengeCache = initialPersistedState.dailyChallengeCache,
+    dailyChallengeCache =
+      buildDailyChallengeCache(
+        countries = countries,
+        dailyChallengeCache = initialPersistedState.dailyChallengeCache,
+        nowEpochMillis = nowEpochMillis,
+      ),
+    savedQuizTemplates = initialPersistedState.savedQuizTemplates,
   )
 
 internal fun FlagGameUiState.resetToMenu(
@@ -56,6 +63,7 @@ internal fun FlagGameUiState.resetToMenu(
 ): FlagGameUiState =
   copy(
     screen = AppScreen.Menu,
+    quizReturnTarget = AppScreen.GameModes,
     availableContinents = allContinents,
     setup = SetupState(selectedContinents = selectableContinents.toSet()),
     questionCountLimit = questionCountLimit,
@@ -67,7 +75,6 @@ internal fun FlagGameUiState.toPersistedAppState(): PersistedAppState =
     hintDifficulty = settings.hintDifficulty,
     reminderEnabled = settings.reminderEnabled,
     language = settings.language,
-    timeZone = settings.timeZone,
     accountName = profile.accountName,
     avatarIndex = profile.avatarIndex,
     hintCount = hintCount,
@@ -83,6 +90,7 @@ internal fun FlagGameUiState.toPersistedAppState(): PersistedAppState =
     countryPracticeStats = countryPracticeStats,
     activityCalendar = activityCalendar,
     dailyChallengeCache = dailyChallengeCache,
+    savedQuizTemplates = savedQuizTemplates,
     mistakeReviewUnlocked = mistakeReviewUnlocked,
   )
 
@@ -102,6 +110,8 @@ internal fun buildSetupForMode(
           selectableContinents.toSet()
         GameMode.AllIn ->
           selectableContinents.toSet()
+        GameMode.CreateQuiz ->
+          emptySet()
         GameMode.DailyChallenge,
         GameMode.MistakeReview,
         GameMode.Training -> emptySet()
@@ -111,6 +121,7 @@ internal fun buildSetupForMode(
         GameMode.AllIn -> countries.size.toString()
         GameMode.DailyChallenge -> "10"
         GameMode.MistakeReview -> "10"
+        GameMode.CreateQuiz -> "10"
         GameMode.SpeedRun -> "10"
         else -> "10"
       },

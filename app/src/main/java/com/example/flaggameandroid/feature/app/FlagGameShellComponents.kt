@@ -44,7 +44,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.flaggameandroid.core.model.ActivityDayRecord
-import com.example.flaggameandroid.core.model.AppTimeZone
 import com.example.flaggameandroid.theme.AccentGold
 import com.example.flaggameandroid.theme.AccentGreen
 import com.example.flaggameandroid.theme.AccentRed
@@ -84,7 +83,6 @@ internal fun LevelProgressPanel(
   levelProgress: LevelProgressState,
   profile: ProfileState,
   activityCalendar: Map<Long, ActivityDayRecord>,
-  timeZone: AppTimeZone,
   onLevelUpSeen: () -> Unit,
   language: AppLanguage,
   onClick: () -> Unit,
@@ -185,7 +183,6 @@ internal fun LevelProgressPanel(
       ) {
         WeekdayStreakStrip(
           activityCalendar = activityCalendar,
-          timeZone = timeZone,
           modifier = Modifier.weight(1f),
         )
         Column(
@@ -195,7 +192,7 @@ internal fun LevelProgressPanel(
         )
         {
           Text(
-            text = "${streakProgressCount(activityCalendar, timeZone)}/30",
+            text = "${streakProgressCount(activityCalendar)}/30",
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.End,
@@ -215,10 +212,9 @@ internal fun LevelProgressPanel(
 @Composable
 private fun WeekdayStreakStrip(
   activityCalendar: Map<Long, ActivityDayRecord>,
-  timeZone: AppTimeZone,
   modifier: Modifier = Modifier,
 ) {
-  val weekDays = weekActivityDays(activityCalendar = activityCalendar, timeZone = timeZone)
+  val weekDays = weekActivityDays(activityCalendar = activityCalendar)
   Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
     weekDays.forEach { record ->
       Surface(
@@ -264,8 +260,7 @@ private fun weekdayShortLabel(dayKey: Long): String {
 
 private fun streakProgressCount(
   activityCalendar: Map<Long, ActivityDayRecord>,
-  timeZone: AppTimeZone,
-): Int = streakLength(activityCalendar = activityCalendar, timeZone = timeZone).coerceAtMost(30)
+): Int = streakLength(activityCalendar = activityCalendar).coerceAtMost(30)
 
 @Composable
 internal fun LevelUpBanner(

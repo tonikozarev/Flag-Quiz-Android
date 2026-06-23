@@ -18,9 +18,11 @@ class QuizQuestionGenerator(
     countries: List<FlagCountry>,
     config: QuizConfig,
     practiceStats: Map<String, CountryPracticeStats> = emptyMap(),
+    answerPool: List<FlagCountry> = countries,
   ): List<FlagQuestion> {
     val pool = countries.distinctBy { it.code }
-    require(pool.size >= 4) { "Need at least 4 countries to build a quiz." }
+    val optionPool = answerPool.distinctBy { it.code }
+    require(optionPool.size >= 4) { "Need at least 4 countries to build a quiz." }
 
     val targetCount =
       if (config.mode == GameMode.Training) {
@@ -41,7 +43,7 @@ class QuizQuestionGenerator(
     return correctCountries.mapIndexed { index, correctCountry ->
       val variant = variants[index % variants.size]
       val wrongOptions =
-        pool
+        optionPool
           .filterNot { it.code == correctCountry.code }
           .shuffled(random)
           .take(3)

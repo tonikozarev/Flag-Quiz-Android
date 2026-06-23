@@ -39,14 +39,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.flaggameandroid.core.model.ActivityDayRecord
 import com.example.flaggameandroid.core.model.AllInType
-import com.example.flaggameandroid.core.model.AppTimeZone
 import com.example.flaggameandroid.core.model.AchievementsProgress
+import com.example.flaggameandroid.core.model.gameModesHubModes
 import com.example.flaggameandroid.core.model.CountryPracticeStats
 import com.example.flaggameandroid.core.model.DailyChallengeCache
+import com.example.flaggameandroid.core.model.CreateQuizPreset
+import com.example.flaggameandroid.core.model.CreateQuizSource
 import com.example.flaggameandroid.core.model.GameMode
 import com.example.flaggameandroid.core.model.HintDifficulty
 import com.example.flaggameandroid.core.model.PlayerProgress
 import com.example.flaggameandroid.core.model.RatingsProgress
+import com.example.flaggameandroid.core.model.SavedQuizDifficulty
+import com.example.flaggameandroid.core.model.SavedQuizTemplate
+import com.example.flaggameandroid.core.model.startQuizModes
 import com.example.flaggameandroid.core.model.visibleGameModes
 import kotlinx.coroutines.delay
 
@@ -55,7 +60,6 @@ fun MenuScreen(
   levelProgress: LevelProgressState,
   profile: ProfileState,
   language: AppLanguage,
-  timeZone: AppTimeZone,
   activityCalendar: Map<Long, ActivityDayRecord>,
   countryPracticeStats: Map<String, CountryPracticeStats>,
   onStartClick: () -> Unit,
@@ -75,6 +79,7 @@ fun MenuScreen(
     ProfileEditorDialog(
       profile = profile,
       levelProgress = levelProgress,
+      activityCalendar = activityCalendar,
       language = language,
       onDismiss = { profileDialogVisible = false },
       onSave = { name, avatarIndex ->
@@ -90,7 +95,6 @@ fun MenuScreen(
       levelProgress = levelProgress,
       profile = profile,
       activityCalendar = activityCalendar,
-      timeZone = timeZone,
       onLevelUpSeen = onLevelUpSeen,
       language = language,
       onClick = { profileDialogVisible = true },
@@ -115,16 +119,23 @@ fun GameModesScreen(
   language: AppLanguage,
   dailyChallengeCache: DailyChallengeCache?,
   mistakeReviewEligibleCount: Int,
-  onBack: () -> Unit,
+  onGameModesClick: () -> Unit,
   onModeSelected: (GameMode) -> Unit,
+  onRefreshDailyChallengeAvailability: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   var expandedInfoMode by remember { mutableStateOf<GameMode?>(null) }
-
+  LaunchedEffect(Unit) {
+    onRefreshDailyChallengeAvailability()
+    while (true) {
+      delay(60_000L)
+      onRefreshDailyChallengeAvailability()
+    }
+  }
   ScreenShell(modifier = modifier) {
     HeaderRow(title = cleanModeSelectionTitle(language))
 
-    visibleGameModes().forEach { mode ->
+    startQuizModes().forEach { mode ->
       ModeCard(
         mode = mode,
         language = language,
@@ -140,6 +151,44 @@ fun GameModesScreen(
             GameMode.DailyChallenge -> cleanText(language, UiText.Start)
             else -> cleanText(language, UiText.Open)
           },
+        onInfoClick = {
+          expandedInfoMode = if (expandedInfoMode == mode) null else mode
+        },
+        onClick = { onModeSelected(mode) },
+      )
+    }
+
+    NavigationCard(
+      title = localizedGameModesHubTitle(language),
+      description =
+        when (language) {
+          AppLanguage.English -> "Continents, speed run, hardcore, and create a quiz."
+          AppLanguage.Bulgarian -> "Континенти, скоростна игра, хардкор и създаване на тест."
+          AppLanguage.German -> "Kontinente, Schnelllauf, Hardcore und Quiz erstellen."
+        },
+      openLabel = cleanText(language, UiText.Open),
+      onClick = onGameModesClick,
+    )
+  }
+}
+
+@Composable
+fun GameModesHubScreen(
+  language: AppLanguage,
+  onModeSelected: (GameMode) -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  var expandedInfoMode by remember { mutableStateOf<GameMode?>(null) }
+  ScreenShell(modifier = modifier) {
+    HeaderRow(title = localizedGameModesHubTitle(language))
+
+    gameModesHubModes().forEach { mode ->
+      ModeCard(
+        mode = mode,
+        language = language,
+        infoExpanded = expandedInfoMode == mode,
+        openEnabled = true,
+        openLabel = if (mode == GameMode.CreateQuiz) cleanText(language, UiText.Start) else cleanText(language, UiText.Open),
         onInfoClick = {
           expandedInfoMode = if (expandedInfoMode == mode) null else mode
         },
@@ -182,13 +231,31 @@ internal fun PracticeSummaryCard(
 }
 
 @Composable
+internal fun NavigationCard(
+  title: String,
+  description: String,
+  openLabel: String,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  Card(modifier = modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+      Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+      Text(text = description, style = MaterialTheme.typography.bodySmall)
+      Button(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Text(text = openLabel)
+      }
+    }
+  }
+}
+
+@Composable
 internal fun StreakCalendarCard(
   language: AppLanguage,
   activityCalendar: Map<Long, ActivityDayRecord>,
-  timeZone: AppTimeZone,
 ) {
   var expanded by remember { mutableStateOf(false) }
-  val days = recentActivityDays(activityCalendar, days = if (expanded) 30 else 7, timeZone = timeZone)
+  val days = recentActivityDays(activityCalendar, days = if (expanded) 30 else 7)
   Card(modifier = Modifier.fillMaxWidth()) {
     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
       Row(
@@ -283,9 +350,12 @@ fun AchievementsScreen(
 fun FavoritesScreen(
   countries: List<com.example.flaggameandroid.core.model.FlagCountry>,
   countryPracticeStats: Map<String, CountryPracticeStats>,
+  savedQuizTemplates: List<SavedQuizTemplate>,
   language: AppLanguage,
   onBack: () -> Unit,
   onToggleFavoriteCountry: (String) -> Unit,
+  onOpenSavedQuizTemplate: (String) -> Unit,
+  onRemoveSavedQuizTemplate: (String) -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val favoriteCountries = countries.filter { countryPracticeStats[it.code]?.favorite == true }
@@ -350,6 +420,32 @@ fun FavoritesScreen(
 
     HeaderRow(title = cleanText(language, UiText.Favorites))
 
+    SectionCard(title = localizedSavedTestsTitle(language, savedQuizTemplates.size)) {
+      if (savedQuizTemplates.isEmpty()) {
+        Text(
+          text =
+            when (language) {
+              AppLanguage.English -> "Saved quizzes will appear here."
+              AppLanguage.Bulgarian -> "Запазените тестове ще се показват тук."
+              AppLanguage.German -> "Gespeicherte Quizze erscheinen hier."
+            },
+        )
+      } else {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+          savedQuizTemplates
+            .sortedByDescending { it.createdAtEpochMillis }
+            .forEach { template ->
+              SavedQuizTemplateRow(
+                template = template,
+                language = language,
+                onOpen = { onOpenSavedQuizTemplate(template.id) },
+                onRemove = { onRemoveSavedQuizTemplate(template.id) },
+              )
+            }
+        }
+      }
+    }
+
     if (favoriteCountries.isEmpty()) {
       SectionCard(
         title = when (language) {
@@ -382,6 +478,127 @@ fun FavoritesScreen(
             }
           }
         }
+      }
+    }
+  }
+}
+
+@Composable
+private fun SavedQuizTemplateRow(
+  template: SavedQuizTemplate,
+  language: AppLanguage,
+  onOpen: () -> Unit,
+  onRemove: () -> Unit,
+  ) {
+  var removeConfirmVisible by remember { mutableStateOf(false) }
+  Surface(
+    color = MaterialTheme.colorScheme.surfaceVariant,
+    shape = RoundedCornerShape(14.dp),
+    modifier = Modifier.fillMaxWidth(),
+  ) {
+    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+          Text(
+            template.title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+          )
+          Text(
+            text =
+              when (template.source) {
+                CreateQuizSource.PresetFilter ->
+                  "${template.questionCount} ${if (language == AppLanguage.English) "questions" else if (language == AppLanguage.Bulgarian) "въпроса" else "Fragen"}"
+                CreateQuizSource.ManualCountries ->
+                  "${template.selectedCountryCodes.size} ${if (language == AppLanguage.English) "countries" else if (language == AppLanguage.Bulgarian) "държави" else "Länder"}"
+              },
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+          )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          Button(
+            onClick = onOpen,
+            modifier = Modifier.size(width = 54.dp, height = 40.dp),
+            contentPadding = PaddingValues(0.dp),
+          ) {
+            Text(
+              text = "Go",
+              maxLines = 1,
+            )
+          }
+          OutlinedButton(
+            onClick = { removeConfirmVisible = true },
+            modifier = Modifier.size(width = 40.dp, height = 40.dp),
+            contentPadding = PaddingValues(0.dp),
+          ) {
+            Text(
+              text = "X",
+              maxLines = 1,
+            )
+          }
+        }
+      }
+      if (removeConfirmVisible) {
+        AlertDialog(
+          onDismissRequest = { removeConfirmVisible = false },
+          title = {
+            Text(
+              text =
+                when (language) {
+                  AppLanguage.English -> "Remove saved quiz?"
+                  AppLanguage.Bulgarian -> "Да премахна ли запазения тест?"
+                  AppLanguage.German -> "Gespeichertes Quiz entfernen?"
+                },
+            )
+          },
+          text = {
+            Text(
+              text =
+                when (language) {
+                  AppLanguage.English -> "Do you really want to remove \"${template.title}\"?"
+                  AppLanguage.Bulgarian -> "Наистина ли искаш да премахнеш \"${template.title}\"?"
+                  AppLanguage.German -> "Möchtest du \"${template.title}\" wirklich entfernen?"
+                },
+            )
+          },
+          confirmButton = {
+            TextButton(
+              onClick = {
+                removeConfirmVisible = false
+                onRemove()
+              },
+            ) {
+              Text(
+                text =
+                  when (language) {
+                    AppLanguage.English -> "Remove"
+                    AppLanguage.Bulgarian -> "Премахни"
+                    AppLanguage.German -> "Entfernen"
+                  },
+              )
+            }
+          },
+          dismissButton = {
+            TextButton(onClick = { removeConfirmVisible = false }) {
+              Text(
+                text =
+                  when (language) {
+                    AppLanguage.English -> "Cancel"
+                    AppLanguage.Bulgarian -> "Отказ"
+                    AppLanguage.German -> "Abbrechen"
+                  },
+              )
+            }
+          },
+        )
       }
     }
   }
@@ -441,7 +658,6 @@ fun SettingsScreen(
   onBack: () -> Unit,
   onHintDifficultySelected: (HintDifficulty) -> Unit,
   onLanguageSelected: (AppLanguage) -> Unit,
-  onTimeZoneSelected: (AppTimeZone) -> Unit,
   onReminderEnabledChanged: (Boolean) -> Unit,
   onResetHintsClick: () -> Unit,
   onAddTestingHintsClick: () -> Unit,
@@ -458,8 +674,6 @@ fun SettingsScreen(
   var expandedDifficulty by remember { mutableStateOf<HintDifficulty?>(null) }
   var testingButtonEnabled by remember { mutableStateOf(true) }
   var languageMenuExpanded by remember { mutableStateOf(false) }
-  var timeZoneMenuExpanded by remember { mutableStateOf(false) }
-  var timeZoneInfoExpanded by remember { mutableStateOf(false) }
 
   LaunchedEffect(testingButtonEnabled) {
     if (!testingButtonEnabled) {
@@ -492,30 +706,6 @@ fun SettingsScreen(
             onExpandedChange = { languageMenuExpanded = it },
             onLanguageSelected = onLanguageSelected,
           )
-        }
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(10.dp),
-          verticalAlignment = Alignment.CenterVertically,
-        ) {
-          Text(
-            text = localizedTimeZoneTitle(settings.language),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-          )
-          TimeZoneSelector(
-            selectedTimeZone = settings.timeZone,
-            expanded = timeZoneMenuExpanded,
-            onExpandedChange = { timeZoneMenuExpanded = it },
-            onTimeZoneSelected = onTimeZoneSelected,
-          )
-          InfoButton(onClick = { timeZoneInfoExpanded = !timeZoneInfoExpanded })
-        }
-        if (timeZoneInfoExpanded) {
-          InfoPanel(text = localizedTimeZoneInfo(settings.language))
         }
       }
     }

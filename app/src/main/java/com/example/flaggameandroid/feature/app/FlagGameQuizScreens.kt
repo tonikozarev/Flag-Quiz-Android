@@ -307,7 +307,7 @@ fun QuizScreen(
         } else {
           localizedRevealButtonLabel(language)
         },
-      canUseHint = quiz.currentPlayer.hintPoints >= 1 && quiz.currentQuestionState.hintUses < 2 && !quiz.currentQuestionState.locked && quiz.currentQuestionState.status != QuestionStatus.Answered,
+      canUseHint = quiz.currentPlayer.hintPoints >= 1 && quiz.currentQuestionState.hintUses < 2 && !quiz.currentQuestionState.locked,
       onUseHint = onUseHint,
       unskipLabel = localizedUnskipButtonLabel(language),
       canUnskip = skippedQuestions.isNotEmpty(),

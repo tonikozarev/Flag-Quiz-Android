@@ -13,7 +13,6 @@ internal fun persistSettings(
   runBlocking {
     settingsStore.saveHintDifficulty(settings.hintDifficulty)
     settingsStore.saveReminderEnabled(settings.reminderEnabled)
-    settingsStore.saveTimeZone(settings.timeZone)
   }
 }
 

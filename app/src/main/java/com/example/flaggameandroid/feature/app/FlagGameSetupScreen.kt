@@ -9,22 +9,33 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.example.flaggameandroid.core.model.CreateQuizPreset
+import com.example.flaggameandroid.core.model.CreateQuizSource
 import com.example.flaggameandroid.core.model.AllInType
 import com.example.flaggameandroid.core.model.GameMode
 import com.example.flaggameandroid.core.model.HintDifficulty
+import com.example.flaggameandroid.core.model.FlagCountry
 import com.example.flaggameandroid.core.model.ProgressionRules
 import com.example.flaggameandroid.core.model.QuizVariant
 import com.example.flaggameandroid.theme.AccentRed
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalLayoutApi::class)
 @androidx.compose.runtime.Composable
@@ -33,6 +44,7 @@ fun SetupScreen(
   hintDifficulty: HintDifficulty,
   language: AppLanguage,
   availableContinents: List<String>,
+  countries: List<FlagCountry>,
   questionCountLimit: Int,
   setupError: String?,
   onBack: () -> Unit,
@@ -46,9 +58,25 @@ fun SetupScreen(
   onPlayerNameChanged: (Int, String) -> Unit,
   onAddPlayer: () -> Unit,
   onRemovePlayer: () -> Unit,
+  onCreateQuizSourceSelected: (CreateQuizSource) -> Unit,
+  onCreateQuizPresetSelected: (CreateQuizPreset) -> Unit,
+  onCreateQuizCountryToggled: (String) -> Unit,
+  onSaveCreateQuizClicked: (String, String?) -> FlagGameViewModel.SaveQuizResult,
   onStartQuiz: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  var showSaveDialog by remember { mutableStateOf(false) }
+  var saveQuizName by remember { mutableStateOf("") }
+  var saveFeedbackMessage by remember { mutableStateOf<String?>(null) }
+  var replaceConflict by remember { mutableStateOf<FlagGameViewModel.SaveQuizResult.NameConflict?>(null) }
+
+  LaunchedEffect(saveFeedbackMessage) {
+    if (saveFeedbackMessage != null) {
+      delay(5_000)
+      saveFeedbackMessage = null
+    }
+  }
+
   ScreenShell(modifier = modifier) {
     HeaderRow(title = cleanModeTitle(setup.mode, language))
 
@@ -113,6 +141,82 @@ fun SetupScreen(
       }
     }
 
+    if (setup.mode == GameMode.CreateQuiz) {
+      SectionCard(title = when (language) {
+        AppLanguage.English -> "Create a quiz"
+        AppLanguage.Bulgarian -> "Създай тест"
+        AppLanguage.German -> "Quiz erstellen"
+      }) {
+        SelectableRow(
+          title = when (language) {
+            AppLanguage.English -> "Preset filter"
+            AppLanguage.Bulgarian -> "Готов филтър"
+            AppLanguage.German -> "Vorlagenfilter"
+          },
+          selected = setup.createQuizSource == CreateQuizSource.PresetFilter,
+          onClick = { onCreateQuizSourceSelected(CreateQuizSource.PresetFilter) },
+          description = when (language) {
+            AppLanguage.English -> "Use predefined flag rules."
+            AppLanguage.Bulgarian -> "Ползвай готови правила за флагове."
+            AppLanguage.German -> "Nutze vordefinierte Flaggenregeln."
+          },
+        )
+        SelectableRow(
+          title = when (language) {
+            AppLanguage.English -> "Manual countries"
+            AppLanguage.Bulgarian -> "Ръчно избрани държави"
+            AppLanguage.German -> "Manuelle Länder"
+          },
+          selected = setup.createQuizSource == CreateQuizSource.ManualCountries,
+          onClick = { onCreateQuizSourceSelected(CreateQuizSource.ManualCountries) },
+          description = when (language) {
+            AppLanguage.English -> "Pick the exact countries yourself."
+            AppLanguage.Bulgarian -> "Избери точните държави сам."
+            AppLanguage.German -> "Wähle die Länder selbst aus."
+          },
+        )
+      }
+      if (setup.createQuizSource == CreateQuizSource.PresetFilter) {
+        SectionCard(title = when (language) {
+          AppLanguage.English -> "Preset filters"
+          AppLanguage.Bulgarian -> "Готови филтри"
+          AppLanguage.German -> "Vorlagenfilter"
+        }) {
+          CreateQuizPreset.entries.forEach { preset ->
+            SelectableRow(
+              title = localizedCreateQuizPresetTitle(preset, language),
+              selected = setup.createQuizPreset == preset,
+              onClick = { onCreateQuizPresetSelected(preset) },
+              description = localizedCreateQuizPresetDescription(preset, language),
+            )
+          }
+        }
+      } else {
+        SectionCard(title = when (language) {
+          AppLanguage.English -> "Choose countries"
+          AppLanguage.Bulgarian -> "Избери държави"
+          AppLanguage.German -> "Länder wählen"
+        }) {
+          countries.groupBy { it.continent }.forEach { (continent, list) ->
+            Text(
+              text = localizedContinentName(continent, language),
+              style = MaterialTheme.typography.titleSmall,
+              fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+              list.sortedBy { it.localizedName(language) }.forEach { country ->
+                FilterChip(
+                  selected = country.code in setup.selectedCountryCodes,
+                  onClick = { onCreateQuizCountryToggled(country.code) },
+                  label = { Text("${country.emoji} ${country.localizedName(language)}") },
+                )
+              }
+            }
+          }
+        }
+      }
+    }
+
     if (
       setup.mode == GameMode.Continents ||
       setup.mode == GameMode.SpeedRun ||
@@ -140,9 +244,10 @@ fun SetupScreen(
 
     if (setup.mode != GameMode.AllIn && !(setup.mode == GameMode.LocalMultiplayer && setup.multiplayerBase == MultiplayerQuizBase.AllIn)) {
       val isMistakeReview = setup.mode == GameMode.MistakeReview
+      val isCreateQuizManual = setup.mode == GameMode.CreateQuiz && setup.createQuizSource == CreateQuizSource.ManualCountries
       val questionCount = setup.questionCount
       val questionCountChangeHandler: (String) -> Unit =
-        if (isMistakeReview) {
+        if (isMistakeReview || isCreateQuizManual) {
           { _: String -> }
         } else {
           onQuestionCountChange
@@ -150,6 +255,7 @@ fun SetupScreen(
       val questionCountOverLimit =
         !setup.surpriseMe &&
           !isMistakeReview &&
+          !isCreateQuizManual &&
           questionCount != null &&
           questionCount > questionCountLimit
       SectionCard(title = when (language) {
@@ -158,7 +264,12 @@ fun SetupScreen(
         AppLanguage.German -> "Fragenanzahl"
       }) {
         OutlinedTextField(
-          value = if (isMistakeReview) questionCountLimit.toString() else setup.questionCountInput,
+          value =
+            when {
+              isMistakeReview -> questionCountLimit.toString()
+              isCreateQuizManual -> setup.selectedCountryCodes.size.toString()
+              else -> setup.questionCountInput
+            },
           onValueChange = questionCountChangeHandler,
           label = {
             Text(
@@ -188,6 +299,16 @@ fun SetupScreen(
           },
           supportingText = if (isMistakeReview) {
             null
+          } else if (isCreateQuizManual) {
+            {
+              Text(
+                when (language) {
+                  AppLanguage.English -> "Exact pool from your selected countries."
+                  AppLanguage.Bulgarian -> "Точен набор от избраните държави."
+                  AppLanguage.German -> "Exakter Pool aus deinen ausgewählten Ländern."
+                },
+              )
+            }
           } else {
             {
               Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -221,11 +342,11 @@ fun SetupScreen(
           },
           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
           singleLine = true,
-          enabled = !setup.surpriseMe && !isMistakeReview,
+          enabled = !setup.surpriseMe && !isMistakeReview && !isCreateQuizManual,
           isError = questionCountOverLimit,
           modifier = Modifier.fillMaxWidth(),
         )
-        if (!isMistakeReview) {
+        if (!isMistakeReview && !isCreateQuizManual) {
           OutlinedButton(onClick = onSurpriseMe, modifier = Modifier.fillMaxWidth()) {
             Text(
               if (setup.surpriseMe) {
@@ -331,6 +452,195 @@ fun SetupScreen(
       )
     }
 
+    if (setup.mode == GameMode.CreateQuiz) {
+      Button(
+        onClick = {
+          saveQuizName =
+            if (setup.createQuizSource == CreateQuizSource.ManualCountries) {
+              when (language) {
+                AppLanguage.English -> "My quiz"
+                AppLanguage.Bulgarian -> "Моят тест"
+                AppLanguage.German -> "Mein Quiz"
+              }
+            } else {
+              when (language) {
+                AppLanguage.English -> "Saved quiz"
+                AppLanguage.Bulgarian -> "Запазен тест"
+                AppLanguage.German -> "Gespeichertes Quiz"
+              }
+            }
+          showSaveDialog = true
+        },
+        enabled = saveFeedbackMessage == null,
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(18.dp),
+      ) {
+        Text(
+          when (language) {
+            AppLanguage.English -> "Save to favorites"
+            AppLanguage.Bulgarian -> "Запази в любими"
+            AppLanguage.German -> "In Favoriten speichern"
+          },
+        )
+      }
+    }
+
+    if (showSaveDialog) {
+      AlertDialog(
+        onDismissRequest = { showSaveDialog = false },
+        title = {
+          Text(
+            when (language) {
+              AppLanguage.English -> "Name this quiz"
+              AppLanguage.Bulgarian -> "Назови този тест"
+              AppLanguage.German -> "Quiz benennen"
+            },
+          )
+        },
+        text = {
+          OutlinedTextField(
+            value = saveQuizName,
+            onValueChange = { saveQuizName = it.take(30) },
+            singleLine = true,
+            label = {
+              Text(
+                when (language) {
+                  AppLanguage.English -> "Quiz name"
+                  AppLanguage.Bulgarian -> "Име на теста"
+                  AppLanguage.German -> "Quizname"
+                },
+              )
+            },
+            supportingText = {
+              Text(
+                when (language) {
+                  AppLanguage.English -> "Up to 30 characters."
+                  AppLanguage.Bulgarian -> "До 30 знака."
+                  AppLanguage.German -> "Bis zu 30 Zeichen."
+                },
+              )
+            },
+            modifier = Modifier.fillMaxWidth(),
+          )
+        },
+        confirmButton = {
+          TextButton(
+            onClick = {
+              when (val result = onSaveCreateQuizClicked(saveQuizName, null)) {
+                is FlagGameViewModel.SaveQuizResult.Saved -> {
+                  saveFeedbackMessage = result.message
+                  showSaveDialog = false
+                }
+
+                is FlagGameViewModel.SaveQuizResult.DuplicateConfiguration -> {
+                  saveFeedbackMessage =
+                    when (language) {
+                      AppLanguage.English -> "That exact quiz is already saved as \"${result.existingName}\"."
+                      AppLanguage.Bulgarian -> "Същият тест вече е запазен като \"${result.existingName}\"."
+                      AppLanguage.German -> "Dasselbe Quiz ist bereits als \"${result.existingName}\" gespeichert."
+                    }
+                  showSaveDialog = false
+                }
+
+                is FlagGameViewModel.SaveQuizResult.NameConflict -> {
+                  replaceConflict = result
+                  showSaveDialog = false
+                }
+
+                FlagGameViewModel.SaveQuizResult.NoOp -> showSaveDialog = false
+              }
+            },
+          ) {
+            Text(
+              when (language) {
+                AppLanguage.English -> "Save"
+                AppLanguage.Bulgarian -> "Запази"
+                AppLanguage.German -> "Speichern"
+              },
+            )
+          }
+        },
+        dismissButton = {
+          TextButton(onClick = { showSaveDialog = false }) {
+            Text(
+              when (language) {
+                AppLanguage.English -> "Cancel"
+                AppLanguage.Bulgarian -> "Отказ"
+                AppLanguage.German -> "Abbrechen"
+              },
+            )
+          }
+        },
+      )
+    }
+
+    replaceConflict?.let { conflict ->
+      AlertDialog(
+        onDismissRequest = { replaceConflict = null },
+        title = {
+          Text(
+            when (language) {
+              AppLanguage.English -> "Replace existing quiz?"
+              AppLanguage.Bulgarian -> "Да заменя ли запазения тест?"
+              AppLanguage.German -> "Vorhandenes Quiz ersetzen?"
+            },
+          )
+        },
+        text = {
+          Text(
+            when (language) {
+              AppLanguage.English -> "A quiz named \"${conflict.existingName}\" already exists. Replace it with the new one?"
+              AppLanguage.Bulgarian -> "Тест с име \"${conflict.existingName}\" вече съществува. Да бъде ли заменен с новия?"
+              AppLanguage.German -> "Ein Quiz mit dem Namen \"${conflict.existingName}\" existiert bereits. Soll es durch das neue ersetzt werden?"
+            },
+          )
+        },
+        confirmButton = {
+          TextButton(
+            onClick = {
+              when (val result = onSaveCreateQuizClicked(saveQuizName, conflict.existingTemplateId)) {
+                is FlagGameViewModel.SaveQuizResult.Saved -> saveFeedbackMessage = result.message
+                is FlagGameViewModel.SaveQuizResult.DuplicateConfiguration ->
+                  saveFeedbackMessage =
+                    when (language) {
+                      AppLanguage.English -> "That exact quiz is already saved as \"${result.existingName}\"."
+                      AppLanguage.Bulgarian -> "Същият тест вече е запазен като \"${result.existingName}\"."
+                      AppLanguage.German -> "Dasselbe Quiz ist bereits als \"${result.existingName}\" gespeichert."
+                    }
+
+                is FlagGameViewModel.SaveQuizResult.NameConflict,
+                FlagGameViewModel.SaveQuizResult.NoOp -> Unit
+              }
+              replaceConflict = null
+            },
+          ) {
+            Text(
+              when (language) {
+                AppLanguage.English -> "Replace"
+                AppLanguage.Bulgarian -> "Замени"
+                AppLanguage.German -> "Ersetzen"
+              },
+            )
+          }
+        },
+        dismissButton = {
+          TextButton(onClick = { replaceConflict = null }) {
+            Text(
+              when (language) {
+                AppLanguage.English -> "Cancel"
+                AppLanguage.Bulgarian -> "Отказ"
+                AppLanguage.German -> "Abbrechen"
+              },
+            )
+          }
+        },
+      )
+    }
+
+    if (saveFeedbackMessage != null) {
+      InfoPanel(text = saveFeedbackMessage!!)
+    }
+
     if (setup.mode == GameMode.AllIn) {
       val hasAllVariants = setup.variants.size == QuizVariant.entries.size
       val hintSettingLabel = localizedHintDifficultyTitle(hintDifficulty, language)
@@ -347,3 +657,107 @@ fun SetupScreen(
     }
   }
 }
+
+private fun localizedCreateQuizPresetTitle(
+  preset: CreateQuizPreset,
+  language: AppLanguage,
+): String =
+  when (preset) {
+    CreateQuizPreset.TwoColors -> when (language) {
+      AppLanguage.English -> "2 colors"
+      AppLanguage.Bulgarian -> "2 цвята"
+      AppLanguage.German -> "2 Farben"
+    }
+    CreateQuizPreset.ThreeColors -> when (language) {
+      AppLanguage.English -> "3 colors"
+      AppLanguage.Bulgarian -> "3 цвята"
+      AppLanguage.German -> "3 Farben"
+    }
+    CreateQuizPreset.FourPlusColors -> when (language) {
+      AppLanguage.English -> "4+ colors"
+      AppLanguage.Bulgarian -> "4+ цвята"
+      AppLanguage.German -> "4+ Farben"
+    }
+    CreateQuizPreset.HorizontalStripes -> when (language) {
+      AppLanguage.English -> "Horizontal stripes"
+      AppLanguage.Bulgarian -> "Хоризонтални ивици"
+      AppLanguage.German -> "Horizontale Streifen"
+    }
+    CreateQuizPreset.VerticalStripes -> when (language) {
+      AppLanguage.English -> "Vertical stripes"
+      AppLanguage.Bulgarian -> "Вертикални ивици"
+      AppLanguage.German -> "Vertikale Streifen"
+    }
+    CreateQuizPreset.Stars -> when (language) {
+      AppLanguage.English -> "Stars"
+      AppLanguage.Bulgarian -> "Звезди"
+      AppLanguage.German -> "Sterne"
+    }
+    CreateQuizPreset.Crosses -> when (language) {
+      AppLanguage.English -> "Crosses"
+      AppLanguage.Bulgarian -> "Кръстове"
+      AppLanguage.German -> "Kreuze"
+    }
+    CreateQuizPreset.NoSymbols -> when (language) {
+      AppLanguage.English -> "No symbols"
+      AppLanguage.Bulgarian -> "Без символи"
+      AppLanguage.German -> "Ohne Symbole"
+    }
+    CreateQuizPreset.Animals -> when (language) {
+      AppLanguage.English -> "Animals"
+      AppLanguage.Bulgarian -> "Животни"
+      AppLanguage.German -> "Tiere"
+    }
+  }
+
+private fun localizedCreateQuizPresetDescription(
+  preset: CreateQuizPreset,
+  language: AppLanguage,
+): String =
+  when (preset) {
+    CreateQuizPreset.TwoColors -> when (language) {
+      AppLanguage.English -> "Only flags that use two colors."
+      AppLanguage.Bulgarian -> "Само флагове с 2 цвята."
+      AppLanguage.German -> "Nur Flaggen mit zwei Farben."
+    }
+    CreateQuizPreset.ThreeColors -> when (language) {
+      AppLanguage.English -> "Only flags that use three colors."
+      AppLanguage.Bulgarian -> "Само флагове с 3 цвята."
+      AppLanguage.German -> "Nur Flaggen mit drei Farben."
+    }
+    CreateQuizPreset.FourPlusColors -> when (language) {
+      AppLanguage.English -> "Only flags with four or more colors."
+      AppLanguage.Bulgarian -> "Само флагове с 4 или повече цвята."
+      AppLanguage.German -> "Nur Flaggen mit vier oder mehr Farben."
+    }
+    CreateQuizPreset.HorizontalStripes -> when (language) {
+      AppLanguage.English -> "Only flags with horizontal stripes."
+      AppLanguage.Bulgarian -> "Само флагове с хоризонтални ивици."
+      AppLanguage.German -> "Nur Flaggen mit horizontalen Streifen."
+    }
+    CreateQuizPreset.VerticalStripes -> when (language) {
+      AppLanguage.English -> "Only flags with vertical stripes."
+      AppLanguage.Bulgarian -> "Само флагове с вертикални ивици."
+      AppLanguage.German -> "Nur Flaggen mit vertikalen Streifen."
+    }
+    CreateQuizPreset.Stars -> when (language) {
+      AppLanguage.English -> "Only flags with stars."
+      AppLanguage.Bulgarian -> "Само флагове със звезди."
+      AppLanguage.German -> "Nur Flaggen mit Sternen."
+    }
+    CreateQuizPreset.Crosses -> when (language) {
+      AppLanguage.English -> "Only flags with crosses."
+      AppLanguage.Bulgarian -> "Само флагове с кръстове."
+      AppLanguage.German -> "Nur Flaggen mit Kreuzen."
+    }
+    CreateQuizPreset.NoSymbols -> when (language) {
+      AppLanguage.English -> "Only flags without symbols."
+      AppLanguage.Bulgarian -> "Само флагове без символи."
+      AppLanguage.German -> "Nur Flaggen ohne Symbole."
+    }
+    CreateQuizPreset.Animals -> when (language) {
+      AppLanguage.English -> "Only flags with animals."
+      AppLanguage.Bulgarian -> "Само флагове с животни."
+      AppLanguage.German -> "Nur Flaggen mit Tieren."
+    }
+  }

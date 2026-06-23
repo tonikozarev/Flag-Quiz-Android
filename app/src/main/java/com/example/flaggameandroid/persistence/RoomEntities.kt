@@ -20,6 +20,7 @@ data class ProgressEntity(
   val countryPracticeSerialized: String = "",
   val activityCalendarSerialized: String = "",
   val dailyChallengeSerialized: String = "",
+  val savedQuizTemplatesSerialized: String = "",
   val accountName: String = "",
   val avatarIndex: Int = 0,
   val languageName: String = AppLanguage.English.name,

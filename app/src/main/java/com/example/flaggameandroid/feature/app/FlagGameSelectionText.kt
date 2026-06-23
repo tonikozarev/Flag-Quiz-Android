@@ -18,7 +18,7 @@ internal fun modeBaseTitle(
 ): String =
   when (base) {
     MultiplayerQuizBase.Continents -> tr(language, "Continents", "Континенти", "Kontinente")
-    MultiplayerQuizBase.AllIn -> tr(language, "No Bluff, All Tough", "Без блъф, само трудно", "Kein Bluff, alles schwer")
+    MultiplayerQuizBase.AllIn -> tr(language, "No Bluff, All Tough", "Без блъф, всичко тежко", "Kein Bluff, alles schwer")
   }
 
 internal fun modeBaseDescription(
@@ -36,11 +36,12 @@ internal fun localizedModeTitle(
 ): String =
   when (mode) {
     GameMode.Training -> tr(language, "Training", "Тренировка", "Training")
+    GameMode.CreateQuiz -> tr(language, "Create a quiz", "Създай тест", "Quiz erstellen")
     GameMode.Continents -> tr(language, "Continents", "Континенти", "Kontinente")
     GameMode.DailyChallenge -> tr(language, "Daily challenge", "Дневно предизвикателство", "Tägliche Herausforderung")
     GameMode.MistakeReview -> tr(language, "Mistake review", "Преглед на грешките", "Fehlerprüfung")
     GameMode.SpeedRun -> tr(language, "Speed run", "Скоростна игра", "Schnelllauf")
-    GameMode.AllIn -> tr(language, "No Bluff, All Tough", "Без блъф, само трудно", "Kein Bluff, alles schwer")
+    GameMode.AllIn -> tr(language, "Hardcore", "Хардкор", "Hardcore")
     GameMode.LocalMultiplayer -> tr(language, "Local multiplayer", "Локална игра", "Lokaler Mehrspieler")
     else -> mode.title
   }
@@ -57,35 +58,57 @@ internal fun localizedModeDescription(
         "Смесвай флагове, имена на държави и писмени отговори със свое темпо. Тренировката не дава прогрес към ниво.",
         "Mische Flaggen, Ländernamen und Texteingaben in deinem Tempo. Training bringt keinen Level-Fortschritt.",
       )
+    GameMode.CreateQuiz ->
+      tr(
+        language,
+        "Build and save exact quizzes from preset flag filters or chosen countries.",
+        "Създавай и запазвай точни тестове от филтри по флагове или избрани държави.",
+        "Erstelle und speichere exakte Quizze mit Flaggenfiltern oder ausgewählten Ländern.",
+      )
     GameMode.Continents ->
-      tr(language, "Build a quiz from the continents you want to practice.", "Създай тест от континентите, които искаш да упражняваш.", "Erstelle ein Quiz aus den Kontinenten, die du üben möchtest.")
+      tr(
+        language,
+        "Build a quiz from the continents you want to practice.",
+        "Създай тест от континентите, които искаш да упражняваш.",
+        "Erstelle ein Quiz aus den Kontinenten, die du üben möchtest.",
+      )
     GameMode.DailyChallenge ->
-      tr(language, "One fixed quiz each local day.", "Един фиксиран тест за всеки местен ден.", "Ein festes Quiz pro lokalem Tag.")
+      tr(
+        language,
+        "Today's challenge. Resets at ${localUtcMidnightResetLabel()}.",
+        "Днешното предизвикателство. Нулира се в ${localUtcMidnightResetLabel()}.",
+        "Heutige Herausforderung. Wird um ${localUtcMidnightResetLabel()} zurückgesetzt.",
+      )
     GameMode.MistakeReview ->
       tr(language, "Practice the countries you often miss.", "Упражнявай държавите, които често пропускаш.", "Übe die Länder, die du oft verpasst.")
     GameMode.SpeedRun ->
-      tr(language, "Same quiz setup as continents, but time is always ticking. Hints and reveals cost seconds.", "Същата настройка като при континентите, но времето тече. Подсказките и разкритията струват секунди.", "Dasselbe Setup wie bei Kontinente, aber die Zeit läuft. Hinweise und Aufdeckungen kosten Sekunden.")
+      tr(
+        language,
+        "Same quiz setup as continents, but time is always ticking. Hints and reveals cost seconds.",
+        "Същата настройка като при континентите, но времето тече. Подсказките и разкритията струват секунди.",
+        "Dasselbe Setup wie bei Kontinente, aber die Zeit läuft. Hinweise und Aufdeckungen kosten Sekunden.",
+      )
     GameMode.AllIn ->
-      tr(language, "All countries with only the variants you choose.", "Всички държави само с вариантите, които избереш.", "Alle Länder mit nur den Varianten, die du auswählst.")
+      tr(
+        language,
+        "All countries with only the variants you choose.",
+        "Всички държави само с вариантите, които избереш.",
+        "Alle Länder mit nur den Varianten, die du auswählst.",
+      )
     GameMode.LocalMultiplayer ->
-      tr(language, "Up to 5 players pass one device and play turn by turn.", "До 5 играчи използват едно устройство и играят поред.", "Bis zu 5 Spieler teilen sich ein Gerät und spielen reihum.")
+      tr(language, "Up to 5 players pass one device and play turn by turn.", "До 5 играчи ползват едно устройство и играят поред.", "Bis zu 5 Spieler teilen sich ein Gerät und spielen reihum.")
     else -> mode.description
   }
 
-internal fun localizedModeShortLabel(
-  mode: GameMode,
-  language: AppLanguage,
-): String =
-  when (mode) {
-    GameMode.Training -> tr(language, "Practice freely.", "Упражнявай се свободно.", "Frei üben.")
-    GameMode.Continents -> tr(language, "Pick continents.", "Избери континенти.", "Kontinente wählen.")
-    GameMode.DailyChallenge -> tr(language, "Today’s challenge.", "Днешното предизвикателство.", "Heutige Herausforderung.")
-    GameMode.MistakeReview -> tr(language, "Fix mistakes.", "Поправи грешките.", "Fehler verbessern.")
-    GameMode.SpeedRun -> tr(language, "Beat the clock.", "Победи времето.", "Schlage die Zeit.")
-    GameMode.AllIn -> tr(language, "All countries.", "Всички държави.", "Alle Länder.")
-    GameMode.LocalMultiplayer -> tr(language, "Play together.", "Играй заедно.", "Zusammen spielen.")
-    else -> mode.title
-  }
+internal fun localUtcMidnightResetLabel(): String {
+  val offsetHours =
+    java.time.ZoneId.systemDefault()
+      .rules
+      .getOffset(java.time.Instant.now())
+      .totalSeconds / 3600
+  val resetHour = (24 + offsetHours) % 24
+  return "${resetHour.toString().padStart(2, '0')}:00"
+}
 
 internal fun localizedVariantTitle(
   variant: QuizVariant,
@@ -94,7 +117,7 @@ internal fun localizedVariantTitle(
   when (variant) {
     QuizVariant.FlagToCountry -> tr(language, "Flag -> country", "Флаг -> държава", "Flagge -> Land")
     QuizVariant.CountryToFlag -> tr(language, "Country -> flag", "Държава -> флаг", "Land -> Flagge")
-    QuizVariant.TypeCountryName -> tr(language, "Type the country", "Напиши държавата", "Land eintippen")
+    QuizVariant.TypeCountryName -> tr(language, "Type the country", "Напиши държавата", "Land eingeben")
   }
 
 internal fun localizedVariantDescription(
@@ -134,10 +157,10 @@ internal fun localizedHintDifficultyDescription(
   language: AppLanguage,
 ): String =
   when (difficulty) {
-    HintDifficulty.Rookie -> tr(language, "Collect 1 hint for every 3 correct answers in a row.", "Събирай 1 жокер за всеки 3 верни отговора подред.", "Sammle 1 Hinweis für je 3 richtige Antworten in Folge.")
-    HintDifficulty.Medium -> tr(language, "Collect 1 hint for every 5 correct answers in a row.", "Събирай 1 жокер на всеки 5 верни отговора поред.", "Sammle 1 Hinweis für jeweils 5 richtige Antworten in Folge.")
-    HintDifficulty.Hard -> tr(language, "Collect 1 hint for every 10 correct answers in a row.", "Събирай 1 жокер на всеки 10 верни отговора поред.", "Sammle 1 Hinweis für jeweils 10 richtige Antworten in Folge.")
-    HintDifficulty.Impossible -> tr(language, "Collect 1 hint for every 50 correct answers in a row.", "Събирай 1 жокер на всеки 50 верни отговора поред.", "Sammle 1 Hinweis für jeweils 50 richtige Antworten in Folge.")
+    HintDifficulty.Rookie -> tr(language, "Collect 1 hint for every 3 correct answers in a row.", "Събирай 1 жокер за всеки 3 верни отговора поред.", "Sammle 1 Hinweis für je 3 richtige Antworten in Folge.")
+    HintDifficulty.Medium -> tr(language, "Collect 1 hint for every 5 correct answers in a row.", "Събирай 1 жокер за всеки 5 верни отговора поред.", "Sammle 1 Hinweis für jeweils 5 richtige Antworten in Folge.")
+    HintDifficulty.Hard -> tr(language, "Collect 1 hint for every 10 correct answers in a row.", "Събирай 1 жокер за всеки 10 верни отговора поред.", "Sammle 1 Hinweis für jeweils 10 richtige Antworten in Folge.")
+    HintDifficulty.Impossible -> tr(language, "Collect 1 hint for every 50 correct answers in a row.", "Събирай 1 жокер за всеки 50 верни отговора поред.", "Sammle 1 Hinweis für jeweils 50 richtige Antworten in Folge.")
   }
 
 internal fun localizedMedalTitle(
@@ -159,7 +182,22 @@ internal fun localizedMedalIntro(language: AppLanguage): String =
   tr(language, "Perfect quiz counters", "Броячи за перфектни тестове", "Zähler für fehlerfreie Quizze")
 
 internal fun cleanModeSelectionTitle(language: AppLanguage): String =
-  tr(language, "Choose mode", "Избери режим", "Modus wählen")
+  tr(language, "Start a quiz", "Стартирай тест", "Starte ein Quiz")
+
+internal fun localizedGameModesHubTitle(language: AppLanguage): String =
+  tr(language, "Game modes", "Режими на игра", "Spielmodi")
+
+internal fun localizedSavedTestsTitle(
+  language: AppLanguage,
+  savedCount: Int,
+  maxCount: Int = 10,
+): String =
+  tr(
+    language,
+    "Saved tests ($savedCount/$maxCount)",
+    "Запазени тестове ($savedCount/$maxCount)",
+    "Gespeicherte Tests ($savedCount/$maxCount)",
+  )
 
 internal fun cleanHeroPill(
   index: Int,
@@ -177,11 +215,12 @@ internal fun cleanModeTitle(
 ): String =
   when (mode) {
     GameMode.Training -> tr(language, "Training", "Тренировка", "Training")
+    GameMode.CreateQuiz -> tr(language, "Create a quiz", "Създай тест", "Quiz erstellen")
     GameMode.Continents -> tr(language, "Continents", "Континенти", "Kontinente")
     GameMode.DailyChallenge -> tr(language, "Daily challenge", "Дневно предизвикателство", "Tägliche Herausforderung")
     GameMode.MistakeReview -> tr(language, "Mistake review", "Преглед на грешките", "Fehlerprüfung")
     GameMode.SpeedRun -> tr(language, "Speed run", "Скоростна игра", "Schnelllauf")
-    GameMode.AllIn -> tr(language, "No Bluff, All Tough", "Без блъф, само трудно", "Kein Bluff, alles schwer")
+    GameMode.AllIn -> tr(language, "Hardcore", "Хардкор", "Hardcore")
     GameMode.LocalMultiplayer -> tr(language, "Local multiplayer", "Локална игра", "Lokaler Mehrspieler")
     else -> mode.title
   }
@@ -193,7 +232,7 @@ internal fun cleanModeShortLabel(
   when (mode) {
     GameMode.Training -> tr(language, "Practice freely.", "Упражнявай се свободно.", "Frei üben.")
     GameMode.Continents -> tr(language, "Pick continents.", "Избери континенти.", "Kontinente wählen.")
-    GameMode.DailyChallenge -> tr(language, "Today’s challenge.", "Днешното предизвикателство.", "Heutige Herausforderung.")
+    GameMode.DailyChallenge -> tr(language, "Today's challenge.", "Днешното предизвикателство.", "Heutige Herausforderung.")
     GameMode.MistakeReview -> tr(language, "Fix mistakes.", "Поправи грешките.", "Fehler verbessern.")
     GameMode.SpeedRun -> tr(language, "Race the timer.", "Надпреварвай времето.", "Renne gegen die Zeit.")
     GameMode.AllIn -> tr(language, "All countries.", "Всички държави.", "Alle Länder.")
@@ -213,11 +252,24 @@ internal fun cleanModeDescription(
         "Смесвай флагове, имена на държави и писмени отговори със свое темпо. Тренировката не дава прогрес към ниво.",
         "Mische Flaggen, Ländernamen und Texteingaben in deinem Tempo. Training bringt keinen Level-Fortschritt.",
       )
-    GameMode.Continents -> tr(language, "Build a quiz from the continents you want to practice.", "Създай тест от континентите, които искаш да упражняваш.", "Erstelle ein Quiz aus den Kontinenten, die du üben möchtest.")
-    GameMode.DailyChallenge -> tr(language, "One fixed quiz each local day.", "Един фиксиран тест за всеки местен ден.", "Ein festes Quiz pro lokalem Tag.")
-    GameMode.MistakeReview -> tr(language, "Practice the countries you often miss.", "Упражнявай държавите, които често пропускаш.", "Übe die Länder, die du oft verpasst.")
-    GameMode.SpeedRun -> tr(language, "Same quiz setup as continents, but time is always ticking. Hints and reveals cost seconds.", "Същата настройка като при континентите, но времето тече. Подсказките и разкритията струват секунди.", "Dasselbe Setup wie bei Kontinente, aber die Zeit läuft. Hinweise und Aufdeckungen kosten Sekunden.")
-    GameMode.AllIn -> tr(language, "All countries with only the variants you choose.", "Всички държави само с вариантите, които избереш.", "Alle Länder mit nur den Varianten, die du auswählst.")
-    GameMode.LocalMultiplayer -> tr(language, "Up to 5 players pass one device and play turn by turn.", "До 5 играчи използват едно устройство и играят поред.", "Bis zu 5 Spieler teilen sich ein Gerät und spielen reihum.")
+    GameMode.CreateQuiz ->
+      tr(language, "Build and save exact quizzes from preset flag filters or chosen countries.", "Създавай и запазвай точни тестове от филтри по флагове или избрани държави.", "Erstelle und speichere exakte Quizze mit Flaggenfiltern oder ausgewählten Ländern.")
+    GameMode.Continents ->
+      tr(language, "Build a quiz from the continents you want to practice.", "Създай тест от континентите, които искаш да упражняваш.", "Erstelle ein Quiz aus den Kontinenten, die du üben möchtest.")
+    GameMode.DailyChallenge ->
+      tr(language, "One fixed quiz each local day.", "Един фиксиран тест за всеки местен ден.", "Ein festes Quiz pro lokalem Tag.")
+    GameMode.MistakeReview ->
+      tr(language, "Practice the countries you often miss.", "Упражнявай държавите, които често пропускаш.", "Übe die Länder, die du oft verpasst.")
+    GameMode.SpeedRun ->
+      tr(
+        language,
+        "Same quiz setup as continents, but time is always ticking. Hints and reveals cost seconds.",
+        "Същата настройка като при континентите, но времето тече. Подсказките и разкритията струват секунди.",
+        "Dasselbe Setup wie bei Kontinente, aber die Zeit läuft. Hinweise und Aufdeckungen kosten Sekunden.",
+      )
+    GameMode.AllIn ->
+      tr(language, "All countries with only the variants you choose.", "Всички държави само с вариантите, които избереш.", "Alle Länder mit nur den Varianten, die du auswählst.")
+    GameMode.LocalMultiplayer ->
+      tr(language, "Up to 5 players pass one device and play turn by turn.", "До 5 играчи ползват едно устройство и играят поред.", "Bis zu 5 Spieler teilen sich ein Gerät und spielen reihum.")
     else -> mode.description
   }

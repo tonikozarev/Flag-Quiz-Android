@@ -8,13 +8,17 @@ enum class GameMode(
     title = "Training",
     description = "Mix flags, country names, and typed answers at your pace. Training does not give level-up progress.",
   ),
+  CreateQuiz(
+    title = "Create a quiz",
+    description = "Build a custom quiz from preset flag filters or your own country selection.",
+  ),
   Continents(
     title = "Continents",
     description = "Build a quiz from the continents you want to practice.",
   ),
   DailyChallenge(
     title = "Daily challenge",
-    description = "One short themed quiz per day. The challenge stays the same for the whole day.",
+    description = "One short themed quiz per UTC day. The challenge stays the same until midnight UTC.",
   ),
   MistakeReview(
     title = "Mistake review",
@@ -43,6 +47,22 @@ internal fun visibleGameModes(): List<GameMode> =
     GameMode.LocalMultiplayer,
     GameMode.AllIn,
     GameMode.MistakeReview,
+  )
+
+internal fun startQuizModes(): List<GameMode> =
+  listOf(
+    GameMode.Training,
+    GameMode.DailyChallenge,
+    GameMode.LocalMultiplayer,
+    GameMode.MistakeReview,
+  )
+
+internal fun gameModesHubModes(): List<GameMode> =
+  listOf(
+    GameMode.Continents,
+    GameMode.SpeedRun,
+    GameMode.AllIn,
+    GameMode.CreateQuiz,
   )
 
 enum class QuizVariant(

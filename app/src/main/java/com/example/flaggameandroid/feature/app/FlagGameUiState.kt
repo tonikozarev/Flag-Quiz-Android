@@ -1,15 +1,17 @@
 package com.example.flaggameandroid.feature.app
 
 import com.example.flaggameandroid.core.model.AllInType
-import com.example.flaggameandroid.core.model.AppTimeZone
 import com.example.flaggameandroid.core.model.AchievementsProgress
 import com.example.flaggameandroid.core.model.ActivityDayRecord
 import com.example.flaggameandroid.core.model.FlagCountry
 import com.example.flaggameandroid.core.model.FlagQuestion
 import com.example.flaggameandroid.core.model.GameMode
+import com.example.flaggameandroid.core.model.CreateQuizPreset
+import com.example.flaggameandroid.core.model.CreateQuizSource
 import com.example.flaggameandroid.core.model.HintDifficulty
 import com.example.flaggameandroid.core.model.PlayerProgress
 import com.example.flaggameandroid.core.model.ProgressionRules
+import com.example.flaggameandroid.core.model.SavedQuizTemplate
 import com.example.flaggameandroid.core.model.CountryPracticeStats
 import com.example.flaggameandroid.core.model.DailyChallengeCache
 import com.example.flaggameandroid.core.model.DailyChallengeTheme
@@ -21,6 +23,8 @@ sealed interface AppScreen {
   data object Menu : AppScreen
 
   data object GameModes : AppScreen
+
+  data object GameModesHub : AppScreen
 
   data object Medals : AppScreen
 
@@ -65,13 +69,17 @@ data class SettingsState(
   val reminderEnabled: Boolean = true,
   val testingToolsVisible: Boolean = false,
   val language: AppLanguage = AppLanguage.English,
-  val timeZone: AppTimeZone = AppTimeZone.default(),
 )
 
 data class SetupState(
   val mode: GameMode = GameMode.Training,
   val variants: Set<QuizVariant> = QuizVariant.entries.toSet(),
   val selectedContinents: Set<String> = emptySet(),
+  val createQuizSource: CreateQuizSource = CreateQuizSource.PresetFilter,
+  val createQuizPreset: CreateQuizPreset = CreateQuizPreset.TwoColors,
+  val selectedCountryCodes: Set<String> = emptySet(),
+  val createQuizSeed: Long = 0L,
+  val savedQuizTemplateId: String? = null,
   val questionCountInput: String = "10",
   val speedRunSecondsPerAnswerInput: String = "5",
   val surpriseMe: Boolean = false,
@@ -87,10 +95,13 @@ data class SetupState(
     get() = speedRunSecondsPerAnswerInput.toIntOrNull()
 
   val needsContinents: Boolean
-    get() = mode == GameMode.Continents || mode == GameMode.SpeedRun
+    get() = mode == GameMode.Continents || mode == GameMode.SpeedRun || (mode == GameMode.CreateQuiz && createQuizSource == CreateQuizSource.PresetFilter)
 
   val needsPlayers: Boolean
     get() = mode == GameMode.LocalMultiplayer
+
+  val needsManualCountries: Boolean
+    get() = mode == GameMode.CreateQuiz && createQuizSource == CreateQuizSource.ManualCountries
 }
 
 enum class QuestionStatus {
@@ -131,6 +142,8 @@ data class QuizState(
   val timedOut: Boolean = false,
   val poolSource: com.example.flaggameandroid.core.model.QuizPoolSource = com.example.flaggameandroid.core.model.QuizPoolSource.Standard,
   val dailyChallengeTheme: com.example.flaggameandroid.core.model.DailyChallengeTheme? = null,
+  val quizSeed: Long = 0L,
+  val savedQuizTemplateId: String? = null,
   val results: List<QuestionResult> = emptyList(),
 ) {
   val currentQuestion: FlagQuestion?
@@ -154,14 +167,7 @@ data class QuizState(
   val canFinish: Boolean
     get() {
       if (questions.isEmpty() || questionStates.size != questions.size) return false
-      return questionStates.withIndex().all { (index, state) ->
-        when {
-          index == currentQuestionIndex ->
-            state.status == QuestionStatus.Answered ||
-              (state.status != QuestionStatus.Answered && currentQuestionHasPendingAnswer)
-          else -> state.status == QuestionStatus.Answered
-        }
-      }
+      return questionStates.all { it.status == QuestionStatus.Answered }
     }
 
   val currentQuestionHasPendingAnswer: Boolean
@@ -221,6 +227,7 @@ data class LevelProgressState(
 
 data class FlagGameUiState(
   val screen: AppScreen = AppScreen.Menu,
+  val quizReturnTarget: AppScreen = AppScreen.GameModes,
   val settings: SettingsState = SettingsState(),
   val setup: SetupState = SetupState(),
   val quiz: QuizState = QuizState(),
@@ -240,4 +247,5 @@ data class FlagGameUiState(
   val activityCalendar: Map<Long, ActivityDayRecord> = emptyMap(),
   val dailyChallengeCache: DailyChallengeCache? = null,
   val mistakeReviewUnlocked: Boolean = false,
+  val savedQuizTemplates: List<SavedQuizTemplate> = emptyList(),
 )

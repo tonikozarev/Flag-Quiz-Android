@@ -6,7 +6,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.example.flaggameandroid.core.model.AllInType
-import com.example.flaggameandroid.core.model.AppTimeZone
 import com.example.flaggameandroid.core.model.FlagCountry
 import com.example.flaggameandroid.core.model.GameMode
 import com.example.flaggameandroid.core.model.HintDifficulty
@@ -20,6 +19,7 @@ internal fun FlagGameScreenContent(
   onAchievementsClicked: () -> Unit,
   onFavoritesClicked: () -> Unit,
   onSettingsClicked: () -> Unit,
+  onGameModesClicked: () -> Unit,
   onQuitClicked: () -> Unit,
   onLevelUpSeen: () -> Unit,
   onAccountNameChanged: (String) -> Unit,
@@ -27,9 +27,9 @@ internal fun FlagGameScreenContent(
   onModeSelected: (GameMode) -> Unit,
   onBackToMenu: () -> Unit,
   onBackToGameModes: () -> Unit,
+  onRefreshDailyChallengeAvailability: () -> Unit,
   onHintDifficultySelected: (HintDifficulty) -> Unit,
   onLanguageSelected: (AppLanguage) -> Unit,
-  onTimeZoneSelected: (AppTimeZone) -> Unit,
   onReminderEnabledChanged: (Boolean) -> Unit,
   onResetHintsClick: () -> Unit,
   onAddTestingHintsClick: () -> Unit,
@@ -52,6 +52,10 @@ internal fun FlagGameScreenContent(
   onAddPlayer: () -> Unit,
   onRemovePlayer: () -> Unit,
   onStartQuiz: () -> Unit,
+  onCreateQuizSourceSelected: (com.example.flaggameandroid.core.model.CreateQuizSource) -> Unit,
+  onCreateQuizPresetSelected: (com.example.flaggameandroid.core.model.CreateQuizPreset) -> Unit,
+  onCreateQuizCountryToggled: (String) -> Unit,
+  onSaveCreateQuizClicked: (String, String?) -> FlagGameViewModel.SaveQuizResult,
   onCountryAnswerSelected: (FlagCountry) -> Unit,
   onTypedAnswerChanged: (String) -> Unit,
   onVerifyTypedAnswer: () -> Unit,
@@ -67,6 +71,8 @@ internal fun FlagGameScreenContent(
   onQuestionBack: () -> Unit,
   onQuestionForward: () -> Unit,
   onToggleFavoriteCountry: (String) -> Unit,
+  onOpenSavedQuizTemplate: (String) -> Unit,
+  onRemoveSavedQuizTemplate: (String) -> Unit,
   modifier: Modifier = Modifier,
 ) {
   when (uiState.screen) {
@@ -75,7 +81,6 @@ internal fun FlagGameScreenContent(
         levelProgress = uiState.levelProgress,
         profile = uiState.profile,
         language = uiState.settings.language,
-        timeZone = uiState.settings.timeZone,
         activityCalendar = uiState.activityCalendar,
         countryPracticeStats = uiState.countryPracticeStats,
         onStartClick = onStartClicked,
@@ -107,9 +112,12 @@ internal fun FlagGameScreenContent(
       FavoritesScreen(
         countries = uiState.countries,
         countryPracticeStats = uiState.countryPracticeStats,
+        savedQuizTemplates = uiState.savedQuizTemplates,
         language = uiState.settings.language,
         onBack = onBackToMenuClick,
         onToggleFavoriteCountry = onToggleFavoriteCountry,
+        onOpenSavedQuizTemplate = onOpenSavedQuizTemplate,
+        onRemoveSavedQuizTemplate = onRemoveSavedQuizTemplate,
         modifier = modifier,
       )
     AppScreen.GameModes ->
@@ -117,7 +125,14 @@ internal fun FlagGameScreenContent(
         language = uiState.settings.language,
         dailyChallengeCache = uiState.dailyChallengeCache,
         mistakeReviewEligibleCount = mistakeReviewEligibleCountryCount(uiState.countryPracticeStats),
-        onBack = onBackToMenuClick,
+        onGameModesClick = onGameModesClicked,
+        onModeSelected = onModeSelected,
+        onRefreshDailyChallengeAvailability = onRefreshDailyChallengeAvailability,
+        modifier = modifier,
+      )
+    AppScreen.GameModesHub ->
+      GameModesHubScreen(
+        language = uiState.settings.language,
         onModeSelected = onModeSelected,
         modifier = modifier,
       )
@@ -132,7 +147,6 @@ internal fun FlagGameScreenContent(
         onBack = onBackToMenuClick,
         onHintDifficultySelected = onHintDifficultySelected,
         onLanguageSelected = onLanguageSelected,
-        onTimeZoneSelected = onTimeZoneSelected,
         onReminderEnabledChanged = { enabled ->
           onReminderEnabledChanged(enabled)
           if (enabled &&
@@ -161,6 +175,7 @@ internal fun FlagGameScreenContent(
         hintDifficulty = uiState.settings.hintDifficulty,
         language = uiState.settings.language,
         availableContinents = uiState.availableContinents,
+        countries = uiState.countries,
         questionCountLimit = uiState.questionCountLimit,
         setupError = uiState.setupError,
         onBack = onBackToGameModesClick,
@@ -175,6 +190,10 @@ internal fun FlagGameScreenContent(
         onAddPlayer = onAddPlayer,
         onRemovePlayer = onRemovePlayer,
         onStartQuiz = onStartQuiz,
+        onCreateQuizSourceSelected = onCreateQuizSourceSelected,
+        onCreateQuizPresetSelected = onCreateQuizPresetSelected,
+        onCreateQuizCountryToggled = onCreateQuizCountryToggled,
+        onSaveCreateQuizClicked = onSaveCreateQuizClicked,
         modifier = modifier,
       )
     AppScreen.Quiz ->
@@ -201,7 +220,7 @@ internal fun FlagGameScreenContent(
         countryPracticeStats = uiState.countryPracticeStats,
         completedAtEpochMillis = uiState.lastPlayedAtEpochMillis,
         onPlayAgain = onPlayAgain,
-        onBackToMenu = onBackToMenuClick,
+        onBackToMenu = onBackToGameModesClick,
         onLevelUpSeen = onLevelUpSeen,
         modifier = modifier,
       )

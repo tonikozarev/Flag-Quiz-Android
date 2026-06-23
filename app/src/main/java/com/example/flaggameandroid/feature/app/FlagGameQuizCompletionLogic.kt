@@ -11,6 +11,7 @@ import com.example.flaggameandroid.core.model.QuestionResult
 import com.example.flaggameandroid.core.model.QuizVariant
 import com.example.flaggameandroid.core.model.RatingsProgress
 import com.example.flaggameandroid.core.model.MistakeReviewUnlockCountryCount
+import com.example.flaggameandroid.core.model.SavedQuizTemplate
 
 internal data class QuizCompletionSummary(
   val completionTime: Long,
@@ -29,6 +30,7 @@ internal data class QuizCompletionSummary(
   val updatedMistakeReviewUnlocked: Boolean,
   val updatedActivityCalendar: Map<Long, ActivityDayRecord>,
   val updatedDailyChallengeCache: com.example.flaggameandroid.core.model.DailyChallengeCache?,
+  val updatedSavedQuizTemplates: List<SavedQuizTemplate>,
 )
 
 internal data class QuizCompletionResult(
@@ -134,7 +136,6 @@ internal fun buildQuizCompletionSummary(
       previous = state.activityCalendar,
       completedAtEpochMillis = completionTime,
       mode = quiz.mode ?: GameMode.Training,
-      timeZone = state.settings.timeZone,
     )
   val updatedRatingsWithStreaks =
     awardStreakMedalsIfEligible(
@@ -142,7 +143,6 @@ internal fun buildQuizCompletionSummary(
       previousActivityCalendar = state.activityCalendar,
       updatedActivityCalendar = updatedActivityCalendar,
       completedAtEpochMillis = completionTime,
-      timeZone = state.settings.timeZone,
     )
   val updatedDailyChallengeCache =
     if (quiz.mode == GameMode.DailyChallenge) {
@@ -150,8 +150,20 @@ internal fun buildQuizCompletionSummary(
         completed = true,
         completedAtEpochMillis = completionTime,
       ) ?: state.dailyChallengeCache
-    } else {
+      } else {
       state.dailyChallengeCache
+    }
+  val updatedSavedQuizTemplates =
+    if (quiz.savedQuizTemplateId == null) {
+      state.savedQuizTemplates
+    } else {
+      state.savedQuizTemplates.map { template ->
+        if (template.id == quiz.savedQuizTemplateId) {
+          template.copy(completionCount = template.completionCount + 1)
+        } else {
+          template
+        }
+      }
     }
 
   return QuizCompletionSummary(
@@ -171,6 +183,7 @@ internal fun buildQuizCompletionSummary(
     updatedMistakeReviewUnlocked = updatedMistakeReviewUnlocked,
     updatedActivityCalendar = updatedActivityCalendar,
     updatedDailyChallengeCache = updatedDailyChallengeCache,
+    updatedSavedQuizTemplates = updatedSavedQuizTemplates,
   )
 }
 
@@ -200,6 +213,7 @@ internal fun buildQuizCompletionResult(
         mistakeReviewUnlocked = summary.updatedMistakeReviewUnlocked,
         activityCalendar = summary.updatedActivityCalendar,
         dailyChallengeCache = summary.updatedDailyChallengeCache,
+        savedQuizTemplates = summary.updatedSavedQuizTemplates,
       ),
     summary = summary,
   )
@@ -210,7 +224,7 @@ internal fun awardStreakMedalsIfEligible(
   previousActivityCalendar: Map<Long, ActivityDayRecord>,
   updatedActivityCalendar: Map<Long, ActivityDayRecord>,
   completedAtEpochMillis: Long,
-  timeZone: com.example.flaggameandroid.core.model.AppTimeZone,
+  timeZone: com.example.flaggameandroid.core.model.AppTimeZone = com.example.flaggameandroid.core.model.AppTimeZone.Utc,
 ): RatingsProgress {
   val dayKey = localDayKey(completedAtEpochMillis, timeZone)
   if ((previousActivityCalendar[dayKey]?.quizzesCompleted ?: 0) > 0) {

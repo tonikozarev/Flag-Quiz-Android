@@ -11,6 +11,9 @@ import com.example.flaggameandroid.core.model.HintDifficulty
 import com.example.flaggameandroid.core.model.QuestionResult
 import com.example.flaggameandroid.core.model.RatingsProgress
 import com.example.flaggameandroid.core.model.QuizVariant
+import com.example.flaggameandroid.core.model.CreateQuizSource
+import com.example.flaggameandroid.core.model.SavedQuizTemplate
+import com.example.flaggameandroid.core.model.hasSameQuizConfiguration
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertTrue
@@ -55,7 +58,7 @@ class FlagGameFlowLogicTest {
   }
 
   @Test
-  fun withSelectedCountry_keepsNonTrainingQuestionsHintable() {
+  fun withSelectedCountry_marksNonTrainingQuestionsAnsweredImmediately() {
     val countries = StaticFlagCatalogRepository().getCountries()
     val setup =
       buildSetupForMode(
@@ -82,8 +85,54 @@ class FlagGameFlowLogicTest {
 
     val updatedQuiz = quiz.withSelectedCountry(quiz.currentQuestion!!.correctCountry)
 
-    assertEquals(QuestionStatus.Unanswered, updatedQuiz.currentQuestionState.status)
+    assertEquals(QuestionStatus.Answered, updatedQuiz.currentQuestionState.status)
     assertTrue(updatedQuiz.currentQuestionState.selectedCountry != null)
+  }
+
+  @Test
+  fun withSelectedCountry_togglesSelectionOffWhenTappedAgainOutsideTraining() {
+    val country = FlagCountry(code = "DE", name = "Germany", emoji = "🇩🇪", continent = "Europe")
+    val question =
+      FlagQuestion(
+        correctCountry = country,
+        options = listOf(country),
+        variant = QuizVariant.FlagToCountry,
+      )
+    val quiz =
+      QuizState(
+        mode = GameMode.Continents,
+        questions = listOf(question),
+        questionStates = listOf(QuestionDraftState()),
+      )
+
+    val selectedQuiz = quiz.withSelectedCountry(country)
+    val deselectedQuiz = selectedQuiz.withSelectedCountry(country)
+
+    assertEquals(QuestionStatus.Unanswered, deselectedQuiz.currentQuestionState.status)
+    assertEquals(null, deselectedQuiz.currentQuestionState.selectedCountry)
+  }
+
+  @Test
+  fun buildQuestions_handlesManualQuizzesSmallerThanFourCountries() {
+    val allCountries = StaticFlagCatalogRepository().getCountries()
+    val manualCountries = allCountries.filter { it.code in setOf("AT", "DE", "BG") }
+    val quiz =
+      QuizQuestionGenerator(Random(11)).buildQuestions(
+        countries = manualCountries,
+        config =
+          com.example.flaggameandroid.core.model.QuizConfig(
+            mode = GameMode.CreateQuiz,
+            variants = setOf(QuizVariant.FlagToCountry),
+            questionCount = manualCountries.size,
+          ),
+        answerPool = allCountries,
+      )
+
+    assertEquals(3, quiz.size)
+    quiz.forEach { question ->
+      assertEquals(4, question.options.size)
+      assertTrue(question.options.any { it.code == question.correctCountry.code })
+    }
   }
 
   @Test
@@ -179,7 +228,7 @@ class FlagGameFlowLogicTest {
   }
 
   @Test
-  fun canFinish_allowsSkippedQuestionWithPendingAnswerToFinishWithoutExtraNavigation() {
+  fun canFinish_requiresSkippedQuestionsToBeResolved() {
     val country = FlagCountry(code = "DE", name = "Germany", emoji = "🇩🇪", continent = "Europe")
     val question =
       FlagQuestion(
@@ -200,7 +249,28 @@ class FlagGameFlowLogicTest {
         typedAnswer = "Germany",
       )
 
-    assertTrue(quiz.canFinish)
+    assertFalse(quiz.canFinish)
+  }
+
+  @Test
+  fun canFinish_updatesImmediatelyAfterAnswerSelection() {
+    val country = FlagCountry(code = "DE", name = "Germany", emoji = "🇩🇪", continent = "Europe")
+    val question =
+      FlagQuestion(
+        correctCountry = country,
+        options = listOf(country),
+        variant = QuizVariant.FlagToCountry,
+      )
+    val quiz =
+      QuizState(
+        mode = GameMode.Continents,
+        questions = listOf(question),
+        questionStates = listOf(QuestionDraftState()),
+      )
+
+    val answeredQuiz = quiz.withSelectedCountry(country)
+
+    assertTrue(answeredQuiz.canFinish)
   }
 
   @Test
@@ -307,5 +377,53 @@ class FlagGameFlowLogicTest {
       )
 
     assertTrue(achievements.isUnlocked(AchievementId.SpeedRunOneSecond))
+  }
+
+  @Test
+  fun savedQuizTemplateConfigurationIgnoresVariantDifferencesForDuplicates() {
+    val base =
+      SavedQuizTemplate(
+        id = "a",
+        createdAtEpochMillis = 1L,
+        title = "Quiz A",
+        source = CreateQuizSource.ManualCountries,
+        selectedCountryCodes = setOf("AT", "BG", "DE"),
+        variants = setOf(QuizVariant.FlagToCountry),
+        questionCount = 3,
+        seed = 1L,
+      )
+    val duplicate =
+      base.copy(
+        id = "b",
+        title = "Quiz B",
+        variants = setOf(QuizVariant.CountryToFlag, QuizVariant.TypeCountryName),
+        seed = 999L,
+      )
+
+    assertTrue(base.hasSameQuizConfiguration(duplicate))
+  }
+
+  @Test
+  fun applyHintToCurrentQuestion_allowsHintAfterAnswerSelectionOutsideTraining() {
+    val country = FlagCountry(code = "DE", name = "Germany", emoji = "🇩🇪", continent = "Europe")
+    val question =
+      FlagQuestion(
+        correctCountry = country,
+        options = listOf(country, FlagCountry("BG", "Bulgaria", "🇧🇬", "Europe"), FlagCountry("AT", "Austria", "🇦🇹", "Europe"), FlagCountry("FR", "France", "🇫🇷", "Europe")),
+        variant = QuizVariant.FlagToCountry,
+      )
+    val quiz =
+      QuizState(
+        mode = GameMode.Continents,
+        questions = listOf(question),
+        questionStates = listOf(QuestionDraftState()),
+        players = listOf(com.example.flaggameandroid.core.model.PlayerProgress("Solo", hintPoints = 2)),
+      ).withSelectedCountry(country)
+    val state = FlagGameUiState(quiz = quiz, settings = com.example.flaggameandroid.feature.app.SettingsState())
+
+    val result = applyHintToCurrentQuestion(state)
+
+    assertTrue(result != null)
+    assertTrue(result!!.quiz.currentQuestionState.hintUses > 0)
   }
 }

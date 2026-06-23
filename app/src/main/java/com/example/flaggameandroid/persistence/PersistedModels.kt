@@ -2,11 +2,11 @@ package com.example.flaggameandroid.persistence
 
 import com.example.flaggameandroid.core.model.GameMode
 import com.example.flaggameandroid.core.model.HintDifficulty
-import com.example.flaggameandroid.core.model.AppTimeZone
 import com.example.flaggameandroid.core.model.AchievementsProgress
 import com.example.flaggameandroid.core.model.ActivityDayRecord
 import com.example.flaggameandroid.core.model.CountryPracticeStats
 import com.example.flaggameandroid.core.model.DailyChallengeCache
+import com.example.flaggameandroid.core.model.SavedQuizTemplate
 import com.example.flaggameandroid.core.model.RatingsProgress
 import com.example.flaggameandroid.feature.app.AppLanguage
 
@@ -26,10 +26,10 @@ data class PersistedAppState(
   val countryPracticeStats: Map<String, CountryPracticeStats> = emptyMap(),
   val activityCalendar: Map<Long, ActivityDayRecord> = emptyMap(),
   val dailyChallengeCache: DailyChallengeCache? = null,
+  val savedQuizTemplates: List<SavedQuizTemplate> = emptyList(),
   val accountName: String = "",
   val avatarIndex: Int = 0,
   val language: AppLanguage = AppLanguage.English,
-  val timeZone: AppTimeZone = AppTimeZone.default(),
   val mistakeReviewUnlocked: Boolean = false,
 )
 

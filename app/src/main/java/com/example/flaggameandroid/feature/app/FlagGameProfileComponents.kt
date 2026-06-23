@@ -1,4 +1,4 @@
-package com.example.flaggameandroid.feature.app
+﻿package com.example.flaggameandroid.feature.app
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,7 +18,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -38,17 +37,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
+import com.example.flaggameandroid.core.model.ActivityDayRecord
 import com.example.flaggameandroid.core.model.AppTimeZone
 import com.example.flaggameandroid.core.model.ProgressionRules
 import com.example.flaggameandroid.theme.FlagGameAndroidTheme
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.TextStyle
+import java.util.Locale
 
 @Composable
 internal fun ProfileEditorDialog(
   profile: ProfileState,
   levelProgress: LevelProgressState,
+  activityCalendar: Map<Long, ActivityDayRecord>,
   language: AppLanguage,
   onDismiss: () -> Unit,
   onSave: (String, Int) -> Unit,
@@ -82,14 +88,14 @@ internal fun ProfileEditorDialog(
           ) {
             Text(
               text = avatarFor(avatarDraft),
-              modifier = Modifier.padding(16.dp),
-              fontSize = 34.sp,
+              modifier = Modifier.padding(10.dp),
+              fontSize = 28.sp,
             )
           }
-          Button(onClick = { avatarPickerVisible = true }) {
+          Button(onClick = { avatarPickerVisible = true }, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
             Text(
               when (language) {
-                AppLanguage.English -> "\u270E Change icon"
+                AppLanguage.English -> "✎ Change icon"
                 AppLanguage.Bulgarian -> "✎ Промени иконата"
                 AppLanguage.German -> "✎ Symbol ändern"
               },
@@ -104,35 +110,14 @@ internal fun ProfileEditorDialog(
           singleLine = true,
           modifier = Modifier.fillMaxWidth(),
         )
-        Surface(
-          color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-          shape = RoundedCornerShape(16.dp),
-          modifier = Modifier.fillMaxWidth(),
-        ) {
-          Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-              when (language) {
-                AppLanguage.English -> "Next level requirements"
-                AppLanguage.Bulgarian -> "Изисквания за следващо ниво"
-                AppLanguage.German -> "Anforderungen für das nächste Level"
-              },
-              style = MaterialTheme.typography.titleSmall,
-              fontWeight = FontWeight.Bold,
-            )
-            Text(
-              "${levelProgress.hintsTowardNextLevelDisplay}/${levelProgress.hintsNeeded} ${cleanText(language, UiText.Hints)}" +
-                if (levelProgress.hintsTowardNextLevelDisplay >= levelProgress.hintsNeeded) " ✔" else "",
-            )
-            Text(
-              "${levelProgress.correctAnswersTowardNextLevelDisplay}/${levelProgress.correctAnswersNeeded} ${cleanText(language, UiText.CorrectAnswers)}" +
-                if (levelProgress.correctAnswersTowardNextLevelDisplay >= levelProgress.correctAnswersNeeded) " ✔" else "",
-            )
-            Text(
-              "${levelProgress.eligibleQuizzesTowardNextLevelDisplay}/${levelProgress.eligibleQuizzesNeeded} ${cleanText(language, UiText.CompletedTests)}" +
-                if (levelProgress.eligibleQuizzesTowardNextLevelDisplay >= levelProgress.eligibleQuizzesNeeded) " ✔" else "",
-            )
-          }
-        }
+        NextLevelRequirementsCard(
+          levelProgress = levelProgress,
+          language = language,
+        )
+        ActivityCalendarCard(
+          activityCalendar = activityCalendar,
+          language = language,
+        )
       }
     },
     confirmButton = {
@@ -161,6 +146,220 @@ internal fun ProfileEditorDialog(
 }
 
 @Composable
+private fun NextLevelRequirementsCard(
+  levelProgress: LevelProgressState,
+  language: AppLanguage,
+) {
+  Surface(
+    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+    shape = RoundedCornerShape(16.dp),
+    modifier = Modifier.fillMaxWidth(),
+  ) {
+    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+      Text(
+        when (language) {
+          AppLanguage.English -> "Next level requirements (for lvl ${levelProgress.level + 1})"
+          AppLanguage.Bulgarian -> "Изисквания за следващо ниво (за ниво ${levelProgress.level + 1})"
+          AppLanguage.German -> "Anforderungen für das nächste Level (für Level ${levelProgress.level + 1})"
+        },
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold,
+      )
+      Text(
+        "${levelProgress.hintsTowardNextLevelDisplay}/${levelProgress.hintsNeeded} ${cleanText(language, UiText.Hints)}" +
+          if (levelProgress.hintsTowardNextLevelDisplay >= levelProgress.hintsNeeded) " ✔" else "",
+      )
+      Text(
+        "${levelProgress.correctAnswersTowardNextLevelDisplay}/${levelProgress.correctAnswersNeeded} ${cleanText(language, UiText.CorrectAnswers)}" +
+          if (levelProgress.correctAnswersTowardNextLevelDisplay >= levelProgress.correctAnswersNeeded) " ✔" else "",
+      )
+      Text(
+        "${levelProgress.eligibleQuizzesTowardNextLevelDisplay}/${levelProgress.eligibleQuizzesNeeded} ${cleanText(language, UiText.CompletedTests)}" +
+          if (levelProgress.eligibleQuizzesTowardNextLevelDisplay >= levelProgress.eligibleQuizzesNeeded) " ✔" else "",
+      )
+    }
+  }
+}
+
+@Composable
+private fun ActivityCalendarCard(
+  activityCalendar: Map<Long, ActivityDayRecord>,
+  language: AppLanguage,
+) {
+  val today = LocalDate.now()
+  val currentMonth = YearMonth.from(today)
+  var visibleMonthOffset by remember { mutableStateOf(0) }
+  val visibleMonth = remember(visibleMonthOffset, today) { currentMonth.minusMonths(visibleMonthOffset.toLong()) }
+  val monthGrid =
+    remember(visibleMonth, activityCalendar, today) {
+      buildActivityCalendarGrid(
+        month = visibleMonth,
+        activityCalendar = activityCalendar,
+        today = today,
+      )
+    }
+  val completedDays = monthGrid.sumOf { row -> row.count { it.state == MonthActivityDayState.Completed } }
+  val daysInMonth = visibleMonth.lengthOfMonth()
+  val canGoBackFurther = visibleMonthOffset < 12
+  val canGoForward = visibleMonthOffset > 0
+
+  Surface(
+    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+    shape = RoundedCornerShape(16.dp),
+    modifier = Modifier.fillMaxWidth(),
+  ) {
+    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+      Text(
+        when (language) {
+          AppLanguage.English -> "Activity calendar ($completedDays/$daysInMonth)"
+          AppLanguage.Bulgarian -> "Календар на активността ($completedDays/$daysInMonth)"
+          AppLanguage.German -> "Aktivitätskalender ($completedDays/$daysInMonth)"
+        },
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold,
+      )
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        TextButton(
+          onClick = { if (canGoBackFurther) visibleMonthOffset += 1 },
+          enabled = canGoBackFurther,
+          contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+        ) {
+          Text("<-")
+        }
+        Text(
+          text = visibleMonth.labelForCalendar(language),
+          style = MaterialTheme.typography.bodyMedium,
+          fontWeight = FontWeight.Normal,
+        )
+        TextButton(
+          onClick = { if (canGoForward) visibleMonthOffset -= 1 },
+          enabled = canGoForward,
+          contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+        ) {
+          Text("->")
+        }
+      }
+      Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+          listOf("M", "T", "W", "T", "F", "S", "S").forEach { weekday ->
+            Text(
+              text = weekday,
+              modifier = Modifier.weight(1f),
+              style = MaterialTheme.typography.labelSmall,
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              textAlign = TextAlign.Center,
+              maxLines = 1,
+            )
+          }
+        }
+        monthGrid.forEach { week ->
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+          ) {
+            week.forEach { day ->
+              Surface(
+                color =
+                  when (day.state) {
+                    MonthActivityDayState.Completed -> Color(0xFF2F9E68)
+                    MonthActivityDayState.Missed -> Color(0xFFB84A4A)
+                    MonthActivityDayState.Pending -> MaterialTheme.colorScheme.surfaceVariant
+                    MonthActivityDayState.Disabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                  },
+                shape = RoundedCornerShape(999.dp),
+                modifier = Modifier.weight(1f),
+              ) {
+                Box(
+                  modifier = Modifier.height(18.dp).fillMaxWidth(),
+                  contentAlignment = Alignment.Center,
+                ) {
+                  Text(
+                    text = day.day?.toString().orEmpty(),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color =
+                      when (day.state) {
+                        MonthActivityDayState.Completed -> Color.White
+                        MonthActivityDayState.Missed -> Color.White
+                        MonthActivityDayState.Pending -> MaterialTheme.colorScheme.onSurface
+                        MonthActivityDayState.Disabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+                      },
+                  )
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+private fun buildActivityCalendarGrid(
+  month: YearMonth,
+  activityCalendar: Map<Long, ActivityDayRecord>,
+  today: LocalDate,
+): List<List<MonthActivityDayUiState>> {
+  val firstDayOfMonth = month.atDay(1)
+  val leadingBlankDays = firstDayOfMonth.dayOfWeek.value - 1
+  val cells = mutableListOf<MonthActivityDayUiState>()
+
+  repeat(leadingBlankDays) {
+    cells += MonthActivityDayUiState(day = null, state = MonthActivityDayState.Disabled)
+  }
+
+  repeat(month.lengthOfMonth()) { index ->
+    val dayOfMonth = index + 1
+    val date = month.atDay(dayOfMonth)
+    val record = activityCalendar[date.toEpochDay()]
+    val completed = (record?.quizzesCompleted ?: 0) > 0
+    val state =
+      when {
+        completed -> MonthActivityDayState.Completed
+        date.isBefore(today) -> MonthActivityDayState.Missed
+        else -> MonthActivityDayState.Pending
+      }
+    cells += MonthActivityDayUiState(day = dayOfMonth, state = state)
+  }
+
+  while (cells.size % 7 != 0) {
+    cells += MonthActivityDayUiState(day = null, state = MonthActivityDayState.Disabled)
+  }
+
+  return cells.chunked(7)
+}
+
+private fun YearMonth.labelForCalendar(language: AppLanguage): String {
+  val locale =
+    when (language) {
+      AppLanguage.Bulgarian -> Locale.forLanguageTag("bg")
+      AppLanguage.German -> Locale.GERMAN
+      else -> Locale.ENGLISH
+    }
+  return "${month.getDisplayName(TextStyle.FULL, locale)} ${year}"
+}
+
+private data class MonthActivityDayUiState(
+  val day: Int?,
+  val state: MonthActivityDayState,
+)
+
+private enum class MonthActivityDayState {
+  Completed,
+  Missed,
+  Pending,
+  Disabled,
+}
+
+@Composable
 internal fun AvatarPickerDialog(
   selectedAvatarIndex: Int,
   language: AppLanguage,
@@ -176,7 +375,7 @@ internal fun AvatarPickerDialog(
       Text(
         when (language) {
           AppLanguage.English -> "Choose profile icon"
-          AppLanguage.Bulgarian -> "Избери икона на профила"
+          AppLanguage.Bulgarian -> "Избери икона за профила"
           AppLanguage.German -> "Profilbild wählen"
           else -> cleanText(language, UiText.ChooseProfileIcon)
         },
@@ -243,7 +442,9 @@ internal fun AvatarPickerSheet(
         verticalAlignment = Alignment.CenterVertically,
       ) {
         Text(cleanText(language, UiText.ChooseProfileIcon), modifier = Modifier.weight(1f))
-        InfoButton(onClick = { showUnlockInfo = !showUnlockInfo })
+        TextButton(onClick = { showUnlockInfo = !showUnlockInfo }) {
+          Text("i")
+        }
       }
     },
     text = {
@@ -285,7 +486,7 @@ internal fun AvatarPickerSheet(
                       if (unlocked) {
                         Text(avatar, fontSize = 21.sp)
                       } else {
-                        Text("\uD83D\uDD12", fontSize = 18.sp)
+                        Text("🔒", fontSize = 18.sp)
                       }
                     }
                   }
@@ -346,7 +547,7 @@ internal fun LanguageSelector(
           overflow = TextOverflow.Ellipsis,
         )
         Text(
-          text = "\u25BE",
+          text = "в–ѕ",
           style = MaterialTheme.typography.bodyMedium,
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -423,7 +624,7 @@ internal fun TimeZoneSelector(
           overflow = TextOverflow.Ellipsis,
         )
         Text(
-          text = "\u25BE",
+          text = "в–ѕ",
           style = MaterialTheme.typography.bodyMedium,
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -463,7 +664,13 @@ private fun PreviewProfileEditorDialog() {
     Surface {
       ProfileEditorDialog(
         profile = ProfileState(accountName = "Tony", avatarIndex = 3),
-        levelProgress = LevelProgressState(level = 4, hintsTowardNextLevel = 2, correctAnswersTowardNextLevel = 30, eligibleQuizzesTowardNextLevel = 1),
+        levelProgress = LevelProgressState(
+          level = 4,
+          hintsTowardNextLevel = 2,
+          correctAnswersTowardNextLevel = 30,
+          eligibleQuizzesTowardNextLevel = 1,
+        ),
+        activityCalendar = emptyMap(),
         language = AppLanguage.English,
         onDismiss = {},
         onSave = { _, _ -> },

@@ -3,6 +3,7 @@ package com.example.flaggameandroid.engagement
 import com.example.flaggameandroid.persistence.ProgressStore
 import com.example.flaggameandroid.persistence.SettingsStore
 import kotlinx.coroutines.runBlocking
+import java.time.ZoneOffset
 
 internal fun recordAppOpened(
   progressStore: ProgressStore,
@@ -26,9 +27,8 @@ internal fun triggerDailyEngagementNudge(
   runBlocking {
     val now = nowProvider()
     val settingsReminderEnabled = settingsStore.loadReminderEnabled()
-    val timeZone = settingsStore.loadTimeZone()
     val progress = progressStore.loadProgress()
-    val shouldNudge = DailyEngagementRules.shouldTriggerDailyNudge(progress.lastOpenedAtEpochMillis, now, timeZone.zoneId)
+    val shouldNudge = DailyEngagementRules.shouldTriggerDailyNudge(progress.lastOpenedAtEpochMillis, now, ZoneOffset.UTC)
     if (!shouldNudge) return@runBlocking
 
     val updatedProgress = progress.copy(inactiveIconActive = true)
