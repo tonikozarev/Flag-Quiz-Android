@@ -17,8 +17,14 @@ enum class CreateQuizPreset(
   VerticalStripes("Vertical stripes"),
   Stars("Stars"),
   Crosses("Crosses"),
-  NoSymbols("No symbols"),
   Animals("Animals"),
+  Nato("NATO flags"),
+  EuUnion("EU union flags"),
+  WorldTradeOrganization("WTO flags"),
+  CommonwealthOfNations("Commonwealth flags"),
+  AfricanUnion("African Union flags"),
+  OrganisationOfIslamicCooperation("OIC flags"),
+  NoSymbols("No symbols"),
 }
 
 enum class SavedQuizDifficulty(

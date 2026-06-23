@@ -559,6 +559,12 @@ class FlagGameViewModel(
                   CreateQuizPreset.Crosses -> "Кръстове"
                   CreateQuizPreset.NoSymbols -> "Без символи"
                   CreateQuizPreset.Animals -> "Животни"
+                  CreateQuizPreset.Nato -> "НАТО"
+                  CreateQuizPreset.EuUnion -> "ЕС"
+                  CreateQuizPreset.WorldTradeOrganization -> "СТО"
+                  CreateQuizPreset.CommonwealthOfNations -> "Британската общност"
+                  CreateQuizPreset.AfricanUnion -> "Африкански съюз"
+                  CreateQuizPreset.OrganisationOfIslamicCooperation -> "ОИС"
                 }
               AppLanguage.German ->
                 when (setup.createQuizPreset) {
@@ -571,6 +577,12 @@ class FlagGameViewModel(
                   CreateQuizPreset.Crosses -> "Kreuze"
                   CreateQuizPreset.NoSymbols -> "Ohne Symbole"
                   CreateQuizPreset.Animals -> "Tiere"
+                  CreateQuizPreset.Nato -> "NATO"
+                  CreateQuizPreset.EuUnion -> "EU"
+                  CreateQuizPreset.WorldTradeOrganization -> "WTO"
+                  CreateQuizPreset.CommonwealthOfNations -> "Commonwealth"
+                  CreateQuizPreset.AfricanUnion -> "Afrikanische Union"
+                  CreateQuizPreset.OrganisationOfIslamicCooperation -> "OIC"
                 }
             }
           when (state.settings.language) {

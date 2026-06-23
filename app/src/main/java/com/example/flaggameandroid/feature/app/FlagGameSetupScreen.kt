@@ -182,12 +182,27 @@ fun SetupScreen(
           AppLanguage.Bulgarian -> "Готови филтри"
           AppLanguage.German -> "Vorlagenfilter"
         }) {
-          CreateQuizPreset.entries.forEach { preset ->
+          listOf(
+            CreateQuizPreset.TwoColors,
+            CreateQuizPreset.ThreeColors,
+            CreateQuizPreset.FourPlusColors,
+            CreateQuizPreset.HorizontalStripes,
+            CreateQuizPreset.VerticalStripes,
+            CreateQuizPreset.Stars,
+            CreateQuizPreset.Crosses,
+            CreateQuizPreset.Animals,
+            CreateQuizPreset.Nato,
+            CreateQuizPreset.EuUnion,
+            CreateQuizPreset.WorldTradeOrganization,
+            CreateQuizPreset.CommonwealthOfNations,
+            CreateQuizPreset.AfricanUnion,
+            CreateQuizPreset.OrganisationOfIslamicCooperation,
+          ).forEach { preset ->
             SelectableRow(
               title = localizedCreateQuizPresetTitle(preset, language),
               selected = setup.createQuizPreset == preset,
               onClick = { onCreateQuizPresetSelected(preset) },
-              description = localizedCreateQuizPresetDescription(preset, language),
+              description = null,
             )
           }
         }
@@ -708,56 +723,34 @@ private fun localizedCreateQuizPresetTitle(
       AppLanguage.Bulgarian -> "Животни"
       AppLanguage.German -> "Tiere"
     }
-  }
-
-private fun localizedCreateQuizPresetDescription(
-  preset: CreateQuizPreset,
-  language: AppLanguage,
-): String =
-  when (preset) {
-    CreateQuizPreset.TwoColors -> when (language) {
-      AppLanguage.English -> "Only flags that use two colors."
-      AppLanguage.Bulgarian -> "Само флагове с 2 цвята."
-      AppLanguage.German -> "Nur Flaggen mit zwei Farben."
+    CreateQuizPreset.Nato -> when (language) {
+      AppLanguage.English -> "NATO flags"
+      AppLanguage.Bulgarian -> "Флагове на НАТО"
+      AppLanguage.German -> "NATO-Flaggen"
     }
-    CreateQuizPreset.ThreeColors -> when (language) {
-      AppLanguage.English -> "Only flags that use three colors."
-      AppLanguage.Bulgarian -> "Само флагове с 3 цвята."
-      AppLanguage.German -> "Nur Flaggen mit drei Farben."
+    CreateQuizPreset.EuUnion -> when (language) {
+      AppLanguage.English -> "EU union flags"
+      AppLanguage.Bulgarian -> "Флагове на ЕС"
+      AppLanguage.German -> "EU-Flaggen"
     }
-    CreateQuizPreset.FourPlusColors -> when (language) {
-      AppLanguage.English -> "Only flags with four or more colors."
-      AppLanguage.Bulgarian -> "Само флагове с 4 или повече цвята."
-      AppLanguage.German -> "Nur Flaggen mit vier oder mehr Farben."
+    CreateQuizPreset.WorldTradeOrganization -> when (language) {
+      AppLanguage.English -> "WTO flags"
+      AppLanguage.Bulgarian -> "Флагове на СТО"
+      AppLanguage.German -> "WTO-Flaggen"
     }
-    CreateQuizPreset.HorizontalStripes -> when (language) {
-      AppLanguage.English -> "Only flags with horizontal stripes."
-      AppLanguage.Bulgarian -> "Само флагове с хоризонтални ивици."
-      AppLanguage.German -> "Nur Flaggen mit horizontalen Streifen."
+    CreateQuizPreset.CommonwealthOfNations -> when (language) {
+      AppLanguage.English -> "Commonwealth flags"
+      AppLanguage.Bulgarian -> "Флагове на Британската общност"
+      AppLanguage.German -> "Commonwealth-Flaggen"
     }
-    CreateQuizPreset.VerticalStripes -> when (language) {
-      AppLanguage.English -> "Only flags with vertical stripes."
-      AppLanguage.Bulgarian -> "Само флагове с вертикални ивици."
-      AppLanguage.German -> "Nur Flaggen mit vertikalen Streifen."
+    CreateQuizPreset.AfricanUnion -> when (language) {
+      AppLanguage.English -> "African Union flags"
+      AppLanguage.Bulgarian -> "Флагове на Африканския съюз"
+      AppLanguage.German -> "Flaggen der Afrikanischen Union"
     }
-    CreateQuizPreset.Stars -> when (language) {
-      AppLanguage.English -> "Only flags with stars."
-      AppLanguage.Bulgarian -> "Само флагове със звезди."
-      AppLanguage.German -> "Nur Flaggen mit Sternen."
-    }
-    CreateQuizPreset.Crosses -> when (language) {
-      AppLanguage.English -> "Only flags with crosses."
-      AppLanguage.Bulgarian -> "Само флагове с кръстове."
-      AppLanguage.German -> "Nur Flaggen mit Kreuzen."
-    }
-    CreateQuizPreset.NoSymbols -> when (language) {
-      AppLanguage.English -> "Only flags without symbols."
-      AppLanguage.Bulgarian -> "Само флагове без символи."
-      AppLanguage.German -> "Nur Flaggen ohne Symbole."
-    }
-    CreateQuizPreset.Animals -> when (language) {
-      AppLanguage.English -> "Only flags with animals."
-      AppLanguage.Bulgarian -> "Само флагове с животни."
-      AppLanguage.German -> "Nur Flaggen mit Tieren."
+    CreateQuizPreset.OrganisationOfIslamicCooperation -> when (language) {
+      AppLanguage.English -> "OIC flags"
+      AppLanguage.Bulgarian -> "Флагове на ОИС"
+      AppLanguage.German -> "OIC-Flaggen"
     }
   }

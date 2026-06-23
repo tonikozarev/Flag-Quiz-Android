@@ -73,12 +73,7 @@ internal fun localizedModeDescription(
         "Erstelle ein Quiz aus den Kontinenten, die du üben möchtest.",
       )
     GameMode.DailyChallenge ->
-      tr(
-        language,
-        "Today's challenge. Resets at ${localUtcMidnightResetLabel()}.",
-        "Днешното предизвикателство. Нулира се в ${localUtcMidnightResetLabel()}.",
-        "Heutige Herausforderung. Wird um ${localUtcMidnightResetLabel()} zurückgesetzt.",
-      )
+      tr(language, "One fixed quiz each local day.", "Един фиксиран тест за всеки местен ден.", "Ein festes Quiz pro lokalem Tag.")
     GameMode.MistakeReview ->
       tr(language, "Practice the countries you often miss.", "Упражнявай държавите, които често пропускаш.", "Übe die Länder, die du oft verpasst.")
     GameMode.SpeedRun ->
@@ -232,7 +227,13 @@ internal fun cleanModeShortLabel(
   when (mode) {
     GameMode.Training -> tr(language, "Practice freely.", "Упражнявай се свободно.", "Frei üben.")
     GameMode.Continents -> tr(language, "Pick continents.", "Избери континенти.", "Kontinente wählen.")
-    GameMode.DailyChallenge -> tr(language, "Today's challenge.", "Днешното предизвикателство.", "Heutige Herausforderung.")
+    GameMode.DailyChallenge ->
+      tr(
+        language,
+        "Resets at ${localUtcMidnightResetLabel()}.",
+        "Нулира се в ${localUtcMidnightResetLabel()}.",
+        "Wird um ${localUtcMidnightResetLabel()} zurückgesetzt.",
+      )
     GameMode.MistakeReview -> tr(language, "Fix mistakes.", "Поправи грешките.", "Fehler verbessern.")
     GameMode.SpeedRun -> tr(language, "Race the timer.", "Надпреварвай времето.", "Renne gegen die Zeit.")
     GameMode.AllIn -> tr(language, "All countries.", "Всички държави.", "Alle Länder.")

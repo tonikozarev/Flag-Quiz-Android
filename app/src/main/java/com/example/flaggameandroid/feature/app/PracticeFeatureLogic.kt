@@ -287,8 +287,14 @@ private fun matchesCreateQuizPreset(
     CreateQuizPreset.VerticalStripes -> code in createQuizVerticalStripeCountries
     CreateQuizPreset.Stars -> code in createQuizStarCountries
     CreateQuizPreset.Crosses -> code in createQuizCrossCountries
-    CreateQuizPreset.NoSymbols -> code in createQuizNoSymbolCountries
     CreateQuizPreset.Animals -> code in createQuizAnimalCountries
+    CreateQuizPreset.Nato -> code in createQuizNato
+    CreateQuizPreset.EuUnion -> code in createQuizEuUnion
+    CreateQuizPreset.WorldTradeOrganization -> code in createQuizWorldTradeOrganization
+    CreateQuizPreset.CommonwealthOfNations -> code in createQuizCommonwealthOfNations
+    CreateQuizPreset.AfricanUnion -> code in createQuizAfricanUnion
+    CreateQuizPreset.OrganisationOfIslamicCooperation -> code in createQuizOrganisationOfIslamicCooperation
+    CreateQuizPreset.NoSymbols -> false
   }
 }
 
@@ -331,15 +337,59 @@ private val createQuizStarCountries =
     "WS", "YE", "ZA", "ZM", "ZW",
   )
 
-private val createQuizNoSymbolCountries =
-  setOf(
-    "AM", "BS", "BH", "BJ", "BO", "BW", "TD", "CO", "CG", "CR", "CI", "CZ", "EE",
-    "GA", "GM", "GN", "GY", "ID", "KW", "LV", "LT", "MG", "ML", "MU", "MC", "NE", "NG",
-    "PS", "PE", "QA", "SC", "SL", "ZA", "SD", "TZ", "TH", "TT", "AE", "YE",
-  )
-
 private val createQuizVerticalStripeCountries =
   setOf("AD", "BE", "BJ", "CF", "DZ", "GA", "GN", "GW", "MG", "ML", "MD", "MN", "OM", "PK", "PE", "PT", "QA", "SN", "VC", "AE", "VA")
 
 private val createQuizAnimalCountries =
   setOf("AD", "AL", "AO", "AR", "BT", "DM", "EC", "EG", "FJ", "GT", "KE", "KI", "KZ", "MD", "ME", "PG", "RS", "UG", "VU", "ZM", "ZW")
+
+private val createQuizNato =
+  setOf(
+    "AL", "BE", "BG", "CA", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GB", "GR", "HR", "HU", "IS",
+    "IT", "LT", "LU", "LV", "ME", "MK", "NL", "NO", "PL", "PT", "RO", "SE", "SI", "SK", "TR", "US",
+  )
+
+private val createQuizEuUnion =
+  setOf(
+    "AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GR", "HR", "HU", "IE", "IT",
+    "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK",
+  )
+
+private val createQuizWorldTradeOrganization =
+  setOf(
+    "AE", "AF", "AG", "AL", "AM", "AO", "AR", "AT", "AU", "BB", "BD", "BE", "BF", "BG", "BH", "BI",
+    "BJ", "BN", "BO", "BR", "BW", "BZ", "CA", "CD", "CF", "CG", "CH", "CI", "CL", "CM", "CN", "CO",
+    "CR", "CU", "CV", "CY", "CZ", "DE", "DJ", "DK", "DM", "DO", "EC", "EE", "EG", "ES", "FI", "FJ",
+    "FR", "GA", "GB", "GD", "GE", "GH", "GM", "GN", "GR", "GT", "GW", "GY", "HN", "HR", "HT", "HU",
+    "ID", "IE", "IL", "IN", "IS", "IT", "JM", "JO", "JP", "KE", "KG", "KH", "KM", "KN", "KR", "KW",
+    "KZ", "LA", "LC", "LI", "LK", "LR", "LS", "LT", "LU", "LV", "MA", "MD", "ME", "MG", "MK", "ML",
+    "MM", "MN", "MR", "MT", "MU", "MV", "MW", "MX", "MY", "MZ", "NA", "NE", "NG", "NI", "NL", "NO",
+    "NP", "NZ", "OM", "PA", "PE", "PG", "PH", "PK", "PL", "PT", "PY", "QA", "RO", "RU", "RW", "SA",
+    "SB", "SC", "SE", "SG", "SI", "SK", "SL", "SN", "SR", "SV", "SZ", "TD", "TG", "TH", "TJ", "TL",
+    "TN", "TO", "TR", "TT", "TZ", "UA", "UG", "US", "UY", "VC", "VE", "VN", "VU", "WS", "YE", "ZA",
+    "ZM", "ZW",
+  )
+
+private val createQuizCommonwealthOfNations =
+  setOf(
+    "AG", "AU", "BB", "BD", "BN", "BS", "BW", "BZ", "CA", "CM", "CY", "DM", "FJ", "GA", "GB", "GD",
+    "GH", "GM", "GY", "IN", "JM", "KE", "KI", "KN", "LC", "LK", "LS", "MT", "MU", "MV", "MW", "MY",
+    "MZ", "NA", "NG", "NR", "NZ", "PG", "PK", "RW", "SB", "SC", "SG", "SL", "SZ", "TG", "TO", "TT",
+    "TV", "TZ", "UG", "VC", "VU", "WS", "ZA", "ZM",
+  )
+
+private val createQuizAfricanUnion =
+  setOf(
+    "AO", "BF", "BI", "BJ", "BW", "CD", "CF", "CG", "CI", "CM", "CV", "DJ", "DZ", "EG", "ER", "ET",
+    "GA", "GH", "GM", "GN", "GQ", "GW", "KE", "KM", "LR", "LS", "LY", "MA", "MG", "ML", "MR", "MU",
+    "MW", "MZ", "NA", "NE", "NG", "RW", "SC", "SD", "SL", "SN", "SO", "SS", "ST", "SZ", "TD", "TG",
+    "TN", "TZ", "UG", "ZA", "ZM", "ZW",
+  )
+
+private val createQuizOrganisationOfIslamicCooperation =
+  setOf(
+    "AE", "AF", "AL", "AZ", "BD", "BF", "BH", "BJ", "BN", "CI", "CM", "DJ", "DZ", "EG", "GA", "GM",
+    "GN", "GW", "GY", "ID", "IQ", "IR", "JO", "KG", "KM", "KW", "KZ", "LB", "LY", "MA", "ML", "MR",
+    "MV", "MY", "MZ", "NE", "NG", "OM", "PK", "PS", "QA", "SA", "SD", "SL", "SN", "SO", "SR", "SY",
+    "TD", "TG", "TJ", "TM", "TN", "TR", "UG", "UZ", "YE",
+  )
