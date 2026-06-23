@@ -34,7 +34,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
@@ -524,7 +523,6 @@ internal fun LanguageSelector(
     ) {
       Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
       ) {
         Surface(
@@ -545,15 +543,15 @@ internal fun LanguageSelector(
           fontWeight = FontWeight.Bold,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis,
+          modifier = Modifier.padding(start = 6.dp),
         )
+        Spacer(modifier = Modifier.weight(1f))
         Text(
-          text = "в–ѕ",
+          text = "\u25BE",
           style = MaterialTheme.typography.bodyMedium,
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
-          modifier = Modifier.graphicsLayer {
-            rotationZ = if (expanded) 180f else 0f
-          },
+          modifier = Modifier.padding(start = 8.dp, end = 2.dp),
         )
       }
     }
@@ -624,13 +622,10 @@ internal fun TimeZoneSelector(
           overflow = TextOverflow.Ellipsis,
         )
         Text(
-          text = "в–ѕ",
+          text = "\u25BE",
           style = MaterialTheme.typography.bodyMedium,
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
-          modifier = Modifier.graphicsLayer {
-            rotationZ = if (expanded) 180f else 0f
-          },
         )
       }
     }

@@ -566,19 +566,20 @@ private val createQuizEuUnion =
     "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK",
   )
 
+// Info for WTO: 163 from 166 are sovereign countries in World Trade Organization (WTO) - Hong Kong, Macao and one more are not counting...
 private val createQuizWorldTradeOrganization =
   setOf(
-    "AE", "AF", "AG", "AL", "AM", "AO", "AR", "AT", "AU", "BB", "BD", "BE", "BF", "BG", "BH", "BI",
-    "BJ", "BN", "BO", "BR", "BW", "BZ", "CA", "CD", "CF", "CG", "CH", "CI", "CL", "CM", "CN", "CO",
-    "CR", "CU", "CV", "CY", "CZ", "DE", "DJ", "DK", "DM", "DO", "EC", "EE", "EG", "ES", "FI", "FJ",
-    "FR", "GA", "GB", "GD", "GE", "GH", "GM", "GN", "GR", "GT", "GW", "GY", "HN", "HR", "HT", "HU",
-    "ID", "IE", "IL", "IN", "IS", "IT", "JM", "JO", "JP", "KE", "KG", "KH", "KM", "KN", "KR", "KW",
-    "KZ", "LA", "LC", "LI", "LK", "LR", "LS", "LT", "LU", "LV", "MA", "MD", "ME", "MG", "MK", "ML",
-    "MM", "MN", "MR", "MT", "MU", "MV", "MW", "MX", "MY", "MZ", "NA", "NE", "NG", "NI", "NL", "NO",
-    "NP", "NZ", "OM", "PA", "PE", "PG", "PH", "PK", "PL", "PT", "PY", "QA", "RO", "RU", "RW", "SA",
-    "SB", "SC", "SE", "SG", "SI", "SK", "SL", "SN", "SR", "SV", "SZ", "TD", "TG", "TH", "TJ", "TL",
-    "TN", "TO", "TR", "TT", "TZ", "UA", "UG", "US", "UY", "VC", "VE", "VN", "VU", "WS", "YE", "ZA",
-    "ZM", "ZW",
+    "AD", "AE", "AF", "AG", "AL", "AM", "AO", "AR", "AT", "AU", "BB", "BD", "BE", "BF", "BG", "BH",
+    "BI", "BJ", "BN", "BO", "BR", "BW", "BZ", "CA", "CD", "CF", "CG", "CH", "CI", "CL", "CM", "CN",
+    "CO", "CR", "CU", "CV", "CY", "CZ", "DE", "DJ", "DK", "DM", "DO", "EC", "EE", "EG", "ES", "FI",
+    "FJ", "FR", "GA", "GB", "GD", "GE", "GH", "GM", "GN", "GR", "GT", "GW", "GY", "HN", "HR", "HT",
+    "HU", "ID", "IE", "IL", "IN", "IS", "IT", "JM", "JO", "JP", "KE", "KG", "KH", "KM", "KN", "KR",
+    "KW", "KZ", "LA", "LC", "LI", "LK", "LR", "LS", "LT", "LU", "LV", "MA", "MD", "ME", "MG", "MK",
+    "ML", "MM", "MN", "MR", "MT", "MU", "MV", "MW", "MX", "MY", "MZ", "NA", "NE", "NG", "NI", "NL",
+    "NO", "NP", "NZ", "OM", "PA", "PE", "PG", "PH", "PK", "PL", "PT", "PY", "QA", "RO", "RU", "RW",
+    "SA", "SB", "SC", "SE", "SG", "SI", "SK", "SL", "SN", "SR", "SV", "SZ", "TD", "TG", "TH", "TJ",
+    "TL", "TN", "TO", "TR", "TT", "TZ", "UA", "UG", "US", "UY", "VC", "VE", "VN", "VU", "WS", "YE",
+    "ZA", "ZM", "ZW",
   )
 
 private val createQuizCommonwealthOfNations =
@@ -591,10 +592,10 @@ private val createQuizCommonwealthOfNations =
 
 private val createQuizAfricanUnion =
   setOf(
-    "AO", "BF", "BI", "BJ", "BW", "CD", "CF", "CG", "CI", "CM", "CV", "DJ", "DZ", "EG", "ER", "ET",
-    "GA", "GH", "GM", "GN", "GQ", "GW", "KE", "KM", "LR", "LS", "LY", "MA", "MG", "ML", "MR", "MU",
-    "MW", "MZ", "NA", "NE", "NG", "RW", "SC", "SD", "SL", "SN", "SO", "SS", "ST", "SZ", "TD", "TG",
-    "TN", "TZ", "UG", "ZA", "ZM", "ZW",
+    "AO", "BF", "BI", "BJ", "BW", "CD", "CF", "CG", "CI", "CM", "CV", "DJ", "DZ", "EG", "EH", "ER",
+    "ET", "GA", "GH", "GM", "GN", "GQ", "GW", "KE", "KM", "LR", "LS", "LY", "MA", "MG", "ML", "MR",
+    "MU", "MW", "MZ", "NA", "NE", "NG", "RW", "SC", "SD", "SL", "SN", "SO", "SS", "ST", "SZ", "TD",
+    "TG", "TN", "TZ", "UG", "ZA", "ZM", "ZW",
   )
 
 private val createQuizOrganisationOfIslamicCooperation =
