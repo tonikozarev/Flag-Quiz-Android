@@ -152,6 +152,7 @@ internal fun FlagGameUiState.withCreateQuizManualHardcoreToggled(countries: List
     setup.copy(
       createQuizManualHardcoreEnabled = enabled,
       createQuizTrainingEnabled = false,
+      createQuizLocalMultiplayerEnabled = false,
       createQuizSeed = 0L,
       questionCountInput = if (enabled) countries.size.toString() else "1",
       surpriseMe = false,
@@ -174,9 +175,26 @@ internal fun FlagGameUiState.withCreateQuizTrainingToggled(countries: List<FlagC
     setup.copy(
       createQuizTrainingEnabled = enabled,
       createQuizManualHardcoreEnabled = false,
+      createQuizLocalMultiplayerEnabled = false,
       createQuizSeed = 0L,
       surpriseMe = false,
       questionCountInput = "1",
+    )
+  return copy(
+    setup = nextSetup,
+    questionCountLimit = questionLimitFor(nextSetup, countries),
+    setupError = null,
+  )
+}
+
+internal fun FlagGameUiState.withCreateQuizLocalMultiplayerToggled(countries: List<FlagCountry>): FlagGameUiState {
+  val enabled = !setup.createQuizLocalMultiplayerEnabled
+  val nextSetup =
+    setup.copy(
+      createQuizLocalMultiplayerEnabled = enabled,
+      createQuizTrainingEnabled = false,
+      createQuizManualHardcoreEnabled = false,
+      createQuizSeed = 0L,
     )
   return copy(
     setup = nextSetup,

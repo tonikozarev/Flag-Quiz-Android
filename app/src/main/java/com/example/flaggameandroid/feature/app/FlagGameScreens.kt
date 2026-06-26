@@ -107,6 +107,7 @@ fun FlagGameRoute(
     onInstantCorrectionToggled = resolvedViewModel::onInstantCorrectionToggled,
     onContinentToggled = resolvedViewModel::onContinentToggled,
     onCreateQuizTrainingToggled = resolvedViewModel::onCreateQuizTrainingToggled,
+    onCreateQuizLocalMultiplayerToggled = resolvedViewModel::onCreateQuizLocalMultiplayerToggled,
     onCreateQuizManualHardcoreToggled = resolvedViewModel::onCreateQuizManualHardcoreToggled,
     onCreateQuizManualTimerToggled = resolvedViewModel::onCreateQuizManualTimerToggled,
     onQuestionCountChanged = resolvedViewModel::onQuestionCountChanged,

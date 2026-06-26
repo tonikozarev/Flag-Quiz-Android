@@ -109,6 +109,7 @@ internal fun ResultRow(
       result.hintUses == 1 -> 1
       else -> 2
     }
+  val showPlayerName = result.playerName.isNotBlank() && result.playerName != "Solo"
   Surface(
     color = background,
     shape = RoundedCornerShape(8.dp),
@@ -151,6 +152,16 @@ internal fun ResultRow(
               AppLanguage.German -> "Oft verfehlt"
             },
           style = MaterialTheme.typography.labelMedium,
+        )
+      }
+      if (showPlayerName) {
+        Text(
+          text =
+            when (language) {
+              AppLanguage.English -> "Player: ${result.playerName}"
+              AppLanguage.Bulgarian -> "Играч: ${result.playerName}"
+              AppLanguage.German -> "Spieler: ${result.playerName}"
+            },
         )
       }
       Text(

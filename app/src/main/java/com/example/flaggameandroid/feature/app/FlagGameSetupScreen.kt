@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -66,6 +67,7 @@ fun SetupScreen(
   onInstantCorrectionToggled: () -> Unit,
   onContinentToggle: (String) -> Unit,
   onCreateQuizTrainingToggled: () -> Unit,
+  onCreateQuizLocalMultiplayerToggled: () -> Unit,
   onCreateQuizManualHardcoreToggled: () -> Unit,
   onCreateQuizManualTimerToggled: () -> Unit,
   onQuestionCountChange: (String) -> Unit,
@@ -91,9 +93,11 @@ fun SetupScreen(
   var replaceConflict by remember { mutableStateOf<FlagGameViewModel.SaveQuizResult.NameConflict?>(null) }
   var showInstantCorrectionInfo by remember { mutableStateOf(false) }
   var showCreateQuizTrainingInfo by remember { mutableStateOf(false) }
+  var showCreateQuizLocalMultiplayerInfo by remember { mutableStateOf(false) }
   var showCreateQuizHardcoreInfo by remember { mutableStateOf(false) }
   var showStickyQuestionCount by remember { mutableStateOf(false) }
   var questionVariantsExpanded by remember { mutableStateOf(false) }
+  var createQuizPlayersExpanded by remember { mutableStateOf(false) }
   var displayedCreateQuizSource by remember(setup.mode) { mutableStateOf(setup.createQuizSource) }
   val manualCountryContinentExpanded = remember { mutableStateMapOf<String, Boolean>() }
   fun showSaveFeedback(message: String) {
@@ -144,6 +148,7 @@ fun SetupScreen(
   fun closeSetupInfoPanels() {
     showInstantCorrectionInfo = false
     showCreateQuizTrainingInfo = false
+    showCreateQuizLocalMultiplayerInfo = false
     showCreateQuizHardcoreInfo = false
   }
 
@@ -257,60 +262,13 @@ fun SetupScreen(
     )
 
     if (setup.mode == GameMode.LocalMultiplayer) {
-      SectionCard(title = when (language) {
-        AppLanguage.English -> "Players"
-        AppLanguage.Bulgarian -> "Играчите"
-        AppLanguage.German -> "Spieler"
-      }) {
-        setup.playerNames.forEachIndexed { index, name ->
-          OutlinedTextField(
-            value = name,
-            onValueChange = { onPlayerNameChanged(index, it) },
-            label = {
-              Text(
-                when (language) {
-                  AppLanguage.English -> "Player ${index + 1}"
-                  AppLanguage.Bulgarian -> "Играч ${index + 1}"
-                  AppLanguage.German -> "Spieler ${index + 1}"
-                },
-              )
-            },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-          )
-        }
-        val playerCount = setup.playerNames.size
-        val showRemovePlayer = playerCount > 2
-        val showAddPlayer = playerCount < 5
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-          OutlinedButton(
-            onClick = onRemovePlayer,
-            enabled = showRemovePlayer,
-            modifier = Modifier.weight(1f),
-          ) {
-            Text(
-              when (language) {
-                AppLanguage.English -> "Remove"
-                AppLanguage.Bulgarian -> "Премахни"
-                AppLanguage.German -> "Entfernen"
-              },
-            )
-          }
-          Button(
-            onClick = onAddPlayer,
-            enabled = showAddPlayer,
-            modifier = Modifier.weight(1f),
-          ) {
-            Text(
-              when (language) {
-                AppLanguage.English -> "Add player"
-                AppLanguage.Bulgarian -> "Добави играч"
-                AppLanguage.German -> "Spieler hinzufügen"
-              },
-            )
-          }
-        }
-      }
+      PlayersSection(
+        language = language,
+        playerNames = setup.playerNames,
+        onPlayerNameChanged = onPlayerNameChanged,
+        onAddPlayer = onAddPlayer,
+        onRemovePlayer = onRemovePlayer,
+      )
 
       SectionCard(title = when (language) {
         AppLanguage.English -> "Quiz base"
@@ -567,8 +525,7 @@ fun SetupScreen(
     }
 
     if (setup.mode == GameMode.CreateQuiz) {
-      if (!setup.usesCreateQuizManualHardcore) {
-        CompactToggleInfoCard(
+      CompactToggleInfoCard(
         title =
           when (language) {
             AppLanguage.English -> "Training"
@@ -576,6 +533,7 @@ fun SetupScreen(
             AppLanguage.German -> "Training"
           },
         checked = setup.createQuizTrainingEnabled,
+        enabled = !setup.usesCreateQuizManualHardcore && !setup.usesCreateQuizLocalMultiplayer,
         onCheckedChange = { onCreateQuizTrainingToggled() },
         infoExpanded = showCreateQuizTrainingInfo,
         onInfoClick = {
@@ -592,11 +550,9 @@ fun SetupScreen(
             AppLanguage.German ->
               "Erstellt ein zufälliges Trainingsquiz mit Bereich 1-999. Es nutzt einen wiederholten Welt-Pool: 5 volle Durchgänge über alle 195 Länder und einen 6. Durchgang für zusätzliche Fragen bis 999."
           },
-        )
-      }
+      )
 
-      if (!setup.usesCreateQuizTraining) {
-        CompactToggleInfoCard(
+      CompactToggleInfoCard(
           title =
             when (language) {
               AppLanguage.English -> "Hardcore"
@@ -604,6 +560,7 @@ fun SetupScreen(
               AppLanguage.German -> "Hardcore"
             },
           checked = setup.createQuizManualHardcoreEnabled,
+          enabled = !setup.usesCreateQuizTraining && !setup.usesCreateQuizLocalMultiplayer,
           onCheckedChange = { onCreateQuizManualHardcoreToggled() },
           infoExpanded = showCreateQuizHardcoreInfo,
           onInfoClick = {
@@ -620,6 +577,44 @@ fun SetupScreen(
               AppLanguage.German ->
                 "Verwendet alle 195 Länder genau einmal. Timer, Fragetypen und Sofortauswertung bleiben verfügbar."
             },
+      )
+
+      CompactToggleInfoCard(
+        title =
+          when (language) {
+            AppLanguage.English -> "Local Multiplayer"
+            AppLanguage.Bulgarian -> "Локален мултиплейър"
+            AppLanguage.German -> "Lokaler Mehrspieler"
+          },
+        checked = setup.createQuizLocalMultiplayerEnabled,
+        enabled = !setup.usesCreateQuizTraining && !setup.usesCreateQuizManualHardcore,
+        onCheckedChange = { onCreateQuizLocalMultiplayerToggled() },
+        infoExpanded = showCreateQuizLocalMultiplayerInfo,
+        onInfoClick = {
+          val next = !showCreateQuizLocalMultiplayerInfo
+          closeSetupInfoPanels()
+          showCreateQuizLocalMultiplayerInfo = next
+        },
+        infoText =
+          when (language) {
+            AppLanguage.English ->
+              "Play the same custom quiz on one device with 2 to 5 players. Players answer in turns and use the exact preset or manually selected countries from this setup."
+            AppLanguage.Bulgarian ->
+              "Играй същия персонален тест на едно устройство с 2 до 5 играчи. Играчите отговарят на ходове и ползват същите филтри или ръчно избрани държави от тази настройка."
+            AppLanguage.German ->
+              "Spiele dasselbe benutzerdefinierte Quiz auf einem Gerät mit 2 bis 5 Spielern. Die Spieler antworten nacheinander und verwenden dieselben Filter oder manuell gewählten Länder aus dieser Einrichtung."
+          },
+      )
+
+      if (setup.usesCreateQuizLocalMultiplayer) {
+        CollapsiblePlayersSection(
+          language = language,
+          playerNames = setup.playerNames,
+          expanded = createQuizPlayersExpanded,
+          onExpandedChange = { createQuizPlayersExpanded = !createQuizPlayersExpanded },
+          onPlayerNameChanged = onPlayerNameChanged,
+          onAddPlayer = onAddPlayer,
+          onRemovePlayer = onRemovePlayer,
         )
       }
 
@@ -1055,6 +1050,143 @@ fun SetupScreen(
 }
 
 @Composable
+private fun PlayersSection(
+  language: AppLanguage,
+  playerNames: List<String>,
+  onPlayerNameChanged: (Int, String) -> Unit,
+  onAddPlayer: () -> Unit,
+  onRemovePlayer: () -> Unit,
+) {
+  SectionCard(
+    title =
+      when (language) {
+        AppLanguage.English -> "Players"
+        AppLanguage.Bulgarian -> "Играчите"
+        AppLanguage.German -> "Spieler"
+      },
+  ) {
+    PlayerFieldsContent(
+      language = language,
+      playerNames = playerNames,
+      onPlayerNameChanged = onPlayerNameChanged,
+      onAddPlayer = onAddPlayer,
+      onRemovePlayer = onRemovePlayer,
+    )
+  }
+}
+
+@Composable
+private fun CollapsiblePlayersSection(
+  language: AppLanguage,
+  playerNames: List<String>,
+  expanded: Boolean,
+  onExpandedChange: () -> Unit,
+  onPlayerNameChanged: (Int, String) -> Unit,
+  onAddPlayer: () -> Unit,
+  onRemovePlayer: () -> Unit,
+) {
+  Card(modifier = Modifier.fillMaxWidth()) {
+    Column(
+      modifier = Modifier.padding(16.dp),
+      verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        Text(
+          text =
+            when (language) {
+              AppLanguage.English -> "Players"
+              AppLanguage.Bulgarian -> "Играчите"
+              AppLanguage.German -> "Spieler"
+            },
+          style = MaterialTheme.typography.titleLarge,
+          fontWeight = FontWeight.Bold,
+          modifier =
+            Modifier
+              .weight(1f)
+              .clickable(onClick = onExpandedChange),
+        )
+        TextButton(
+          onClick = onExpandedChange,
+          contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+        ) {
+          Text(if (expanded) "▼" else "▶")
+        }
+      }
+
+      if (expanded) {
+        PlayerFieldsContent(
+          language = language,
+          playerNames = playerNames,
+          onPlayerNameChanged = onPlayerNameChanged,
+          onAddPlayer = onAddPlayer,
+          onRemovePlayer = onRemovePlayer,
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun PlayerFieldsContent(
+  language: AppLanguage,
+  playerNames: List<String>,
+  onPlayerNameChanged: (Int, String) -> Unit,
+  onAddPlayer: () -> Unit,
+  onRemovePlayer: () -> Unit,
+) {
+  playerNames.forEachIndexed { index, name ->
+    OutlinedTextField(
+      value = name,
+      onValueChange = { onPlayerNameChanged(index, it) },
+      label = {
+        Text(
+          when (language) {
+            AppLanguage.English -> "Player ${index + 1}"
+            AppLanguage.Bulgarian -> "Играч ${index + 1}"
+            AppLanguage.German -> "Spieler ${index + 1}"
+          },
+        )
+      },
+      singleLine = true,
+      modifier = Modifier.fillMaxWidth(),
+    )
+  }
+  val playerCount = playerNames.size
+  Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+    OutlinedButton(
+      onClick = onRemovePlayer,
+      enabled = playerCount > 2,
+      modifier = Modifier.weight(1f),
+    ) {
+      Text(
+        when (language) {
+          AppLanguage.English -> "Remove"
+          AppLanguage.Bulgarian -> "Премахни"
+          AppLanguage.German -> "Entfernen"
+        },
+      )
+    }
+    Button(
+      onClick = onAddPlayer,
+      enabled = playerCount < 5,
+      modifier = Modifier.weight(1f),
+    ) {
+      Text(
+        when (language) {
+          AppLanguage.English -> "Add player"
+          AppLanguage.Bulgarian -> "Добави играч"
+          AppLanguage.German -> "Spieler hinzufügen"
+        },
+      )
+    }
+  }
+}
+
+@Composable
 private fun CompactToggleCard(
   title: String,
   checked: Boolean,
@@ -1090,6 +1222,7 @@ private fun CompactToggleCard(
 private fun CompactToggleInfoCard(
   title: String,
   checked: Boolean,
+  enabled: Boolean = true,
   onCheckedChange: () -> Unit,
   infoExpanded: Boolean,
   onInfoClick: () -> Unit,
@@ -1097,7 +1230,10 @@ private fun CompactToggleInfoCard(
 ) {
   Card(modifier = Modifier.fillMaxWidth()) {
     Column(
-      modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+      modifier =
+        Modifier
+          .alpha(if (enabled) 1f else 0.55f)
+          .padding(horizontal = 16.dp, vertical = 10.dp),
       verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
       Row(
@@ -1114,6 +1250,7 @@ private fun CompactToggleInfoCard(
         InfoButton(onClick = onInfoClick)
         Switch(
           checked = checked,
+          enabled = enabled,
           onCheckedChange = { onCheckedChange() },
         )
       }

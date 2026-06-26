@@ -46,6 +46,8 @@ data class SavedQuizTemplate(
   val variants: Set<QuizVariant> = QuizVariant.entries.toSet(),
   val questionCount: Int = 10,
   val seed: Long = 0L,
+  val createQuizLocalMultiplayerEnabled: Boolean = false,
+  val playerNames: List<String> = emptyList(),
   val completionCount: Int = 0,
   val difficulty: SavedQuizDifficulty = SavedQuizDifficulty.ItIsOk,
 )

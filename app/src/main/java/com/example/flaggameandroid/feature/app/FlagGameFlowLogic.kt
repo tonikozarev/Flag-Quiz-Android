@@ -220,6 +220,11 @@ internal fun validateSetup(
     if (names.size !in 2..5) return "Local multiplayer needs 2 to 5 named players."
     if (names.distinctBy { it.lowercase() }.size != names.size) return "Player names must be unique."
   }
+  if (setup.mode == GameMode.CreateQuiz && setup.usesCreateQuizLocalMultiplayer) {
+    val names = setup.playerNames.map { it.trim() }.filter { it.isNotEmpty() }
+    if (names.size !in 2..5) return "Local multiplayer needs 2 to 5 named players."
+    if (names.distinctBy { it.lowercase() }.size != names.size) return "Player names must be unique."
+  }
   return null
 }
 
@@ -255,14 +260,19 @@ internal fun configFor(
     }
 
   val players =
-    if (setup.mode == GameMode.LocalMultiplayer) {
+    if (setup.mode == GameMode.LocalMultiplayer || setup.usesCreateQuizLocalMultiplayer) {
       setup.playerNames.map { it.trim() }.filter { it.isNotEmpty() }
     } else {
       listOf("Solo")
     }
 
   return QuizConfig(
-    mode = if (setup.usesCreateQuizTraining) GameMode.Training else setup.mode,
+    mode =
+      when {
+        setup.usesCreateQuizTraining -> GameMode.Training
+        setup.usesCreateQuizLocalMultiplayer -> GameMode.LocalMultiplayer
+        else -> setup.mode
+      },
     variants = variants,
     selectedContinents = setup.selectedContinents,
     questionCount = questionCount,

@@ -377,6 +377,10 @@ class FlagGameViewModel(
     updateState { it.withCreateQuizTrainingToggled(countries) }
   }
 
+  fun onCreateQuizLocalMultiplayerToggled() {
+    updateState { it.withCreateQuizLocalMultiplayerToggled(countries) }
+  }
+
   fun onSurpriseMeClicked() {
     updateState { it.withSurpriseMeToggled() }
   }
@@ -640,6 +644,8 @@ class FlagGameViewModel(
         variants = setup.variants,
         questionCount = exactQuestionCount.coerceAtLeast(1),
         seed = seed,
+        createQuizLocalMultiplayerEnabled = setup.usesCreateQuizLocalMultiplayer,
+        playerNames = if (setup.usesCreateQuizLocalMultiplayer) setup.playerNames else emptyList(),
       )
 
     val normalizedTargetName = template.title.trim().lowercase()
@@ -715,6 +721,8 @@ class FlagGameViewModel(
         selectedCountryCodes = template.selectedCountryCodes,
         createQuizSeed = template.seed,
         savedQuizTemplateId = template.id,
+        createQuizLocalMultiplayerEnabled = template.createQuizLocalMultiplayerEnabled,
+        playerNames = template.playerNames.ifEmpty { listOf("Player 1", "Player 2") },
         questionCountInput = template.questionCount.toString(),
       )
     updateState {

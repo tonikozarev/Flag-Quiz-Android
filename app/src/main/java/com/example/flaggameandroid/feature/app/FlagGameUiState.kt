@@ -80,6 +80,7 @@ data class SetupState(
   val worldFlagsTimerEnabled: Boolean = false,
   val createQuizTrainingEnabled: Boolean = false,
   val createQuizManualHardcoreEnabled: Boolean = false,
+  val createQuizLocalMultiplayerEnabled: Boolean = false,
   val createQuizManualTimerEnabled: Boolean = false,
   val createQuizSource: CreateQuizSource = CreateQuizSource.PresetFilter,
   val createQuizPreset: CreateQuizPreset = CreateQuizPreset.TwoColors,
@@ -107,7 +108,7 @@ data class SetupState(
         (mode == GameMode.LocalMultiplayer && multiplayerBase == MultiplayerQuizBase.Continents)
 
   val needsPlayers: Boolean
-    get() = mode == GameMode.LocalMultiplayer
+    get() = mode == GameMode.LocalMultiplayer || (mode == GameMode.CreateQuiz && createQuizLocalMultiplayerEnabled)
 
   val needsManualCountries: Boolean
     get() = mode == GameMode.CreateQuiz && createQuizSource == CreateQuizSource.ManualCountries
@@ -123,6 +124,9 @@ data class SetupState(
 
   val usesCreateQuizTraining: Boolean
     get() = mode == GameMode.CreateQuiz && createQuizTrainingEnabled
+
+  val usesCreateQuizLocalMultiplayer: Boolean
+    get() = mode == GameMode.CreateQuiz && createQuizLocalMultiplayerEnabled
 
   val usesCreateQuizManualTimer: Boolean
     get() = mode == GameMode.CreateQuiz && createQuizManualTimerEnabled

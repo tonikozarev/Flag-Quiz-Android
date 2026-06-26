@@ -54,7 +54,7 @@ internal fun buildStartedQuizState(
   val countdownEnabled = config.countdownEnabled
 
   return QuizState(
-    mode = setup.mode,
+    mode = config.mode,
     allInType = setup.allInType,
     variants = config.variants,
     selectedContinents = setup.selectedContinents,
