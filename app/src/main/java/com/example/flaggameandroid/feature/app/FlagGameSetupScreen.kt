@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -24,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -71,6 +73,7 @@ fun SetupScreen(
   onRemovePlayer: () -> Unit,
   onCreateQuizSourceSelected: (CreateQuizSource) -> Unit,
   onCreateQuizPresetSelected: (CreateQuizPreset) -> Unit,
+  onCreateQuizContinentToggled: (String) -> Unit,
   onCreateQuizCountryToggled: (String) -> Unit,
   onCreateQuizAllCountriesToggled: () -> Unit,
   onSaveCreateQuizClicked: (String, String?) -> FlagGameViewModel.SaveQuizResult,
@@ -83,6 +86,7 @@ fun SetupScreen(
   var replaceConflict by remember { mutableStateOf<FlagGameViewModel.SaveQuizResult.NameConflict?>(null) }
   var showInstantCorrectionInfo by remember { mutableStateOf(false) }
   var showWorldFlagsHardcoreInfo by remember { mutableStateOf(false) }
+  val manualCountryContinentExpanded = remember { mutableStateMapOf<String, Boolean>() }
   fun showSaveFeedback(message: String) {
     if (saveFeedbackMessage == null) {
       saveFeedbackMessage = message
@@ -285,47 +289,68 @@ fun SetupScreen(
         AppLanguage.English -> "Pick manually"
         AppLanguage.Bulgarian -> "Избери ръчно"
         AppLanguage.German -> "Selber auswählen"
-      }) {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+      }, headerAction = {
+        OutlinedButton(
+          onClick = onCreateQuizAllCountriesToggled,
+          contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
         ) {
           Text(
-            text = when (language) {
-              AppLanguage.English -> "Choose countries"
-              AppLanguage.Bulgarian -> "Избери държави"
-              AppLanguage.German -> "Länder wählen"
+            when (language) {
+              AppLanguage.English -> if (setup.selectedCountryCodes.size == countries.size) "Deselect all" else "Select all"
+              AppLanguage.Bulgarian -> if (setup.selectedCountryCodes.size == countries.size) "Махни всички" else "Избери всички"
+              AppLanguage.German -> if (setup.selectedCountryCodes.size == countries.size) "Alle abwählen" else "Alle wählen"
             },
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
           )
-          OutlinedButton(
-            onClick = onCreateQuizAllCountriesToggled,
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        }
+      }) {
+        countriesByContinent.forEach { (continent, list) ->
+          val continentCodes = list.map { it.code }.toSet()
+          val continentSelected = continentCodes.isNotEmpty() && continentCodes.all { it in setup.selectedCountryCodes }
+          val continentExpanded = manualCountryContinentExpanded[continent] ?: true
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
           ) {
             Text(
-              when (language) {
-                AppLanguage.English -> if (setup.selectedCountryCodes.size == countries.size) "Deselect all" else "Select all"
-                AppLanguage.Bulgarian -> if (setup.selectedCountryCodes.size == countries.size) "Махни всички" else "Избери всички"
-                AppLanguage.German -> if (setup.selectedCountryCodes.size == countries.size) "Alle abwählen" else "Alle wählen"
-              },
+              text = localizedContinentName(continent, language),
+              style = MaterialTheme.typography.titleSmall,
+              fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+              modifier = Modifier.clickable { manualCountryContinentExpanded[continent] = !continentExpanded },
             )
+            Row(
+              horizontalArrangement = Arrangement.spacedBy(8.dp),
+              verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+              OutlinedButton(
+                onClick = { onCreateQuizContinentToggled(continent) },
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+              ) {
+                Text(
+                  when (language) {
+                    AppLanguage.English -> if (continentSelected) "Deselect all" else "Select all"
+                    AppLanguage.Bulgarian -> if (continentSelected) "Махни всички" else "Избери всички"
+                    AppLanguage.German -> if (continentSelected) "Alle abwählen" else "Alle wählen"
+                  },
+                )
+              }
+              TextButton(
+                onClick = { manualCountryContinentExpanded[continent] = !continentExpanded },
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+              ) {
+                Text(if (continentExpanded) "▾" else "▸")
+              }
+            }
           }
-        }
-        countriesByContinent.forEach { (continent, list) ->
-          Text(
-            text = localizedContinentName(continent, language),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-          )
-          FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            list.sortedBy { it.localizedName(language) }.forEach { country ->
-              FilterChip(
-                selected = country.code in setup.selectedCountryCodes,
-                onClick = { onCreateQuizCountryToggled(country.code) },
-                label = { Text("${country.emoji} ${country.localizedName(language)}") },
-              )
+          if (continentExpanded) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+              list.sortedBy { it.localizedName(language) }.forEach { country ->
+                FilterChip(
+                  selected = country.code in setup.selectedCountryCodes,
+                  onClick = { onCreateQuizCountryToggled(country.code) },
+                  label = { Text("${country.emoji} ${country.localizedName(language)}") },
+                )
+              }
             }
           }
         }

@@ -341,6 +341,10 @@ class FlagGameViewModel(
     updateState { it.withCreateQuizCountryToggled(countryCode, countries) }
   }
 
+  fun onCreateQuizContinentToggled(continent: String) {
+    updateState { it.withCreateQuizContinentToggled(continent, countries) }
+  }
+
   fun onCreateQuizAllCountriesToggled() {
     updateState { it.withCreateQuizAllCountriesToggled(countries) }
   }

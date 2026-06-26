@@ -121,6 +121,7 @@ fun FlagGameRoute(
     onStartQuiz = resolvedViewModel::onStartQuiz,
     onCreateQuizSourceSelected = resolvedViewModel::onCreateQuizSourceSelected,
     onCreateQuizPresetSelected = resolvedViewModel::onCreateQuizPresetSelected,
+    onCreateQuizContinentToggled = resolvedViewModel::onCreateQuizContinentToggled,
     onCreateQuizCountryToggled = resolvedViewModel::onCreateQuizCountryToggled,
     onCreateQuizAllCountriesToggled = resolvedViewModel::onCreateQuizAllCountriesToggled,
     onSaveCreateQuizClicked = resolvedViewModel::onSaveCreateQuizClicked,

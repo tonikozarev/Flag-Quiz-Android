@@ -98,6 +98,34 @@ internal fun FlagGameUiState.withCreateQuizCountryToggled(
   )
 }
 
+internal fun FlagGameUiState.withCreateQuizContinentToggled(
+  continent: String,
+  countries: List<FlagCountry>,
+): FlagGameUiState {
+  val continentCodes = countries.filter { it.continent == continent }.map { it.code }.toSet()
+  if (continentCodes.isEmpty()) return this
+  val continentSelected = continentCodes.all { it in setup.selectedCountryCodes }
+  val nextSelection =
+    if (continentSelected) {
+      setup.selectedCountryCodes - continentCodes
+    } else {
+      setup.selectedCountryCodes + continentCodes
+    }
+  val nextSetup =
+    setup.copy(
+      createQuizSource = CreateQuizSource.ManualCountries,
+      selectedCountryCodes = nextSelection,
+      createQuizSeed = 0L,
+      questionCountInput = nextSelection.size.toString(),
+      surpriseMe = false,
+    )
+  return copy(
+    setup = nextSetup,
+    questionCountLimit = questionLimitFor(nextSetup, countries),
+    setupError = null,
+  )
+}
+
 internal fun FlagGameUiState.withSpeedRunSecondsPerAnswerInput(speedRunSeconds: String): FlagGameUiState =
   withUpdatedSetup {
     it.copy(speedRunSecondsPerAnswerInput = speedRunSeconds.filter { char -> char.isDigit() })

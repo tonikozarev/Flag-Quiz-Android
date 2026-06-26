@@ -225,11 +225,19 @@ internal fun CompactInfoRow(
 @Composable
 internal fun SectionCard(
   title: String,
+  headerAction: (@Composable () -> Unit)? = null,
   content: @Composable ColumnScope.() -> Unit,
 ) {
   Card(modifier = Modifier.fillMaxWidth()) {
     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-      Text(text = title, style = MaterialTheme.typography.titleLarge)
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        Text(text = title, style = MaterialTheme.typography.titleLarge)
+        headerAction?.invoke()
+      }
       content()
     }
   }
