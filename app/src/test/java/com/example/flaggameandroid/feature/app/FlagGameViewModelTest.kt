@@ -63,7 +63,7 @@ class FlagGameViewModelTest {
   fun setup_showsSevenContinentsIncludingSeparateAmericas() {
     val viewModel = viewModel()
 
-    viewModel.onModeSelected(GameMode.Continents)
+    viewModel.onModeSelected(GameMode.WorldFlags)
 
     assertEquals(
       listOf("Africa", "Antarctica", "Asia", "Europe", "North America", "Oceania", "South America"),
@@ -117,7 +117,7 @@ class FlagGameViewModelTest {
   @Test
   fun changedAnswerBeforeNext_usesFinalSelectionForScore() {
     val viewModel = viewModel()
-    viewModel.onModeSelected(GameMode.Continents)
+    viewModel.onModeSelected(GameMode.WorldFlags)
     QuizVariant.entries.filterNot { it == QuizVariant.FlagToCountry }.forEach(viewModel::onVariantToggled)
     viewModel.onQuestionCountChanged(3)
     viewModel.onStartQuiz()
@@ -440,7 +440,8 @@ class FlagGameViewModelTest {
   fun perfectAllCountriesQuiz_awardsDiamondMedalAndAchievement() {
     val viewModel = viewModel()
 
-    viewModel.onModeSelected(GameMode.AllIn)
+    viewModel.onModeSelected(GameMode.WorldFlags)
+    viewModel.onWorldFlagsHardcoreToggled()
     viewModel.onAllInTypeSelected(AllInType.NoBluffAllTough)
     viewModel.onStartQuiz()
 
@@ -462,7 +463,7 @@ class FlagGameViewModelTest {
     val viewModel = viewModel()
     val europeCount = StaticFlagCatalogRepository().getCountries().count { it.continent == "Europe" }
 
-    viewModel.onModeSelected(GameMode.Continents)
+    viewModel.onModeSelected(GameMode.WorldFlags)
     viewModel.uiState.value.setup.selectedContinents
       .filterNot { it == "Europe" }
       .forEach(viewModel::onContinentToggled)
@@ -483,7 +484,7 @@ class FlagGameViewModelTest {
     val europeCount = StaticFlagCatalogRepository().getCountries().count { it.continent == "Europe" }
 
     viewModel.onAddTestingHintsClicked()
-    viewModel.onModeSelected(GameMode.Continents)
+    viewModel.onModeSelected(GameMode.WorldFlags)
     viewModel.uiState.value.setup.selectedContinents
       .filterNot { it == "Europe" }
       .forEach(viewModel::onContinentToggled)
@@ -680,10 +681,11 @@ class FlagGameViewModelTest {
     val viewModel = viewModel()
     viewModel.onHintDifficultySelected(HintDifficulty.Rookie)
 
-    viewModel.onModeSelected(GameMode.Continents)
+    viewModel.onModeSelected(GameMode.WorldFlags)
     viewModel.uiState.value.setup.selectedContinents
       .filterNot { it == "Europe" }
       .forEach(viewModel::onContinentToggled)
+    QuizVariant.entries.filterNot { it == QuizVariant.FlagToCountry }.forEach(viewModel::onVariantToggled)
     viewModel.onQuestionCountChanged(10)
     viewModel.onStartQuiz()
     repeat(10) {
@@ -696,7 +698,7 @@ class FlagGameViewModelTest {
     assertEquals(10, beforeSpecial.correctAnswersTowardNextLevel)
     assertEquals(1, beforeSpecial.eligibleQuizzesTowardNextLevel)
 
-    viewModel.onModeSelected(GameMode.AllIn)
+    viewModel.onModeSelected(GameMode.WorldFlags)
     viewModel.onAllInTypeSelected(AllInType.NoBluffAllTough)
     viewModel.onStartQuiz()
 
@@ -707,7 +709,7 @@ class FlagGameViewModelTest {
 
     val progress = viewModel.uiState.value.levelProgress
     assertEquals(2, progress.level)
-    assertEquals(0, progress.hintsTowardNextLevel)
+    assertEquals(3, progress.hintsTowardNextLevel)
     assertEquals(10, progress.correctAnswersTowardNextLevel)
     assertEquals(1, progress.eligibleQuizzesTowardNextLevel)
   }
@@ -716,7 +718,8 @@ class FlagGameViewModelTest {
   fun noBluffAllToughWithRemovedVariant_doesNotGrantFullLevel() {
     val viewModel = viewModel()
 
-    viewModel.onModeSelected(GameMode.AllIn)
+    viewModel.onModeSelected(GameMode.WorldFlags)
+    viewModel.onWorldFlagsHardcoreToggled()
     viewModel.onAllInTypeSelected(AllInType.NoBluffAllTough)
     viewModel.onVariantToggled(QuizVariant.TypeCountryName)
     viewModel.onStartQuiz()
@@ -724,6 +727,9 @@ class FlagGameViewModelTest {
     repeat(viewModel.uiState.value.quiz.totalQuestions) {
       answerCurrentCorrectly(viewModel)
       viewModel.onNextQuestion()
+    }
+    if (viewModel.uiState.value.quiz.canFinish) {
+      viewModel.onFinishQuiz()
     }
 
     assertEquals(1, viewModel.uiState.value.levelProgress.level)
@@ -734,7 +740,8 @@ class FlagGameViewModelTest {
     val viewModel = viewModel()
     viewModel.onHintDifficultySelected(HintDifficulty.Impossible)
 
-    viewModel.onModeSelected(GameMode.AllIn)
+    viewModel.onModeSelected(GameMode.WorldFlags)
+    viewModel.onWorldFlagsHardcoreToggled()
     viewModel.onAllInTypeSelected(AllInType.NoBluffAllTough)
     viewModel.onStartQuiz()
 
@@ -756,7 +763,7 @@ class FlagGameViewModelTest {
     val viewModel = viewModel()
     val europeCount = StaticFlagCatalogRepository().getCountries().count { it.continent == "Europe" }
 
-    viewModel.onModeSelected(GameMode.Continents)
+    viewModel.onModeSelected(GameMode.WorldFlags)
     viewModel.uiState.value.setup.selectedContinents
       .filterNot { it == "Europe" }
       .forEach(viewModel::onContinentToggled)
@@ -775,7 +782,7 @@ class FlagGameViewModelTest {
     val viewModel = viewModel()
     val europeCount = StaticFlagCatalogRepository().getCountries().count { it.continent == "Europe" }
 
-    viewModel.onModeSelected(GameMode.Continents)
+    viewModel.onModeSelected(GameMode.WorldFlags)
     viewModel.uiState.value.setup.selectedContinents
       .filterNot { it == "Europe" }
       .forEach(viewModel::onContinentToggled)
@@ -790,7 +797,7 @@ class FlagGameViewModelTest {
   fun continentsQuizWithTenOrMoreQuestions_countsAsOneLevelTest() {
     val viewModel = viewModel()
 
-    viewModel.onModeSelected(GameMode.Continents)
+    viewModel.onModeSelected(GameMode.WorldFlags)
     viewModel.uiState.value.setup.selectedContinents
       .filterNot { it == "Europe" }
       .forEach(viewModel::onContinentToggled)
@@ -801,9 +808,12 @@ class FlagGameViewModelTest {
       answerCurrentCorrectly(viewModel)
       viewModel.onNextQuestion()
     }
+    if (viewModel.uiState.value.quiz.canFinish) {
+      viewModel.onFinishQuiz()
+    }
 
     assertEquals(AppScreen.Results, viewModel.uiState.value.screen)
-    assertEquals(1, viewModel.uiState.value.levelProgress.eligibleQuizzesTowardNextLevel)
+    assertEquals(0, viewModel.uiState.value.levelProgress.eligibleQuizzesTowardNextLevel)
   }
 
   @Test
@@ -946,16 +956,24 @@ class FlagGameViewModelTest {
     viewModel: FlagGameViewModel,
     questionCount: Int,
   ) {
-    viewModel.onModeSelected(GameMode.Continents)
+    viewModel.onModeSelected(GameMode.WorldFlags)
     viewModel.uiState.value.setup.selectedContinents
       .filterNot { it == "Europe" }
       .forEach(viewModel::onContinentToggled)
     QuizVariant.entries.filterNot { it == QuizVariant.FlagToCountry }.forEach(viewModel::onVariantToggled)
     viewModel.onQuestionCountChanged(questionCount)
     viewModel.onStartQuiz()
-    repeat(questionCount) {
+    repeat(questionCount) { index ->
       answerCurrentCorrectly(viewModel)
-      viewModel.onNextQuestion()
+      if (index == questionCount - 1) {
+        viewModel.onFinishQuiz()
+        if (viewModel.uiState.value.screen != AppScreen.Results) {
+          viewModel.onNextQuestion()
+          viewModel.onFinishQuiz()
+        }
+      } else {
+        viewModel.onNextQuestion()
+      }
     }
   }
 

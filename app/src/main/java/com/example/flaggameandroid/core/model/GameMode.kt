@@ -12,13 +12,9 @@ enum class GameMode(
     title = "Create a quiz",
     description = "Build a custom quiz from preset flag filters or your own country selection.",
   ),
-  Continents(
-    title = "Continents",
-    description = "Build a quiz from the continents you want to practice.",
-  ),
   WorldFlags(
-    title = "World Flags",
-    description = "Guess the country/flag.",
+    title = "Country Flags",
+    description = "Guess the correct country or flag.",
   ),
   DailyChallenge(
     title = "Daily challenge",
@@ -27,14 +23,6 @@ enum class GameMode(
   MistakeReview(
     title = "Mistake review",
     description = "Practice only the countries you missed before.",
-  ),
-  SpeedRun(
-    title = "Speed run",
-    description = "A continent-based quiz against the clock. Hints and reveals add time.",
-  ),
-  AllIn(
-    title = "No Bluff, All Tough",
-    description = "All countries with only the variants you choose.",
   ),
   LocalMultiplayer(
     title = "Local Multiplayer",
@@ -47,11 +35,9 @@ internal fun visibleGameModes(): List<GameMode> =
     GameMode.Training,
     GameMode.DailyChallenge,
     GameMode.WorldFlags,
-    GameMode.Continents,
-    GameMode.SpeedRun,
     GameMode.LocalMultiplayer,
-    GameMode.AllIn,
     GameMode.MistakeReview,
+    GameMode.CreateQuiz,
   )
 
 internal fun startQuizModes(): List<GameMode> =
@@ -65,9 +51,6 @@ internal fun startQuizModes(): List<GameMode> =
 internal fun gameModesHubModes(): List<GameMode> =
   listOf(
     GameMode.WorldFlags,
-    GameMode.Continents,
-    GameMode.SpeedRun,
-    GameMode.AllIn,
     GameMode.CreateQuiz,
   )
 

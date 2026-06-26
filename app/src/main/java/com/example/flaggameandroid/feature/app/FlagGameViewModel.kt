@@ -337,6 +337,10 @@ class FlagGameViewModel(
     updateState { it.withCreateQuizCountryToggled(countryCode, countries) }
   }
 
+  fun onCreateQuizAllCountriesToggled() {
+    updateState { it.withCreateQuizAllCountriesToggled(countries) }
+  }
+
   fun onContinentToggled(continent: String) {
     updateState { it.withContinentToggled(continent, countries) }
   }
@@ -359,6 +363,14 @@ class FlagGameViewModel(
 
   fun onWorldFlagsTimerToggled() {
     updateState { it.withWorldFlagsTimerEnabledToggled() }
+  }
+
+  fun onCreateQuizManualHardcoreToggled() {
+    updateState { it.withCreateQuizManualHardcoreToggled(countries) }
+  }
+
+  fun onCreateQuizManualTimerToggled() {
+    updateState { it.withCreateQuizManualTimerEnabledToggled() }
   }
 
   fun onSurpriseMeClicked() {

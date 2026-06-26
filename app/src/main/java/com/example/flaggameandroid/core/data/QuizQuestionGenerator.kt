@@ -128,7 +128,7 @@ class QuizQuestionGenerator(
   ): List<QuizVariant> {
     val selectedVariants = config.variants.ifEmpty { QuizVariant.entries.toSet() }
     if (
-      config.mode != GameMode.AllIn ||
+      config.mode != GameMode.WorldFlags ||
       config.allInType != AllInType.NoBluffAllTough ||
       selectedVariants.size != QuizVariant.entries.size
     ) {

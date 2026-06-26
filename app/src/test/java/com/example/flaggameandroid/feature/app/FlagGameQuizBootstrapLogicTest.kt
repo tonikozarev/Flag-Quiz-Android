@@ -106,7 +106,7 @@ class FlagGameQuizBootstrapLogicTest {
     val countries = StaticFlagCatalogRepository().getCountries()
     val setup =
       buildSetupForMode(
-        GameMode.Continents,
+        GameMode.WorldFlags,
         listOf("Africa", "Asia", "Europe", "North America", "Oceania", "South America"),
         countries,
         "Tony",
@@ -272,7 +272,7 @@ class FlagGameQuizBootstrapLogicTest {
     val countries = StaticFlagCatalogRepository().getCountries()
     val setup =
       buildSetupForMode(
-        GameMode.SpeedRun,
+        GameMode.WorldFlags,
         listOf("Africa", "Asia", "Europe", "North America", "Oceania", "South America"),
         countries,
         "Tony",
@@ -295,7 +295,7 @@ class FlagGameQuizBootstrapLogicTest {
         displayName = "Tony",
       )
 
-    assertEquals(GameMode.SpeedRun, quiz.mode)
+    assertEquals(GameMode.WorldFlags, quiz.mode)
     assertTrue(quiz.startedAtEpochMillis > 0L)
     assertEquals(10, quiz.totalQuestions)
     assertEquals(4, quiz.currentPlayer.hintPoints)

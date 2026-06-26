@@ -40,6 +40,9 @@ class GameModeRegressionTest {
       val viewModel = viewModel()
 
       viewModel.onModeSelected(mode)
+      if (mode == GameMode.WorldFlags) {
+        viewModel.onWorldFlagsHardcoreToggled()
+      }
       viewModel.onQuestionCountChanged(6)
       viewModel.onStartQuiz()
 
@@ -56,11 +59,9 @@ class GameModeRegressionTest {
         GameMode.Training,
         GameMode.DailyChallenge,
         GameMode.WorldFlags,
-        GameMode.Continents,
-        GameMode.SpeedRun,
         GameMode.LocalMultiplayer,
-        GameMode.AllIn,
         GameMode.MistakeReview,
+        GameMode.CreateQuiz,
       ),
       visibleGameModes(),
     )
@@ -158,7 +159,7 @@ class GameModeRegressionTest {
   fun continentsModeUsesOnlySelectedContinentCountries() {
     val viewModel = viewModel()
 
-    viewModel.onModeSelected(GameMode.Continents)
+    viewModel.onModeSelected(GameMode.WorldFlags)
     viewModel.uiState.value.availableContinents
       .filter { it != "Europe" && it != "Antarctica" }
       .forEach(viewModel::onContinentToggled)
@@ -173,7 +174,8 @@ class GameModeRegressionTest {
   fun allInUsesFullCatalogAndDefaultVariants() {
     val viewModel = viewModel()
 
-    viewModel.onModeSelected(GameMode.AllIn)
+    viewModel.onModeSelected(GameMode.WorldFlags)
+    viewModel.onWorldFlagsHardcoreToggled()
     viewModel.onStartQuiz()
 
     val quiz = viewModel.uiState.value.quiz
@@ -185,7 +187,8 @@ class GameModeRegressionTest {
   fun noBluffAllToughUsesFullCatalogAndSelectedVariants() {
     val viewModel = viewModel()
 
-    viewModel.onModeSelected(GameMode.AllIn)
+    viewModel.onModeSelected(GameMode.WorldFlags)
+    viewModel.onWorldFlagsHardcoreToggled()
     QuizVariant.entries.filterNot { it == QuizVariant.TypeCountryName }.forEach(viewModel::onVariantToggled)
     viewModel.onStartQuiz()
 

@@ -42,6 +42,8 @@ internal fun FlagGameUiState.withCreateQuizSourceSelected(
     setup.copy(
       createQuizSource = source,
       selectedCountryCodes = if (source == CreateQuizSource.ManualCountries) setup.selectedCountryCodes else emptySet(),
+      createQuizManualHardcoreEnabled = if (source == CreateQuizSource.ManualCountries) setup.createQuizManualHardcoreEnabled else false,
+      createQuizManualTimerEnabled = if (source == CreateQuizSource.ManualCountries) setup.createQuizManualTimerEnabled else false,
       createQuizSeed = 0L,
       questionCountInput =
         when (source) {
@@ -94,6 +96,46 @@ internal fun FlagGameUiState.withSpeedRunSecondsPerAnswerInput(speedRunSeconds: 
   withUpdatedSetup {
     it.copy(speedRunSecondsPerAnswerInput = speedRunSeconds.filter { char -> char.isDigit() })
   }
+
+internal fun FlagGameUiState.withCreateQuizManualHardcoreToggled(countries: List<FlagCountry>): FlagGameUiState {
+  val enabled = !setup.createQuizManualHardcoreEnabled
+  val nextSetup =
+    setup.copy(
+      createQuizManualHardcoreEnabled = enabled,
+      selectedCountryCodes = if (enabled) countries.map { it.code }.toSet() else setup.selectedCountryCodes,
+      createQuizSeed = 0L,
+      questionCountInput = if (enabled) countries.size.toString() else setup.selectedCountryCodes.size.toString(),
+      surpriseMe = false,
+    )
+  return copy(
+    setup = nextSetup,
+    questionCountLimit = questionLimitFor(nextSetup, countries),
+    setupError = null,
+  )
+}
+
+internal fun FlagGameUiState.withCreateQuizManualTimerEnabledToggled(): FlagGameUiState =
+  withUpdatedSetup {
+    it.copy(createQuizManualTimerEnabled = !it.createQuizManualTimerEnabled)
+  }
+
+internal fun FlagGameUiState.withCreateQuizAllCountriesToggled(countries: List<FlagCountry>): FlagGameUiState {
+  val allCodes = countries.map { it.code }.toSet()
+  val nextSelection = if (setup.selectedCountryCodes.size == allCodes.size) emptySet() else allCodes
+  val nextSetup =
+    setup.copy(
+      createQuizSource = CreateQuizSource.ManualCountries,
+      selectedCountryCodes = nextSelection,
+      createQuizSeed = 0L,
+      questionCountInput = nextSelection.size.toString(),
+      surpriseMe = false,
+    )
+  return copy(
+    setup = nextSetup,
+    questionCountLimit = questionLimitFor(nextSetup, countries),
+    setupError = null,
+  )
+}
 
 internal fun FlagGameUiState.withWorldFlagsHardcoreToggled(countries: List<FlagCountry>): FlagGameUiState {
   val nextSetup =

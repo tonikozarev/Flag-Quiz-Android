@@ -104,12 +104,8 @@ internal fun buildSetupForMode(
     mode = mode,
     selectedContinents =
       when (mode) {
-        GameMode.Continents,
-        GameMode.SpeedRun,
         GameMode.WorldFlags,
         GameMode.LocalMultiplayer ->
-          selectableContinents.toSet()
-        GameMode.AllIn ->
           selectableContinents.toSet()
         GameMode.CreateQuiz ->
           emptySet()
@@ -119,15 +115,14 @@ internal fun buildSetupForMode(
       },
     questionCountInput =
       when (mode) {
-        GameMode.AllIn -> countries.size.toString()
         GameMode.DailyChallenge -> "10"
         GameMode.MistakeReview -> "10"
         GameMode.CreateQuiz -> "10"
-        GameMode.SpeedRun -> "10"
         GameMode.WorldFlags -> "10"
+        GameMode.LocalMultiplayer -> "10"
         else -> "10"
       },
-    speedRunSecondsPerAnswerInput = if (mode == GameMode.SpeedRun) "5" else "5",
+    speedRunSecondsPerAnswerInput = "5",
     worldFlagsHardcoreEnabled = false,
     worldFlagsTimerEnabled = false,
     playerNames = listOf(displayName, "Player 2"),

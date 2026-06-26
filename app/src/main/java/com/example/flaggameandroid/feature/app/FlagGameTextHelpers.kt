@@ -173,12 +173,9 @@ internal fun displayModeTitle(
   when (mode) {
     GameMode.Training -> cleanModeTitle(GameMode.Training, language)
     GameMode.CreateQuiz -> cleanModeTitle(GameMode.CreateQuiz, language)
-    GameMode.Continents -> cleanModeTitle(GameMode.Continents, language)
     GameMode.WorldFlags -> cleanModeTitle(GameMode.WorldFlags, language)
     GameMode.DailyChallenge -> cleanModeTitle(GameMode.DailyChallenge, language)
     GameMode.MistakeReview -> cleanModeTitle(GameMode.MistakeReview, language)
-    GameMode.SpeedRun -> cleanModeTitle(GameMode.SpeedRun, language)
-    GameMode.AllIn -> cleanModeTitle(GameMode.AllIn, language)
     GameMode.LocalMultiplayer -> cleanModeTitle(GameMode.LocalMultiplayer, language)
     null -> tr(language, "Quiz", "Тест", "Quiz")
   }

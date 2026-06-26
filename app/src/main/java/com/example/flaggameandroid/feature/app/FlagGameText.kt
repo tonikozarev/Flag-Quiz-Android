@@ -18,9 +18,9 @@ internal fun cleanText(
   when (text) {
     UiText.WorldFlagGame ->
       when (language) {
-        AppLanguage.English -> "World flag game"
-        AppLanguage.Bulgarian -> "Световни флагове"
-        AppLanguage.German -> "Flaggen-Spiel"
+        AppLanguage.English -> "Countries/Capitals globally"
+        AppLanguage.Bulgarian -> "Държави/Столици по света"
+        AppLanguage.German -> "Länder/Hauptstädte weltweit"
       }
     UiText.HeroSubtitle ->
       when (language) {

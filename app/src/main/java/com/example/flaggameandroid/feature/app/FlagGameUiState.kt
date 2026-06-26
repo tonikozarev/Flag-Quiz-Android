@@ -77,6 +77,8 @@ data class SetupState(
   val selectedContinents: Set<String> = emptySet(),
   val worldFlagsHardcoreEnabled: Boolean = false,
   val worldFlagsTimerEnabled: Boolean = false,
+  val createQuizManualHardcoreEnabled: Boolean = false,
+  val createQuizManualTimerEnabled: Boolean = false,
   val createQuizSource: CreateQuizSource = CreateQuizSource.PresetFilter,
   val createQuizPreset: CreateQuizPreset = CreateQuizPreset.TwoColors,
   val selectedCountryCodes: Set<String> = emptySet(),
@@ -97,7 +99,9 @@ data class SetupState(
     get() = speedRunSecondsPerAnswerInput.toIntOrNull()
 
   val needsContinents: Boolean
-    get() = mode == GameMode.Continents || mode == GameMode.SpeedRun || mode == GameMode.WorldFlags || (mode == GameMode.CreateQuiz && createQuizSource == CreateQuizSource.PresetFilter)
+    get() =
+      mode == GameMode.WorldFlags ||
+        (mode == GameMode.LocalMultiplayer && multiplayerBase == MultiplayerQuizBase.Continents)
 
   val needsPlayers: Boolean
     get() = mode == GameMode.LocalMultiplayer
@@ -110,6 +114,12 @@ data class SetupState(
 
   val usesWorldFlagsTimer: Boolean
     get() = mode == GameMode.WorldFlags && worldFlagsTimerEnabled
+
+  val usesCreateQuizManualHardcore: Boolean
+    get() = mode == GameMode.CreateQuiz && createQuizSource == CreateQuizSource.ManualCountries && createQuizManualHardcoreEnabled
+
+  val usesCreateQuizManualTimer: Boolean
+    get() = mode == GameMode.CreateQuiz && createQuizSource == CreateQuizSource.ManualCountries && createQuizManualTimerEnabled
 }
 
 enum class QuestionStatus {
@@ -176,7 +186,10 @@ data class QuizState(
   val canFinish: Boolean
     get() {
       if (questions.isEmpty() || questionStates.size != questions.size) return false
-      return questionStates.all { it.status == QuestionStatus.Answered }
+      return questionStates.withIndex().all { (index, questionState) ->
+        questionState.status == QuestionStatus.Answered ||
+          (index == currentQuestionIndex && currentQuestionHasPendingAnswer)
+      }
     }
 
   val currentQuestionHasPendingAnswer: Boolean

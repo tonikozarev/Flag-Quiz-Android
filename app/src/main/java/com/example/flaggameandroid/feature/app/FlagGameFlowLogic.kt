@@ -176,15 +176,17 @@ internal fun validateSetup(
     return "Choose at least one country."
   }
   val needsContinents =
-    (setup.mode == GameMode.Continents || setup.mode == GameMode.SpeedRun || setup.usesContinentsBase()) ||
-      (setup.mode == GameMode.WorldFlags && !setup.usesWorldFlagsHardcore)
+    setup.mode == GameMode.WorldFlags ||
+      (setup.mode == GameMode.LocalMultiplayer && setup.multiplayerBase == MultiplayerQuizBase.Continents)
   if (needsContinents && setup.selectedContinents.isEmpty()) {
     return "Choose at least one continent."
   }
   if (needsContinents && countryPoolFor(setup).size < 4) {
     return "Choose continents with at least 4 countries."
   }
-  val needsTimer = setup.mode == GameMode.SpeedRun || (setup.mode == GameMode.WorldFlags && setup.usesWorldFlagsTimer)
+  val needsTimer =
+    (setup.mode == GameMode.WorldFlags && setup.usesWorldFlagsTimer) ||
+      (setup.mode == GameMode.CreateQuiz && setup.usesCreateQuizManualTimer)
   if (needsTimer) {
     val secondsPerAnswer = setup.speedRunSecondsPerAnswer ?: return "Write how many seconds each answer should get."
     if (secondsPerAnswer !in 1..10) return "Seconds per answer must be between 1 and 10."
@@ -193,6 +195,7 @@ internal fun validateSetup(
     val maxQuestions = countryPoolFor(setup).size
     if (setup.mode == GameMode.MistakeReview) return null
     if (setup.mode == GameMode.WorldFlags && setup.usesWorldFlagsHardcore) return null
+    if (setup.mode == GameMode.CreateQuiz && setup.createQuizSource == CreateQuizSource.ManualCountries) return null
     val questionCount = setup.questionCount ?: return "Write how many questions you want."
     if (questionCount <= 0) return "Question count must be at least 1."
     val limit =
@@ -223,7 +226,6 @@ internal fun configFor(
 
   val questionCount =
     when {
-      setup.mode == GameMode.AllIn || setup.usesAllInBase() -> poolSize
       setup.mode == GameMode.WorldFlags && setup.usesWorldFlagsHardcore -> poolSize
       setup.mode == GameMode.CreateQuiz && setup.createQuizSource == CreateQuizSource.ManualCountries -> poolSize
       setup.mode == GameMode.DailyChallenge -> (setup.questionCount?.coerceIn(1, minOf(poolSize, 10)) ?: minOf(poolSize, 10)).coerceAtLeast(1)
@@ -234,9 +236,9 @@ internal fun configFor(
         } else {
           setup.questionCount?.coerceIn(1, 999) ?: 1
         }
-      setup.mode == GameMode.SpeedRun ->
-        setup.questionCount?.coerceIn(1, poolSize) ?: 1
       setup.mode == GameMode.WorldFlags ->
+        setup.questionCount?.coerceIn(1, poolSize) ?: 1
+      setup.mode == GameMode.LocalMultiplayer ->
         setup.questionCount?.coerceIn(1, poolSize) ?: 1
       setup.surpriseMe -> random.nextInt(from = 1, until = poolSize + 1)
       else -> setup.questionCount?.coerceIn(1, poolSize) ?: 1
@@ -254,8 +256,10 @@ internal fun configFor(
     variants = variants,
     selectedContinents = setup.selectedContinents,
     questionCount = questionCount,
-    speedRunSecondsPerAnswer = setup.speedRunSecondsPerAnswer ?: 3,
-    countdownEnabled = setup.mode == GameMode.SpeedRun || (setup.mode == GameMode.WorldFlags && setup.usesWorldFlagsTimer),
+    speedRunSecondsPerAnswer = setup.speedRunSecondsPerAnswer ?: 5,
+    countdownEnabled =
+      (setup.mode == GameMode.WorldFlags && setup.usesWorldFlagsTimer) ||
+        (setup.mode == GameMode.CreateQuiz && setup.usesCreateQuizManualTimer),
     surpriseMe = setup.surpriseMe,
     allInType = setup.allInType,
     hintDifficulty = hintDifficulty,
@@ -277,12 +281,19 @@ internal fun countryPoolFor(
   if (setup.mode == GameMode.CreateQuiz) {
     when (setup.createQuizSource) {
       CreateQuizSource.PresetFilter -> countries.filter { country -> matchesCreateQuizPreset(country, setup.createQuizPreset) }
-      CreateQuizSource.ManualCountries -> countries.filter { country -> country.code in setup.selectedCountryCodes }
+      CreateQuizSource.ManualCountries ->
+        if (setup.usesCreateQuizManualHardcore) {
+          countries
+        } else {
+          countries.filter { country -> country.code in setup.selectedCountryCodes }
+        }
     }
   } else if (setup.mode == GameMode.WorldFlags && setup.usesWorldFlagsHardcore) {
     countries
-  } else if (setup.mode == GameMode.Continents || setup.mode == GameMode.WorldFlags || setup.mode == GameMode.SpeedRun || setup.usesContinentsBase()) {
+  } else if (setup.mode == GameMode.WorldFlags || (setup.mode == GameMode.LocalMultiplayer && setup.multiplayerBase == MultiplayerQuizBase.Continents)) {
     countries.filter { it.continent in setup.selectedContinents }
+  } else if (setup.mode == GameMode.LocalMultiplayer && setup.multiplayerBase == MultiplayerQuizBase.AllIn) {
+    countries
   } else if (setup.mode == GameMode.DailyChallenge || setup.mode == GameMode.MistakeReview) {
     countries
   } else {
@@ -301,6 +312,8 @@ internal fun questionLimitFor(
   } else if (setup.mode == GameMode.MistakeReview) {
     mistakeReviewEligibleCountryCount(practiceStats)
   } else if (setup.mode == GameMode.WorldFlags && setup.usesWorldFlagsHardcore) {
+    countries.size
+  } else if (setup.mode == GameMode.LocalMultiplayer && setup.multiplayerBase == MultiplayerQuizBase.AllIn) {
     countries.size
   } else if (setup.mode == GameMode.DailyChallenge) {
     10
@@ -423,7 +436,7 @@ internal fun awardAchievementsIfEligible(
     updatedAchievements = updatedAchievements.unlock(AchievementId.VariantMaster, completedAtEpochMillis)
   }
 
-  if (quiz.mode == GameMode.SpeedRun && completedResults.isNotEmpty()) {
+  if (quiz.mode == GameMode.WorldFlags && quiz.countdownEnabled && completedResults.isNotEmpty()) {
     updatedAchievements = updatedAchievements.unlock(AchievementId.SpeedRunStarter, completedAtEpochMillis)
     if (completedResults.all { it.isCorrect } && completedResults.none { it.hintUsed }) {
       updatedAchievements = updatedAchievements.unlock(AchievementId.SpeedRunPurist, completedAtEpochMillis)
@@ -442,7 +455,7 @@ internal fun awardAchievementsIfEligible(
 
   if (
     perfectQuiz &&
-    quiz.mode == GameMode.AllIn &&
+    quiz.mode == GameMode.WorldFlags &&
     quiz.variants.containsAll(QuizVariant.entries) &&
     completedResults.size == totalCatalogCountries &&
     distinctCountries == totalCatalogCountries
@@ -470,12 +483,6 @@ internal fun awardAchievementsIfEligible(
 
   return updatedAchievements
 }
-
-internal fun SetupState.usesContinentsBase(): Boolean =
-  mode == GameMode.LocalMultiplayer && multiplayerBase == MultiplayerQuizBase.Continents
-
-internal fun SetupState.usesAllInBase(): Boolean =
-  mode == GameMode.LocalMultiplayer && multiplayerBase == MultiplayerQuizBase.AllIn
 
 private fun matchesCreateQuizPreset(
   country: FlagCountry,

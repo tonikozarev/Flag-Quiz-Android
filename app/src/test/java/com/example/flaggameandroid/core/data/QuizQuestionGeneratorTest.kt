@@ -43,7 +43,7 @@ class QuizQuestionGeneratorTest {
         countries = repository.getCountries(),
         config =
           QuizConfig(
-            mode = GameMode.Continents,
+            mode = GameMode.WorldFlags,
             variants = variants,
             questionCount = 25,
           ),
@@ -163,7 +163,7 @@ class QuizQuestionGeneratorTest {
           countries = repository.getCountries(),
           config =
             QuizConfig(
-              mode = GameMode.Continents,
+              mode = GameMode.WorldFlags,
               variants = QuizVariant.entries.toSet(),
               questionCount = 99,
               hintDifficulty = HintDifficulty.Impossible,
@@ -184,7 +184,7 @@ class QuizQuestionGeneratorTest {
         countries = repository.getCountries(),
         config =
           QuizConfig(
-            mode = GameMode.AllIn,
+            mode = GameMode.WorldFlags,
             variants = QuizVariant.entries.toSet(),
             questionCount = 100,
             allInType = AllInType.NoBluffAllTough,

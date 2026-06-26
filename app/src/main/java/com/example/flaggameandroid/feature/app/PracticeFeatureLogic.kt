@@ -52,11 +52,8 @@ internal fun resolveQuizPool(
         }
       GameMode.MistakeReview -> countries.filter { country -> practiceStats[country.code]?.isMistakeReviewEligible == true }
       GameMode.CreateQuiz -> createQuizPool(setup, countries)
-      GameMode.Continents,
-      GameMode.SpeedRun,
       GameMode.WorldFlags,
       GameMode.LocalMultiplayer,
-      GameMode.AllIn,
       GameMode.Training -> countryPoolFor(setup, countries)
     }
 
@@ -272,7 +269,12 @@ private fun createQuizPool(
 ): List<FlagCountry> =
   when (setup.createQuizSource) {
     CreateQuizSource.PresetFilter -> countries.filter { country -> matchesCreateQuizPreset(country, setup.createQuizPreset) }
-    CreateQuizSource.ManualCountries -> countries.filter { country -> country.code in setup.selectedCountryCodes }
+    CreateQuizSource.ManualCountries ->
+      if (setup.usesCreateQuizManualHardcore) {
+        countries
+      } else {
+        countries.filter { country -> country.code in setup.selectedCountryCodes }
+      }
   }
 
 private fun matchesCreateQuizPreset(

@@ -16,13 +16,14 @@ class FlagGameHintLogicTest {
     val countries = StaticFlagCatalogRepository().getCountries()
     val setup =
       buildSetupForMode(
-        GameMode.SpeedRun,
+        GameMode.WorldFlags,
         listOf("Africa", "Asia", "Europe", "North America", "Oceania", "South America"),
         countries,
         "Tony",
       ).copy(
         questionCountInput = "1",
         variants = setOf(QuizVariant.FlagToCountry),
+        worldFlagsTimerEnabled = true,
       )
 
     val quiz =

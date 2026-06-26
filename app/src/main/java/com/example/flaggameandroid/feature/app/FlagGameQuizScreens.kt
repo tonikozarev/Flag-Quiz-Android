@@ -370,7 +370,7 @@ fun ResultsScreen(
           if (quiz.timedOut) {
             localizedSpeedRunGameOverLabel(language)
           } else {
-            cleanModeTitle(quiz.mode ?: GameMode.SpeedRun, language)
+            cleanModeTitle(quiz.mode ?: GameMode.WorldFlags, language)
           },
       ) {
         Text(
