@@ -65,8 +65,6 @@ fun SetupScreen(
   onVariantToggle: (QuizVariant) -> Unit,
   onInstantCorrectionToggled: () -> Unit,
   onContinentToggle: (String) -> Unit,
-  onWorldFlagsHardcoreToggled: () -> Unit,
-  onWorldFlagsTimerToggled: () -> Unit,
   onCreateQuizTrainingToggled: () -> Unit,
   onCreateQuizManualHardcoreToggled: () -> Unit,
   onCreateQuizManualTimerToggled: () -> Unit,
@@ -92,7 +90,6 @@ fun SetupScreen(
   var saveFeedbackMessage by remember { mutableStateOf<String?>(null) }
   var replaceConflict by remember { mutableStateOf<FlagGameViewModel.SaveQuizResult.NameConflict?>(null) }
   var showInstantCorrectionInfo by remember { mutableStateOf(false) }
-  var showWorldFlagsHardcoreInfo by remember { mutableStateOf(false) }
   var showCreateQuizTrainingInfo by remember { mutableStateOf(false) }
   var showCreateQuizHardcoreInfo by remember { mutableStateOf(false) }
   var showStickyQuestionCount by remember { mutableStateOf(false) }
@@ -146,7 +143,6 @@ fun SetupScreen(
 
   fun closeSetupInfoPanels() {
     showInstantCorrectionInfo = false
-    showWorldFlagsHardcoreInfo = false
     showCreateQuizTrainingInfo = false
     showCreateQuizHardcoreInfo = false
   }
@@ -785,147 +781,7 @@ fun SetupScreen(
       }
     }
 
-    if (setup.mode == GameMode.WorldFlags) {
-      CompactToggleInfoCard(
-        title =
-          when (language) {
-            AppLanguage.English -> "Hardcore game?"
-            AppLanguage.Bulgarian -> "Хардкор игра?"
-            AppLanguage.German -> "Hardcore-Spiel?"
-          },
-        checked = setup.worldFlagsHardcoreEnabled,
-        onCheckedChange = { onWorldFlagsHardcoreToggled() },
-        infoExpanded = showWorldFlagsHardcoreInfo,
-        onInfoClick = {
-          val next = !showWorldFlagsHardcoreInfo
-          closeSetupInfoPanels()
-          showWorldFlagsHardcoreInfo = next
-        },
-        infoText =
-          when (language) {
-            AppLanguage.English ->
-              "Use all 195 countries, keep only the timer option, and hide continent and question-count choices."
-            AppLanguage.Bulgarian ->
-              "Използва всички 195 държави, оставя само таймера и скрива избора на континенти и брой въпроси."
-            AppLanguage.German ->
-              "Verwendet alle 195 Länder, lässt nur den Timer aktiv und blendet Kontinente sowie Fragenanzahl aus."
-          },
-      )
-      CompactToggleCard(
-        title =
-          when (language) {
-            AppLanguage.English -> "Timer?"
-            AppLanguage.Bulgarian -> "Таймер?"
-            AppLanguage.German -> "Timer?"
-          },
-        checked = setup.worldFlagsTimerEnabled,
-        onCheckedChange = { onWorldFlagsTimerToggled() },
-      ) { if (setup.worldFlagsTimerEnabled) renderTimerInput() }
-      if (!setup.worldFlagsHardcoreEnabled) {
-        QuestionVariantsSection(
-          language = language,
-          selectedVariants = setup.variants,
-          expanded = questionVariantsExpanded,
-          onExpandedChange = { questionVariantsExpanded = !questionVariantsExpanded },
-          onVariantToggle = onVariantToggle,
-        )
-      }
-      if (!setup.worldFlagsHardcoreEnabled) {
-        SectionCard(title = when (language) {
-          AppLanguage.English -> "Question count"
-          AppLanguage.Bulgarian -> "Брой въпроси"
-          AppLanguage.German -> "Fragenanzahl"
-        }) {
-          OutlinedTextField(
-            value = setup.questionCountInput,
-            onValueChange = questionCountChangeHandler,
-            label = {
-              Text(
-                when (language) {
-                  AppLanguage.English -> "Amount of questions"
-                  AppLanguage.Bulgarian -> "Брой въпроси"
-                  AppLanguage.German -> "Fragenanzahl"
-                },
-              )
-            },
-            placeholder = {
-              Text(
-                surpriseMePlaceholderText,
-              )
-            },
-            supportingText = {
-              Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                  when (language) {
-                    AppLanguage.English -> "Allowed range: 1-$questionCountLimit"
-                    AppLanguage.Bulgarian -> "Допустим диапазон: 1-$questionCountLimit"
-                    AppLanguage.German -> "Erlaubter Bereich: 1-$questionCountLimit"
-                  },
-                )
-                if (questionCountOverLimit) {
-                  Text(
-                    when (language) {
-                      AppLanguage.English -> "Selected question count is over the allowed limit."
-                      AppLanguage.Bulgarian -> "Избраният брой въпроси е над позволения лимит."
-                      AppLanguage.German -> "Die gewählte Fragenzahl liegt über dem erlaubten Limit."
-                    },
-                    color = AccentRed,
-                  )
-                } else if (ProgressionRules.shouldWarnNoMedal(setup.questionCount)) {
-                  Text(
-                    when (language) {
-                      AppLanguage.English -> "Perfect runs under 10 questions do not earn a medal."
-                      AppLanguage.Bulgarian -> "Перфектен тест под 10 въпроса не носи медал."
-                      AppLanguage.German -> "Perfekte Läufe unter 10 Fragen geben keine Medaille."
-                    },
-                  )
-                }
-              }
-            },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
-            enabled = !setup.surpriseMe,
-            isError = questionCountOverLimit,
-            modifier = Modifier.fillMaxWidth(),
-          )
-          OutlinedButton(onClick = onSurpriseMe, modifier = Modifier.fillMaxWidth()) {
-            Text(
-              if (setup.surpriseMe) {
-          when (language) {
-                  AppLanguage.English -> "Custom count"
-                  AppLanguage.Bulgarian -> "Custom count"
-                  AppLanguage.German -> "Custom count"
-                }
-              } else {
-                when (language) {
-                  AppLanguage.English -> "Randomizer"
-                  AppLanguage.Bulgarian -> "Randomizer"
-                  AppLanguage.German -> "Randomizer"
-                }
-              },
-            )
-          }
-        }
-        SectionCard(title = cleanText(language, UiText.Continents)) {
-          FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            availableContinents.forEach { continent ->
-              val isSelectable = continent != "Antarctica"
-              FilterChip(
-                selected = continent in setup.selectedContinents,
-                onClick = { if (isSelectable) onContinentToggle(continent) },
-                enabled = isSelectable,
-                label = {
-                  Text(
-                    text = localizedContinentName(continent, language),
-                    textDecoration = if (isSelectable) TextDecoration.None else TextDecoration.LineThrough,
-                  )
-                },
-              )
-            }
-          }
-        }
-      }
-    } else if (setup.mode != GameMode.CreateQuiz) {
+    if (setup.mode != GameMode.CreateQuiz) {
       if (setup.multiplayerBase == MultiplayerQuizBase.Continents && setup.mode == GameMode.LocalMultiplayer) {
         SectionCard(title = cleanText(language, UiText.Continents)) {
           FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1190,20 +1046,6 @@ fun SetupScreen(
             )
           }
         },
-      )
-    }
-
-    if (setup.mode == GameMode.WorldFlags) {
-      val hintSettingLabel = localizedHintDifficultyTitle(hintDifficulty, language)
-      val levelReward = if (hintDifficulty == HintDifficulty.Impossible) "+2" else "+1"
-      InfoPanel(
-        text = worldFlagsRewardInfo(
-          language = language,
-          hardcoreEnabled = setup.worldFlagsHardcoreEnabled,
-          hintSettingLabel = hintSettingLabel,
-          rewardLevels = levelReward,
-          isImpossible = hintDifficulty == HintDifficulty.Impossible,
-        ),
       )
     }
 

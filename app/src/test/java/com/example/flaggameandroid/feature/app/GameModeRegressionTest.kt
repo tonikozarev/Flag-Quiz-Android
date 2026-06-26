@@ -7,6 +7,7 @@ import com.example.flaggameandroid.core.model.GameMode
 import com.example.flaggameandroid.core.model.HintDifficulty
 import com.example.flaggameandroid.core.model.QuizVariant
 import com.example.flaggameandroid.core.model.visibleGameModes
+import com.example.flaggameandroid.core.model.CreateQuizSource
 import com.example.flaggameandroid.persistence.PersistedAppState
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertTrue
@@ -40,9 +41,6 @@ class GameModeRegressionTest {
       val viewModel = viewModel()
 
       viewModel.onModeSelected(mode)
-      if (mode == GameMode.WorldFlags) {
-        viewModel.onWorldFlagsHardcoreToggled()
-      }
       viewModel.onQuestionCountChanged(6)
       viewModel.onStartQuiz()
 
@@ -56,9 +54,7 @@ class GameModeRegressionTest {
   fun visibleGameModes_useStableExplicitOrder() {
     assertEquals(
       listOf(
-        GameMode.Training,
         GameMode.DailyChallenge,
-        GameMode.WorldFlags,
         GameMode.LocalMultiplayer,
         GameMode.MistakeReview,
         GameMode.CreateQuiz,
@@ -156,26 +152,12 @@ class GameModeRegressionTest {
   }
 
   @Test
-  fun continentsModeUsesOnlySelectedContinentCountries() {
-    val viewModel = viewModel()
-
-    viewModel.onModeSelected(GameMode.WorldFlags)
-    viewModel.uiState.value.availableContinents
-      .filter { it != "Europe" && it != "Antarctica" }
-      .forEach(viewModel::onContinentToggled)
-    viewModel.onQuestionCountChanged(10)
-    viewModel.onStartQuiz()
-
-    assertEquals(AppScreen.Quiz, viewModel.uiState.value.screen)
-    assertTrue(viewModel.uiState.value.quiz.questions.all { it.correctCountry.continent == "Europe" })
-  }
-
-  @Test
   fun allInUsesFullCatalogAndDefaultVariants() {
     val viewModel = viewModel()
 
-    viewModel.onModeSelected(GameMode.WorldFlags)
-    viewModel.onWorldFlagsHardcoreToggled()
+    viewModel.onModeSelected(GameMode.CreateQuiz)
+    viewModel.onCreateQuizSourceSelected(CreateQuizSource.ManualCountries)
+    viewModel.onCreateQuizManualHardcoreToggled()
     viewModel.onStartQuiz()
 
     val quiz = viewModel.uiState.value.quiz
@@ -187,8 +169,9 @@ class GameModeRegressionTest {
   fun noBluffAllToughUsesFullCatalogAndSelectedVariants() {
     val viewModel = viewModel()
 
-    viewModel.onModeSelected(GameMode.WorldFlags)
-    viewModel.onWorldFlagsHardcoreToggled()
+    viewModel.onModeSelected(GameMode.CreateQuiz)
+    viewModel.onCreateQuizSourceSelected(CreateQuizSource.ManualCountries)
+    viewModel.onCreateQuizManualHardcoreToggled()
     QuizVariant.entries.filterNot { it == QuizVariant.TypeCountryName }.forEach(viewModel::onVariantToggled)
     viewModel.onStartQuiz()
 
@@ -236,7 +219,8 @@ class GameModeRegressionTest {
     variant: QuizVariant,
     count: Int,
   ) {
-    viewModel.onModeSelected(GameMode.Training)
+    viewModel.onModeSelected(GameMode.CreateQuiz)
+    viewModel.onCreateQuizTrainingToggled()
     QuizVariant.entries.filterNot { it == variant }.forEach(viewModel::onVariantToggled)
     viewModel.onQuestionCountChanged(count)
     viewModel.onStartQuiz()

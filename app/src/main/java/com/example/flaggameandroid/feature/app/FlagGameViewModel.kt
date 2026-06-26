@@ -365,14 +365,6 @@ class FlagGameViewModel(
     updateState { it.withSpeedRunSecondsPerAnswerInput(seconds) }
   }
 
-  fun onWorldFlagsHardcoreToggled() {
-    updateState { it.withWorldFlagsHardcoreToggled(countries) }
-  }
-
-  fun onWorldFlagsTimerToggled() {
-    updateState { it.withWorldFlagsTimerEnabledToggled() }
-  }
-
   fun onCreateQuizManualHardcoreToggled() {
     updateState { it.withCreateQuizManualHardcoreToggled(countries) }
   }

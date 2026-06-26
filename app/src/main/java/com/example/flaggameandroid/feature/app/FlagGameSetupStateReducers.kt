@@ -203,25 +203,6 @@ internal fun FlagGameUiState.withCreateQuizAllCountriesToggled(countries: List<F
   )
 }
 
-internal fun FlagGameUiState.withWorldFlagsHardcoreToggled(countries: List<FlagCountry>): FlagGameUiState {
-  val enabled = !setup.worldFlagsHardcoreEnabled
-  val nextSetup =
-    setup.copy(
-      worldFlagsHardcoreEnabled = enabled,
-      variants = if (enabled) QuizVariant.entries.toSet() else setup.variants,
-    )
-  return copy(
-    setup = nextSetup,
-    questionCountLimit = questionLimitFor(nextSetup, countries),
-    setupError = null,
-  )
-}
-
-internal fun FlagGameUiState.withWorldFlagsTimerEnabledToggled(): FlagGameUiState =
-  withUpdatedSetup {
-    it.copy(worldFlagsTimerEnabled = !it.worldFlagsTimerEnabled)
-  }
-
 internal fun FlagGameUiState.withSurpriseMeToggled(): FlagGameUiState {
   val surpriseMe = !setup.surpriseMe
   return withUpdatedSetup {

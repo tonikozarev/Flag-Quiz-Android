@@ -162,9 +162,9 @@ fun GameModesScreen(
       title = localizedGameModesHubTitle(language),
       description =
         when (language) {
-          AppLanguage.English -> "Country Flags and create a quiz."
-          AppLanguage.Bulgarian -> "Държавни флагове и създай тест."
-          AppLanguage.German -> "Länderflaggen und ein Quiz erstellen."
+          AppLanguage.English -> "Create your own quiz."
+          AppLanguage.Bulgarian -> "Създай свой тест."
+          AppLanguage.German -> "Erstelle dein eigenes Quiz."
         },
       openLabel = cleanText(language, UiText.Open),
       onClick = onGameModesClick,
@@ -817,4 +817,3 @@ fun SettingsScreen(
     )
   }
 }
-

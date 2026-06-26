@@ -32,9 +32,7 @@ enum class GameMode(
 
 internal fun visibleGameModes(): List<GameMode> =
   listOf(
-    GameMode.Training,
     GameMode.DailyChallenge,
-    GameMode.WorldFlags,
     GameMode.LocalMultiplayer,
     GameMode.MistakeReview,
     GameMode.CreateQuiz,
@@ -42,7 +40,6 @@ internal fun visibleGameModes(): List<GameMode> =
 
 internal fun startQuizModes(): List<GameMode> =
   listOf(
-    GameMode.Training,
     GameMode.DailyChallenge,
     GameMode.LocalMultiplayer,
     GameMode.MistakeReview,
@@ -50,7 +47,6 @@ internal fun startQuizModes(): List<GameMode> =
 
 internal fun gameModesHubModes(): List<GameMode> =
   listOf(
-    GameMode.WorldFlags,
     GameMode.CreateQuiz,
   )
 

@@ -3,7 +3,7 @@ package com.example.flaggameandroid.feature.app
 import com.example.flaggameandroid.core.data.QuizQuestionGenerator
 import com.example.flaggameandroid.core.data.StaticFlagCatalogRepository
 import com.example.flaggameandroid.core.model.AchievementId
-import com.example.flaggameandroid.core.model.AllInType
+import com.example.flaggameandroid.core.model.CreateQuizSource
 import com.example.flaggameandroid.core.model.GameMode
 import com.example.flaggameandroid.core.model.HintDifficulty
 import com.example.flaggameandroid.core.model.QuizVariant
@@ -500,9 +500,9 @@ class FlagGameViewModelTest {
   fun perfectAllCountriesQuiz_awardsDiamondMedalAndAchievement() {
     val viewModel = viewModel()
 
-    viewModel.onModeSelected(GameMode.WorldFlags)
-    viewModel.onWorldFlagsHardcoreToggled()
-    viewModel.onAllInTypeSelected(AllInType.NoBluffAllTough)
+    viewModel.onModeSelected(GameMode.CreateQuiz)
+    viewModel.onCreateQuizSourceSelected(CreateQuizSource.ManualCountries)
+    viewModel.onCreateQuizManualHardcoreToggled()
     viewModel.onStartQuiz()
 
     repeat(viewModel.uiState.value.quiz.totalQuestions) {
@@ -515,7 +515,6 @@ class FlagGameViewModelTest {
     assertEquals(1, state.ratings.diamondCount)
     assertTrue(state.achievements.isUnlocked(AchievementId.DiamondWorld))
     assertTrue(state.achievements.isUnlocked(AchievementId.DiamondCollector))
-    assertTrue(state.achievements.isUnlocked(AchievementId.NoBluffLegend))
   }
 
   @Test
@@ -734,88 +733,6 @@ class FlagGameViewModelTest {
     assertTrue(viewModel.uiState.value.levelProgress.levelUpVisible)
     viewModel.onLevelUpSeen()
     assertEquals(false, viewModel.uiState.value.levelProgress.levelUpVisible)
-  }
-
-  @Test
-  fun perfectNoBluffAllToughWithAllVariants_grantsFullLevelWithoutResettingProgress() {
-    val viewModel = viewModel()
-    viewModel.onHintDifficultySelected(HintDifficulty.Rookie)
-
-    viewModel.onModeSelected(GameMode.WorldFlags)
-    viewModel.uiState.value.setup.selectedContinents
-      .filterNot { it == "Europe" }
-      .forEach(viewModel::onContinentToggled)
-    QuizVariant.entries.filterNot { it == QuizVariant.FlagToCountry }.forEach(viewModel::onVariantToggled)
-    viewModel.onQuestionCountChanged(10)
-    viewModel.onStartQuiz()
-    repeat(10) {
-      answerCurrentCorrectly(viewModel)
-      viewModel.onNextQuestion()
-    }
-
-    val beforeSpecial = viewModel.uiState.value.levelProgress
-    assertEquals(3, beforeSpecial.hintsTowardNextLevel)
-    assertEquals(10, beforeSpecial.correctAnswersTowardNextLevel)
-    assertEquals(1, beforeSpecial.eligibleQuizzesTowardNextLevel)
-
-    viewModel.onModeSelected(GameMode.WorldFlags)
-    viewModel.onAllInTypeSelected(AllInType.NoBluffAllTough)
-    viewModel.onStartQuiz()
-
-    repeat(viewModel.uiState.value.quiz.totalQuestions) {
-      answerCurrentCorrectly(viewModel)
-      viewModel.onNextQuestion()
-    }
-
-    val progress = viewModel.uiState.value.levelProgress
-    assertEquals(2, progress.level)
-    assertEquals(3, progress.hintsTowardNextLevel)
-    assertEquals(10, progress.correctAnswersTowardNextLevel)
-    assertEquals(1, progress.eligibleQuizzesTowardNextLevel)
-  }
-
-  @Test
-  fun noBluffAllToughWithRemovedVariant_doesNotGrantFullLevel() {
-    val viewModel = viewModel()
-
-    viewModel.onModeSelected(GameMode.WorldFlags)
-    viewModel.onWorldFlagsHardcoreToggled()
-    viewModel.onAllInTypeSelected(AllInType.NoBluffAllTough)
-    viewModel.onVariantToggled(QuizVariant.TypeCountryName)
-    viewModel.onStartQuiz()
-
-    repeat(viewModel.uiState.value.quiz.totalQuestions) {
-      answerCurrentCorrectly(viewModel)
-      viewModel.onNextQuestion()
-    }
-    if (viewModel.uiState.value.quiz.canFinish) {
-      viewModel.onFinishQuiz()
-    }
-
-    assertEquals(1, viewModel.uiState.value.levelProgress.level)
-  }
-
-  @Test
-  fun perfectNoBluffAllToughOnImpossible_grantsTwoFullLevels() {
-    val viewModel = viewModel()
-    viewModel.onHintDifficultySelected(HintDifficulty.Impossible)
-
-    viewModel.onModeSelected(GameMode.WorldFlags)
-    viewModel.onWorldFlagsHardcoreToggled()
-    viewModel.onAllInTypeSelected(AllInType.NoBluffAllTough)
-    viewModel.onStartQuiz()
-
-    repeat(viewModel.uiState.value.quiz.totalQuestions) {
-      answerCurrentCorrectly(viewModel)
-      viewModel.onNextQuestion()
-    }
-
-    val progress = viewModel.uiState.value.levelProgress
-    assertEquals(3, progress.level)
-    assertTrue(progress.levelUpVisible)
-    assertEquals(0, progress.hintsTowardNextLevel)
-    assertEquals(0, progress.correctAnswersTowardNextLevel)
-    assertEquals(0, progress.eligibleQuizzesTowardNextLevel)
   }
 
   @Test
