@@ -82,6 +82,7 @@ data class SetupState(
   val createQuizManualTimerEnabled: Boolean = false,
   val createQuizSource: CreateQuizSource = CreateQuizSource.PresetFilter,
   val createQuizPreset: CreateQuizPreset = CreateQuizPreset.TwoColors,
+  val createQuizPresets: Set<CreateQuizPreset> = setOf(CreateQuizPreset.TwoColors),
   val selectedCountryCodes: Set<String> = emptySet(),
   val createQuizSeed: Long = 0L,
   val savedQuizTemplateId: String? = null,

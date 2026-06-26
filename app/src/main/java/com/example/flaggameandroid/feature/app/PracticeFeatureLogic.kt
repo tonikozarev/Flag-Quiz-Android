@@ -268,7 +268,10 @@ private fun createQuizPool(
   countries: List<FlagCountry>,
 ): List<FlagCountry> =
   when (setup.createQuizSource) {
-    CreateQuizSource.PresetFilter -> countries.filter { country -> matchesCreateQuizPreset(country, setup.createQuizPreset) }
+    CreateQuizSource.PresetFilter -> {
+      val selectedPresets = setup.createQuizPresets.ifEmpty { setOf(setup.createQuizPreset) }
+      countries.filter { country -> selectedPresets.any { preset -> matchesCreateQuizPreset(country, preset) } }
+    }
     CreateQuizSource.ManualCountries ->
       if (setup.usesCreateQuizManualHardcore) {
         countries

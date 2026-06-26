@@ -50,6 +50,7 @@ internal fun FlagGameUiState.withCreateQuizSourceSelected(
       createQuizSource = source,
       selectedCountryCodes = if (source == CreateQuizSource.ManualCountries) setup.selectedCountryCodes else emptySet(),
       createQuizManualHardcoreEnabled = if (source == CreateQuizSource.ManualCountries) setup.createQuizManualHardcoreEnabled else false,
+      createQuizPresets = setup.createQuizPresets.ifEmpty { setOf(setup.createQuizPreset) },
       createQuizSeed = 0L,
       questionCountInput =
         when (source) {
@@ -69,9 +70,23 @@ internal fun FlagGameUiState.withCreateQuizPresetSelected(
   preset: CreateQuizPreset,
   countries: List<FlagCountry>,
 ): FlagGameUiState {
-  val nextSetup = setup.copy(createQuizSource = CreateQuizSource.PresetFilter, createQuizPreset = preset)
+  val currentPresets = setup.createQuizPresets.ifEmpty { setOf(setup.createQuizPreset) }
+  val toggledPresets =
+    if (preset in currentPresets) {
+      currentPresets - preset
+    } else {
+      currentPresets + preset
+    }
+  val nextPresets = toggledPresets.ifEmpty { currentPresets }
+  val nextSetup =
+    setup.copy(
+      createQuizSource = CreateQuizSource.PresetFilter,
+      createQuizPreset = nextPresets.first(),
+      createQuizPresets = nextPresets,
+      createQuizSeed = 0L,
+    )
   return copy(
-    setup = nextSetup.copy(createQuizSeed = 0L),
+    setup = nextSetup,
     questionCountLimit = questionLimitFor(nextSetup, countries),
     setupError = null,
   )

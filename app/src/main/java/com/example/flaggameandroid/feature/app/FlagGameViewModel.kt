@@ -714,6 +714,7 @@ class FlagGameViewModel(
         variants = template.variants,
         createQuizSource = template.source,
         createQuizPreset = template.preset ?: CreateQuizPreset.TwoColors,
+        createQuizPresets = template.preset?.let { setOf(it) } ?: setOf(CreateQuizPreset.TwoColors),
         selectedCountryCodes = template.selectedCountryCodes,
         createQuizSeed = template.seed,
         savedQuizTemplateId = template.id,

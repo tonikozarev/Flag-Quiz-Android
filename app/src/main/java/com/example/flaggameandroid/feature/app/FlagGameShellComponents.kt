@@ -8,9 +8,11 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -56,6 +58,8 @@ internal fun ScreenShell(
   modifier: Modifier = Modifier,
   padding: androidx.compose.ui.unit.Dp = 20.dp,
   spacing: androidx.compose.ui.unit.Dp = 16.dp,
+  scrollState: ScrollState = rememberScrollState(),
+  overlay: (@Composable BoxScope.() -> Unit)? = null,
   content: @Composable ColumnScope.() -> Unit,
 ) {
   val backgroundGradient =
@@ -71,10 +75,11 @@ internal fun ScreenShell(
         .padding(padding),
   ) {
     Column(
-      modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+      modifier = Modifier.fillMaxSize().verticalScroll(scrollState),
       verticalArrangement = Arrangement.spacedBy(spacing),
       content = content,
     )
+    overlay?.invoke(this)
   }
 }
 

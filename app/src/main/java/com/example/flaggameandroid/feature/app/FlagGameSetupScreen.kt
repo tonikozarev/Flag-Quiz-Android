@@ -1,6 +1,7 @@
 ﻿package com.example.flaggameandroid.feature.app
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -28,8 +30,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -86,6 +92,8 @@ fun SetupScreen(
   var replaceConflict by remember { mutableStateOf<FlagGameViewModel.SaveQuizResult.NameConflict?>(null) }
   var showInstantCorrectionInfo by remember { mutableStateOf(false) }
   var showWorldFlagsHardcoreInfo by remember { mutableStateOf(false) }
+  var showStickyQuestionCount by remember { mutableStateOf(false) }
+  var questionVariantsExpanded by remember { mutableStateOf(false) }
   val manualCountryContinentExpanded = remember { mutableStateMapOf<String, Boolean>() }
   fun showSaveFeedback(message: String) {
     if (saveFeedbackMessage == null) {
@@ -122,7 +130,91 @@ fun SetupScreen(
     }
   }
 
-  ScreenShell(modifier = modifier) {
+  LaunchedEffect(setup.mode, setup.createQuizSource) {
+    showStickyQuestionCount = false
+  }
+
+  ScreenShell(
+    modifier = modifier,
+    overlay = {
+      if (setup.mode == GameMode.CreateQuiz && showStickyQuestionCount) {
+        val stickyQuestionCount = setup.questionCount ?: 0
+        val stickyQuestionCountOverLimit =
+          setup.createQuizSource == CreateQuizSource.PresetFilter &&
+            !setup.surpriseMe &&
+            stickyQuestionCount > questionCountLimit
+        val stickyRangeText =
+          if (setup.createQuizSource == CreateQuizSource.PresetFilter) {
+            when (language) {
+              AppLanguage.English -> "Range: 1-$questionCountLimit"
+              AppLanguage.Bulgarian -> "Диапазон: 1-$questionCountLimit"
+              AppLanguage.German -> "Bereich: 1-$questionCountLimit"
+            }
+          } else {
+            null
+          }
+        val stickyWarningText =
+          if (setup.createQuizSource == CreateQuizSource.PresetFilter) {
+            when {
+              stickyQuestionCountOverLimit ->
+                when (language) {
+                  AppLanguage.English -> "Selected question count is over the allowed limit."
+                  AppLanguage.Bulgarian -> "Избраният брой въпроси е над позволения лимит."
+                  AppLanguage.German -> "Die gewählte Fragenzahl liegt über dem erlaubten Limit."
+                }
+
+              ProgressionRules.shouldWarnNoMedal(stickyQuestionCount) ->
+                when (language) {
+                  AppLanguage.English -> "Perfect runs under 10 questions do not earn a medal."
+                  AppLanguage.Bulgarian -> "Перфектен тест под 10 въпроса не носи медал."
+                  AppLanguage.German -> "Perfekte Läufe unter 10 Fragen geben keine Medaille."
+                }
+
+              else -> null
+            }
+          } else {
+            null
+          }
+        Box(
+          modifier =
+            Modifier
+              .align(Alignment.TopCenter)
+              .fillMaxWidth()
+              .background(MaterialTheme.colorScheme.background)
+              .padding(bottom = 8.dp),
+        ) {
+          QuestionCountStickyCard(
+            title =
+              when (language) {
+                AppLanguage.English -> "Question count"
+                AppLanguage.Bulgarian -> "Брой въпроси"
+                AppLanguage.German -> "Fragenanzahl"
+              },
+            questionCountValue =
+              if (setup.createQuizSource == CreateQuizSource.ManualCountries) {
+                setup.selectedCountryCodes.size.toString()
+              } else {
+                setup.questionCountInput
+              },
+            editable = setup.createQuizSource == CreateQuizSource.PresetFilter && !setup.surpriseMe,
+            showRandomButton = setup.createQuizSource == CreateQuizSource.PresetFilter,
+            randomButtonText =
+              when (language) {
+                AppLanguage.English -> if (setup.surpriseMe) "Custom count" else "Randomizer"
+                AppLanguage.Bulgarian -> if (setup.surpriseMe) "Custom count" else "Randomizer"
+                AppLanguage.German -> if (setup.surpriseMe) "Custom count" else "Randomizer"
+              },
+            onRandomButtonClick = onSurpriseMe,
+            onValueChange = onQuestionCountChange,
+            rangeText = stickyRangeText,
+            warningText = stickyWarningText,
+            warningIsError = stickyQuestionCountOverLimit,
+            placeholderText = surpriseMePlaceholderText(language, setup.surpriseMe),
+          )
+        }
+      }
+    },
+  ) {
     HeaderRow(title = cleanModeTitle(setup.mode, language))
 
     CompactToggleInfoCard(
@@ -469,67 +561,74 @@ fun SetupScreen(
       ) { if (setup.createQuizManualTimerEnabled) renderTimerInput() }
 
       if (setup.createQuizSource == CreateQuizSource.PresetFilter) {
-        renderQuestionCountCard(
-          setup.questionCountInput,
-          !setup.surpriseMe,
-          true,
-          when (language) {
-            AppLanguage.English -> if (setup.surpriseMe) "Custom count" else "Randomizer"
-            AppLanguage.Bulgarian -> if (setup.surpriseMe) "Custom count" else "Randomizer"
-            AppLanguage.German -> if (setup.surpriseMe) "Custom count" else "Randomizer"
-          },
-          onSurpriseMe,
-          questionCountChangeHandler,
-          when (language) {
-            AppLanguage.English -> "Range: 1-$questionCountLimit"
-            AppLanguage.Bulgarian -> "Диапазон: 1-$questionCountLimit"
-            AppLanguage.German -> "Bereich: 1-$questionCountLimit"
-          },
-          when {
-            questionCountOverLimit ->
-              when (language) {
-                AppLanguage.English -> "Selected question count is over the allowed limit."
-                AppLanguage.Bulgarian -> "Избраният брой въпроси е над позволения лимит."
-                AppLanguage.German -> "Die gewählte Fragenzahl liegt über dem erlaubten Limit."
-              }
-            ProgressionRules.shouldWarnNoMedal(setup.questionCount) ->
-              when (language) {
-                AppLanguage.English -> "Perfect runs under 10 questions do not earn a medal."
-                AppLanguage.Bulgarian -> "Перфектен тест под 10 въпроса не носи медал."
-                AppLanguage.German -> "Perfekte Läufe unter 10 Fragen geben keine Medaille."
-              }
-            else -> null
-          },
-          questionCountOverLimit,
-        )
+        Box(
+          modifier =
+            Modifier.onGloballyPositioned {
+              showStickyQuestionCount = it.boundsInRoot().bottom <= 0f
+            },
+        ) {
+          renderQuestionCountCard(
+            setup.questionCountInput,
+            !setup.surpriseMe,
+            true,
+            when (language) {
+              AppLanguage.English -> if (setup.surpriseMe) "Custom count" else "Randomizer"
+              AppLanguage.Bulgarian -> if (setup.surpriseMe) "Custom count" else "Randomizer"
+              AppLanguage.German -> if (setup.surpriseMe) "Custom count" else "Randomizer"
+            },
+            onSurpriseMe,
+            questionCountChangeHandler,
+            when (language) {
+              AppLanguage.English -> "Range: 1-$questionCountLimit"
+              AppLanguage.Bulgarian -> "Диапазон: 1-$questionCountLimit"
+              AppLanguage.German -> "Bereich: 1-$questionCountLimit"
+            },
+            when {
+              questionCountOverLimit ->
+                when (language) {
+                  AppLanguage.English -> "Selected question count is over the allowed limit."
+                  AppLanguage.Bulgarian -> "Избраният брой въпроси е над позволения лимит."
+                  AppLanguage.German -> "Die gewählte Fragenzahl liegt über dem erlaubten Limit."
+                }
+              ProgressionRules.shouldWarnNoMedal(setup.questionCount) ->
+                when (language) {
+                  AppLanguage.English -> "Perfect runs under 10 questions do not earn a medal."
+                  AppLanguage.Bulgarian -> "Перфектен тест под 10 въпроса не носи медал."
+                  AppLanguage.German -> "Perfekte Läufe unter 10 Fragen geben keine Medaille."
+                }
+              else -> null
+            },
+            questionCountOverLimit,
+          )
+        }
       } else {
-        renderQuestionCountCard(
-          setup.selectedCountryCodes.size.toString(),
-          false,
-          false,
-          "",
-          onSurpriseMe,
-          questionCountChangeHandler,
-          null,
-          null,
-          false,
-        )
-      }
-
-      SectionCard(title = when (language) {
-        AppLanguage.English -> "Question variants"
-        AppLanguage.Bulgarian -> "Видове въпроси"
-        AppLanguage.German -> "Fragetypen"
-      }) {
-        QuizVariant.entries.forEach { variant ->
-          CheckRow(
-            title = localizedVariantTitle(variant, language),
-            description = localizedVariantDescription(variant, language),
-            checked = variant in setup.variants,
-            onClick = { onVariantToggle(variant) },
+        Box(
+          modifier =
+            Modifier.onGloballyPositioned {
+              showStickyQuestionCount = it.boundsInRoot().bottom <= 0f
+            },
+        ) {
+          renderQuestionCountCard(
+            setup.selectedCountryCodes.size.toString(),
+            false,
+            false,
+            "",
+            onSurpriseMe,
+            questionCountChangeHandler,
+            null,
+            null,
+            false,
           )
         }
       }
+
+      QuestionVariantsSection(
+        language = language,
+        selectedVariants = setup.variants,
+        expanded = questionVariantsExpanded,
+        onExpandedChange = { questionVariantsExpanded = !questionVariantsExpanded },
+        onVariantToggle = onVariantToggle,
+      )
 
       SectionCard(title = when (language) {
         AppLanguage.English -> "Create a quiz"
@@ -572,13 +671,25 @@ fun SetupScreen(
           AppLanguage.Bulgarian -> "Готови филтри"
           AppLanguage.German -> "Vorlagenfilter"
         }) {
-          createQuizPresetOrder.forEach { preset ->
-            SelectableRow(
-              title = localizedCreateQuizPresetTitle(preset, language),
-              selected = setup.createQuizPreset == preset,
-              onClick = { onCreateQuizPresetSelected(preset) },
-              description = null,
-            )
+          val selectedPresets = setup.createQuizPresets.ifEmpty { setOf(setup.createQuizPreset) }
+          FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+          ) {
+            createQuizPresetOrder.forEach { preset ->
+              FilterChip(
+                selected = preset in selectedPresets,
+                onClick = { onCreateQuizPresetSelected(preset) },
+                label = {
+                  Text(
+                    text = localizedCreateQuizPresetTitle(preset, language),
+                    maxLines = 1,
+                    style = MaterialTheme.typography.bodyMedium,
+                  )
+                },
+              )
+            }
           }
         }
       } else {
@@ -619,20 +730,13 @@ fun SetupScreen(
         onCheckedChange = { onWorldFlagsTimerToggled() },
       ) { if (setup.worldFlagsTimerEnabled) renderTimerInput() }
       if (!setup.worldFlagsHardcoreEnabled) {
-        SectionCard(title = when (language) {
-          AppLanguage.English -> "Question variants"
-          AppLanguage.Bulgarian -> "Видове въпроси"
-          AppLanguage.German -> "Fragetypen"
-        }) {
-          QuizVariant.entries.forEach { variant ->
-            CheckRow(
-              title = localizedVariantTitle(variant, language),
-              description = localizedVariantDescription(variant, language),
-              checked = variant in setup.variants,
-              onClick = { onVariantToggle(variant) },
-            )
-          }
-        }
+        QuestionVariantsSection(
+          language = language,
+          selectedVariants = setup.variants,
+          expanded = questionVariantsExpanded,
+          onExpandedChange = { questionVariantsExpanded = !questionVariantsExpanded },
+          onVariantToggle = onVariantToggle,
+        )
       }
       if (!setup.worldFlagsHardcoreEnabled) {
         SectionCard(title = when (language) {
@@ -789,20 +893,13 @@ fun SetupScreen(
           questionCountOverLimit,
         )
 
-        SectionCard(title = when (language) {
-          AppLanguage.English -> "Question variants"
-          AppLanguage.Bulgarian -> "Видове въпроси"
-          AppLanguage.German -> "Fragetypen"
-        }) {
-          QuizVariant.entries.forEach { variant ->
-            CheckRow(
-              title = localizedVariantTitle(variant, language),
-              description = localizedVariantDescription(variant, language),
-              checked = variant in setup.variants,
-              onClick = { onVariantToggle(variant) },
-            )
-          }
-        }
+        QuestionVariantsSection(
+          language = language,
+          selectedVariants = setup.variants,
+          expanded = questionVariantsExpanded,
+          onExpandedChange = { questionVariantsExpanded = !questionVariantsExpanded },
+          onVariantToggle = onVariantToggle,
+        )
       }
     }
 
@@ -1086,6 +1183,116 @@ private fun CompactToggleInfoCard(
       }
       if (infoExpanded) {
         InfoPanel(text = infoText)
+      }
+    }
+  }
+}
+
+@Composable
+private fun QuestionVariantsSection(
+  language: AppLanguage,
+  selectedVariants: Set<QuizVariant>,
+  expanded: Boolean,
+  onExpandedChange: () -> Unit,
+  onVariantToggle: (QuizVariant) -> Unit,
+) {
+  SectionCard(
+    title =
+      when (language) {
+        AppLanguage.English -> "Question variants"
+        AppLanguage.Bulgarian -> "Видове въпроси"
+        AppLanguage.German -> "Fragetypen"
+      },
+    headerAction = {
+      TextButton(onClick = onExpandedChange, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
+        Text(if (expanded) "▼" else "▶")
+      }
+    },
+  ) {
+    if (expanded) {
+      QuizVariant.entries.forEach { variant ->
+        CheckRow(
+          title = localizedVariantTitle(variant, language),
+          description = localizedVariantDescription(variant, language),
+          checked = variant in selectedVariants,
+          onClick = { onVariantToggle(variant) },
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun QuestionCountStickyCard(
+  title: String,
+  questionCountValue: String,
+  editable: Boolean,
+  showRandomButton: Boolean,
+  randomButtonText: String,
+  onRandomButtonClick: () -> Unit,
+  onValueChange: (String) -> Unit,
+  rangeText: String?,
+  warningText: String?,
+  warningIsError: Boolean,
+  placeholderText: String,
+  modifier: Modifier = Modifier,
+) {
+  Card(modifier = modifier.fillMaxWidth()) {
+    Column(
+      modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+      verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+      Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+      ) {
+        val fieldModifier =
+          if (showRandomButton) {
+            Modifier.weight(3f)
+          } else {
+            Modifier.fillMaxWidth()
+          }
+        OutlinedTextField(
+          value = questionCountValue,
+          onValueChange = onValueChange,
+          placeholder = {
+            Text(placeholderText)
+          },
+          label =
+            if (rangeText != null) {
+              { Text(rangeText) }
+            } else {
+              null
+            },
+          supportingText =
+            if (warningText != null) {
+              {
+                Text(
+                  text = warningText,
+                  style = MaterialTheme.typography.bodySmall,
+                  color = if (warningIsError) AccentRed else MaterialTheme.colorScheme.onSurface,
+                )
+              }
+            } else {
+              null
+            },
+          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+          singleLine = true,
+          enabled = editable,
+          isError = warningIsError,
+          modifier = fieldModifier,
+        )
+        if (showRandomButton) {
+          OutlinedButton(
+            onClick = onRandomButtonClick,
+            modifier = Modifier.weight(2f),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+          ) {
+            Text(randomButtonText, maxLines = 1)
+          }
+        }
       }
     }
   }
