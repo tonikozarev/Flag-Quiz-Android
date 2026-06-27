@@ -14,6 +14,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.flaggameandroid.core.model.PlayerProgress
@@ -124,9 +128,9 @@ internal fun ResultRow(
         Text(
           text =
             when (language) {
-              AppLanguage.English -> "Question $index$hintSuffix"
-              AppLanguage.Bulgarian -> "Въпрос $index$hintSuffix"
-              AppLanguage.German -> "Frage $index$hintSuffix"
+              AppLanguage.English -> "$index. Question$hintSuffix"
+              AppLanguage.Bulgarian -> "$index. Въпрос$hintSuffix"
+              AppLanguage.German -> "$index. Frage$hintSuffix"
             },
           style = MaterialTheme.typography.titleMedium,
           modifier = Modifier.weight(1f),
@@ -180,40 +184,56 @@ internal fun ResultRow(
             AppLanguage.German -> "Richtig: ${result.question.correctCountry.emoji} ${result.question.correctCountry.localizedName(language)}"
           },
       )
-      Text(
-        text =
-          when (language) {
-            AppLanguage.English -> "Your answer: ${result.selectedCountry?.localizedName(language) ?: result.typedAnswer.ifBlank { cleanText(language, UiText.NoAnswer) }}"
-            AppLanguage.Bulgarian -> "Твой отговор: ${result.selectedCountry?.localizedName(language) ?: result.typedAnswer.ifBlank { cleanText(language, UiText.NoAnswer) }}"
-            AppLanguage.German -> "Deine Antwort: ${result.selectedCountry?.localizedName(language) ?: result.typedAnswer.ifBlank { cleanText(language, UiText.NoAnswer) }}"
-          },
-      )
-      if (wrongOptions.isNotEmpty()) {
+      if (result.isCorrect) {
         Text(
           text =
             when (language) {
-              AppLanguage.English -> "Wrong options: ${wrongOptions.joinToString(", ") { wrongOptionLabel(it, result.question.variant, language) }}"
-              AppLanguage.Bulgarian -> "Грешни опции: ${wrongOptions.joinToString(", ") { wrongOptionLabel(it, result.question.variant, language) }}"
-              AppLanguage.German -> "Falsche Optionen: ${wrongOptions.joinToString(", ") { wrongOptionLabel(it, result.question.variant, language) }}"
+              AppLanguage.English -> "Points: ${formatScore(netPointsInternal)}"
+              AppLanguage.Bulgarian -> "Точки: ${formatScore(netPointsInternal)}"
+              AppLanguage.German -> "Punkte: ${formatScore(netPointsInternal)}"
             },
         )
       }
-      Text(
-        text =
-          when (language) {
-            AppLanguage.English -> "Used a hint? ${if (result.hintUsed) "Yes" else "No"}"
-            AppLanguage.Bulgarian -> "Ползван жокер? ${if (result.hintUsed) "Да" else "Не"}"
-            AppLanguage.German -> "Hinweis verwendet? ${if (result.hintUsed) "Ja" else "Nein"}"
-          },
-      )
-      Text(
-        text =
-          when (language) {
-            AppLanguage.English -> "NET points: ${formatScore(netPointsInternal)}"
-            AppLanguage.Bulgarian -> "NET точки: ${formatScore(netPointsInternal)}"
-            AppLanguage.German -> "NET-Punkte: ${formatScore(netPointsInternal)}"
-          },
-      )
+      if (!result.isCorrect) {
+        if (wrongOptions.isNotEmpty()) {
+          val wrongOptionsPrefix =
+            when (language) {
+              AppLanguage.English -> "Wrong options: "
+              AppLanguage.Bulgarian -> "Грешни опции: "
+              AppLanguage.German -> "Falsche Optionen: "
+            }
+          val selectedWrongCode = result.selectedCountry?.code
+          Text(
+            text =
+              buildAnnotatedString {
+                append(wrongOptionsPrefix)
+                wrongOptions.forEachIndexed { optionIndex, option ->
+                  if (optionIndex > 0) {
+                    append(", ")
+                  }
+                  val label = wrongOptionLabel(option, result.question.variant, language)
+                  if (option.code == selectedWrongCode) {
+                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline))
+                    append(label)
+                    pop()
+                  } else {
+                    append(label)
+                  }
+                }
+              },
+          )
+        }
+      }
+      if (!result.isCorrect) {
+        Text(
+          text =
+            when (language) {
+              AppLanguage.English -> "Points: ${formatScore(netPointsInternal)}"
+              AppLanguage.Bulgarian -> "Точки: ${formatScore(netPointsInternal)}"
+              AppLanguage.German -> "Punkte: ${formatScore(netPointsInternal)}"
+            },
+        )
+      }
     }
   }
 }
