@@ -140,7 +140,10 @@ internal fun FlagGameScreenContent(
     AppScreen.GameModesHub ->
       GameModesHubScreen(
         language = uiState.settings.language,
+        dailyChallengeCache = uiState.dailyChallengeCache,
+        mistakeReviewEligibleCount = mistakeReviewEligibleCountryCount(uiState.countryPracticeStats),
         onModeSelected = onModeSelected,
+        onRefreshDailyChallengeAvailability = onRefreshDailyChallengeAvailability,
         modifier = modifier,
       )
     AppScreen.Settings -> {

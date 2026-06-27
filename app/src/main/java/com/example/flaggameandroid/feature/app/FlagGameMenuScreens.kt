@@ -52,7 +52,6 @@ import com.example.flaggameandroid.core.model.RatingsProgress
 import com.example.flaggameandroid.core.model.SavedQuizDifficulty
 import com.example.flaggameandroid.core.model.SavedQuizTemplate
 import com.example.flaggameandroid.core.model.startQuizModes
-import com.example.flaggameandroid.core.model.visibleGameModes
 import kotlinx.coroutines.delay
 
 @Composable
@@ -175,10 +174,20 @@ fun GameModesScreen(
 @Composable
 fun GameModesHubScreen(
   language: AppLanguage,
+  dailyChallengeCache: DailyChallengeCache?,
+  mistakeReviewEligibleCount: Int,
   onModeSelected: (GameMode) -> Unit,
+  onRefreshDailyChallengeAvailability: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   var expandedInfoMode by remember { mutableStateOf<GameMode?>(null) }
+  LaunchedEffect(Unit) {
+    onRefreshDailyChallengeAvailability()
+    while (true) {
+      delay(60_000L)
+      onRefreshDailyChallengeAvailability()
+    }
+  }
   ScreenShell(modifier = modifier) {
     HeaderRow(title = localizedGameModesHubTitle(language))
 
@@ -187,7 +196,12 @@ fun GameModesHubScreen(
         mode = mode,
         language = language,
         infoExpanded = expandedInfoMode == mode,
-        openEnabled = true,
+        openEnabled =
+          when (mode) {
+            GameMode.DailyChallenge -> dailyChallengeCache?.completed != true
+            GameMode.MistakeReview -> mistakeReviewEligibleCount >= com.example.flaggameandroid.core.model.MistakeReviewUnlockCountryCount
+            else -> true
+          },
         openLabel = if (mode == GameMode.CreateQuiz) cleanText(language, UiText.Start) else cleanText(language, UiText.Open),
         onInfoClick = {
           expandedInfoMode = if (expandedInfoMode == mode) null else mode

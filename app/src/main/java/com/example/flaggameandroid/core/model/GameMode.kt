@@ -30,24 +30,14 @@ enum class GameMode(
   ),
 }
 
-internal fun visibleGameModes(): List<GameMode> =
-  listOf(
-    GameMode.DailyChallenge,
-    GameMode.LocalMultiplayer,
-    GameMode.MistakeReview,
-    GameMode.CreateQuiz,
-  )
-
 internal fun startQuizModes(): List<GameMode> =
-  listOf(
-    GameMode.DailyChallenge,
-    GameMode.LocalMultiplayer,
-    GameMode.MistakeReview,
-  )
+  emptyList()
 
 internal fun gameModesHubModes(): List<GameMode> =
   listOf(
     GameMode.CreateQuiz,
+    GameMode.DailyChallenge,
+    GameMode.MistakeReview,
   )
 
 enum class QuizVariant(
