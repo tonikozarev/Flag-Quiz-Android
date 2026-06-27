@@ -14,7 +14,7 @@ class FlagGameSpeedRunLogicTest {
     val flagCountry = FlagCountry(code = "FA", name = "Flagland", emoji = "FA", continent = "Europe")
     val quiz =
       QuizState(
-        mode = GameMode.SpeedRun,
+        mode = GameMode.WorldFlags,
         questions =
           listOf(
             FlagQuestion(
@@ -35,6 +35,7 @@ class FlagGameSpeedRunLogicTest {
           ),
         startedAtEpochMillis = 1_000L,
         speedRunSecondsPerAnswer = 3,
+        countdownEnabled = true,
       )
 
     assertEquals(9_000L, speedRunTotalBudgetMillis(quiz))
@@ -47,7 +48,7 @@ class FlagGameSpeedRunLogicTest {
     val country = FlagCountry(code = "FA", name = "Flagland", emoji = "FA", continent = "Europe")
     val quiz =
       QuizState(
-        mode = GameMode.SpeedRun,
+        mode = GameMode.WorldFlags,
         questions =
           List(10) {
             FlagQuestion(
@@ -59,6 +60,7 @@ class FlagGameSpeedRunLogicTest {
         questionStates = List(10) { QuestionDraftState(status = QuestionStatus.Unanswered) },
         startedAtEpochMillis = 1_000L,
         speedRunSecondsPerAnswer = 1,
+        countdownEnabled = true,
       )
 
     assertEquals(15_000L, speedRunTotalBudgetMillis(quiz))

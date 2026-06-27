@@ -82,8 +82,8 @@ fun FlagGameRoute(
     onBackToMenu = resolvedViewModel::onBackToMenu,
     onBackToGameModes = resolvedViewModel::onBackToGameModes,
     onRefreshDailyChallengeAvailability = resolvedViewModel::refreshDailyChallengeAvailability,
-  onHintDifficultySelected = resolvedViewModel::onHintDifficultySelected,
-  onLanguageSelected = resolvedViewModel::onLanguageSelected,
+    onHintDifficultySelected = resolvedViewModel::onHintDifficultySelected,
+    onLanguageSelected = resolvedViewModel::onLanguageSelected,
     onReminderEnabledChanged = { enabled ->
       resolvedViewModel.onReminderEnabledChanged(enabled)
       if (enabled &&
@@ -104,7 +104,12 @@ fun FlagGameRoute(
     onToggleTestingIconClick = resolvedViewModel::onToggleTestingIconClicked,
     onTriggerTestingReminderClick = resolvedViewModel::onTriggerTestingReminderClicked,
     onVariantToggled = resolvedViewModel::onVariantToggled,
+    onInstantCorrectionToggled = resolvedViewModel::onInstantCorrectionToggled,
     onContinentToggled = resolvedViewModel::onContinentToggled,
+    onCreateQuizTrainingToggled = resolvedViewModel::onCreateQuizTrainingToggled,
+    onCreateQuizLocalMultiplayerToggled = resolvedViewModel::onCreateQuizLocalMultiplayerToggled,
+    onCreateQuizManualHardcoreToggled = resolvedViewModel::onCreateQuizManualHardcoreToggled,
+    onCreateQuizManualTimerToggled = resolvedViewModel::onCreateQuizManualTimerToggled,
     onQuestionCountChanged = resolvedViewModel::onQuestionCountChanged,
     onSpeedRunSecondsChanged = resolvedViewModel::onSpeedRunSecondsChanged,
     onSurpriseMeClicked = resolvedViewModel::onSurpriseMeClicked,
@@ -116,7 +121,9 @@ fun FlagGameRoute(
     onStartQuiz = resolvedViewModel::onStartQuiz,
     onCreateQuizSourceSelected = resolvedViewModel::onCreateQuizSourceSelected,
     onCreateQuizPresetSelected = resolvedViewModel::onCreateQuizPresetSelected,
+    onCreateQuizContinentToggled = resolvedViewModel::onCreateQuizContinentToggled,
     onCreateQuizCountryToggled = resolvedViewModel::onCreateQuizCountryToggled,
+    onCreateQuizAllCountriesToggled = resolvedViewModel::onCreateQuizAllCountriesToggled,
     onSaveCreateQuizClicked = resolvedViewModel::onSaveCreateQuizClicked,
     onCountryAnswerSelected = resolvedViewModel::onCountryAnswerSelected,
     onTypedAnswerChanged = resolvedViewModel::onTypedAnswerChanged,

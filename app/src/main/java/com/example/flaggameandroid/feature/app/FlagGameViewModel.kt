@@ -325,6 +325,10 @@ class FlagGameViewModel(
     updateState { it.withSelectedVariantsToggled(variant) }
   }
 
+  fun onInstantCorrectionToggled() {
+    updateState { it.withInstantCorrectionToggled() }
+  }
+
   fun onCreateQuizSourceSelected(source: CreateQuizSource) {
     updateState { it.withCreateQuizSourceSelected(source, countries) }
   }
@@ -335,6 +339,14 @@ class FlagGameViewModel(
 
   fun onCreateQuizCountryToggled(countryCode: String) {
     updateState { it.withCreateQuizCountryToggled(countryCode, countries) }
+  }
+
+  fun onCreateQuizContinentToggled(continent: String) {
+    updateState { it.withCreateQuizContinentToggled(continent, countries) }
+  }
+
+  fun onCreateQuizAllCountriesToggled() {
+    updateState { it.withCreateQuizAllCountriesToggled(countries) }
   }
 
   fun onContinentToggled(continent: String) {
@@ -351,6 +363,22 @@ class FlagGameViewModel(
 
   fun onSpeedRunSecondsChanged(seconds: String) {
     updateState { it.withSpeedRunSecondsPerAnswerInput(seconds) }
+  }
+
+  fun onCreateQuizManualHardcoreToggled() {
+    updateState { it.withCreateQuizManualHardcoreToggled(countries) }
+  }
+
+  fun onCreateQuizManualTimerToggled() {
+    updateState { it.withCreateQuizManualTimerEnabledToggled() }
+  }
+
+  fun onCreateQuizTrainingToggled() {
+    updateState { it.withCreateQuizTrainingToggled(countries) }
+  }
+
+  fun onCreateQuizLocalMultiplayerToggled() {
+    updateState { it.withCreateQuizLocalMultiplayerToggled(countries) }
   }
 
   fun onSurpriseMeClicked() {
@@ -428,7 +456,7 @@ class FlagGameViewModel(
   fun onVerifyTypedAnswer() {
     val state = _uiState.value
     val quiz = state.quiz
-    if (quiz.mode != GameMode.Training) return
+    if (!quiz.instantCorrectionEnabled) return
     if (quiz.currentQuestion?.variant != QuizVariant.TypeCountryName) return
     if (quiz.currentQuestionState.typedAnswer.isBlank() || quiz.currentQuestionState.locked) return
 
@@ -465,7 +493,7 @@ class FlagGameViewModel(
   fun onSpeedRunTimeExpired() {
     val state = _uiState.value
     val quiz = state.quiz
-    if (quiz.mode != GameMode.SpeedRun || quiz.timedOut) return
+    if (!quiz.countdownEnabled || quiz.timedOut) return
     updateState {
       it.copy(
         screen = AppScreen.Results,
@@ -535,6 +563,7 @@ class FlagGameViewModel(
     val state = _uiState.value
     val setup = state.setup
     if (setup.mode != GameMode.CreateQuiz) return SaveQuizResult.NoOp
+    if (setup.usesCreateQuizTraining) return SaveQuizResult.NoOp
 
     val seed = if (setup.createQuizSeed != 0L) setup.createQuizSeed else random.nextLong()
     val resolvedQuestionCountryCodes =
@@ -615,6 +644,8 @@ class FlagGameViewModel(
         variants = setup.variants,
         questionCount = exactQuestionCount.coerceAtLeast(1),
         seed = seed,
+        createQuizLocalMultiplayerEnabled = setup.usesCreateQuizLocalMultiplayer,
+        playerNames = if (setup.usesCreateQuizLocalMultiplayer) setup.playerNames else emptyList(),
       )
 
     val normalizedTargetName = template.title.trim().lowercase()
@@ -686,9 +717,12 @@ class FlagGameViewModel(
         variants = template.variants,
         createQuizSource = template.source,
         createQuizPreset = template.preset ?: CreateQuizPreset.TwoColors,
+        createQuizPresets = template.preset?.let { setOf(it) } ?: setOf(CreateQuizPreset.TwoColors),
         selectedCountryCodes = template.selectedCountryCodes,
         createQuizSeed = template.seed,
         savedQuizTemplateId = template.id,
+        createQuizLocalMultiplayerEnabled = template.createQuizLocalMultiplayerEnabled,
+        playerNames = template.playerNames.ifEmpty { listOf("Player 1", "Player 2") },
         questionCountInput = template.questionCount.toString(),
       )
     updateState {

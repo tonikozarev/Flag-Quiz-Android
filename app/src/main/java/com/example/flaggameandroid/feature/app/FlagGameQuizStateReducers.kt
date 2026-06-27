@@ -6,9 +6,10 @@ import com.example.flaggameandroid.core.model.QuizVariant
 
 internal fun QuizState.withSelectedCountry(country: FlagCountry): QuizState {
   if (currentQuestion == null) return this
-  if (mode == GameMode.Training && currentQuestionState.locked) return this
+  if (instantCorrectionEnabled && currentQuestionState.locked) return this
 
-  if (mode != GameMode.Training && currentQuestionState.selectedCountry?.code == country.code) {
+  if (currentQuestionState.selectedCountry?.code == country.code) {
+    if (instantCorrectionEnabled) return this
     val clearedDraft =
       currentQuestionState.copy(
         status = QuestionStatus.Unanswered,
@@ -24,7 +25,7 @@ internal fun QuizState.withSelectedCountry(country: FlagCountry): QuizState {
     currentQuestionState.copy(
       status = QuestionStatus.Answered,
       selectedCountry = country,
-      locked = mode == GameMode.Training,
+      locked = instantCorrectionEnabled,
     )
 
   return copy(
@@ -35,7 +36,7 @@ internal fun QuizState.withSelectedCountry(country: FlagCountry): QuizState {
 
 internal fun QuizState.withTypedAnswer(answer: String): QuizState {
   if (currentQuestion == null) return this
-  if (mode == GameMode.Training && currentQuestionState.locked) return this
+  if (instantCorrectionEnabled && currentQuestionState.locked) return this
 
   val updatedDraft =
     currentQuestionState.copy(
@@ -57,7 +58,7 @@ internal fun QuizState.withVerifiedTypedAnswer(): QuizState {
   val updatedDraft =
     draft.copy(
       status = QuestionStatus.Answered,
-      locked = true,
+      locked = instantCorrectionEnabled,
     )
 
   return copy(
@@ -78,7 +79,7 @@ internal fun QuizState.withPreviewAdvancedQuestion(): QuizState {
 
 internal fun QuizState.withNextSkippedQuestionLoaded(): QuizState {
   val committedCurrent = withCurrentQuestionSubmitted() ?: this
-  val targetIndex = committedCurrent.nextSkippedQuestionIndex() ?: return committedCurrent
+  val targetIndex = committedCurrent.nextSkippedQuestionIndex() ?: committedCurrent.nextUnansweredQuestionIndex() ?: return committedCurrent
   return committedCurrent.loadQuestionDraft(targetIndex)
 }
 
@@ -89,7 +90,7 @@ internal fun QuizState.withCurrentQuestionSubmitted(): QuizState? {
   val updatedDraft =
     draft.copy(
       status = QuestionStatus.Answered,
-      locked = draft.locked || mode == GameMode.Training,
+      locked = draft.locked || instantCorrectionEnabled,
     )
 
   return copy(

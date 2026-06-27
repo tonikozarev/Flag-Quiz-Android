@@ -18,9 +18,9 @@ internal fun cleanText(
   when (text) {
     UiText.WorldFlagGame ->
       when (language) {
-        AppLanguage.English -> "World flag game"
-        AppLanguage.Bulgarian -> "Световни флагове"
-        AppLanguage.German -> "Flaggen-Spiel"
+        AppLanguage.English -> "Global quiz"
+        AppLanguage.Bulgarian -> "Глобален тест"
+        AppLanguage.German -> "Weltquiz"
       }
     UiText.HeroSubtitle ->
       when (language) {
@@ -48,9 +48,15 @@ internal fun cleanText(
       }
     UiText.Favorites ->
       when (language) {
-        AppLanguage.English -> "Favorites"
-        AppLanguage.Bulgarian -> "Любими"
-        AppLanguage.German -> "Favoriten"
+        AppLanguage.English -> "Saved"
+        AppLanguage.Bulgarian -> "Запазени"
+        AppLanguage.German -> "Gespeichert"
+      }
+    UiText.FavoriteCountriesFlags ->
+      when (language) {
+        AppLanguage.English -> "Favorite countries/flags"
+        AppLanguage.Bulgarian -> "Любими държави/флагове"
+        AppLanguage.German -> "Lieblingsländer/Flaggen"
       }
     UiText.Settings ->
       when (language) {
@@ -196,6 +202,7 @@ internal enum class UiText {
   Medals,
   Achievements,
   Favorites,
+  FavoriteCountriesFlags,
   Settings,
   Quit,
   Profile,

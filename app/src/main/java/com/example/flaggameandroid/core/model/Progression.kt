@@ -34,7 +34,7 @@ enum class AchievementId(
   OceaniaPerfect(AchievementSector.Continents, "Oceania Perfect", "\uD83C\uDF0A", "Complete every Oceanian country perfectly without using hints."),
   SouthAmericaPerfect(AchievementSector.Continents, "South America Perfect", "\uD83E\uDD9C", "Complete every South American country perfectly without using hints."),
   DiamondWorld(AchievementSector.World, "Diamond World", "\uD83D\uDC8E", "Complete all countries perfectly in one quiz."),
-  NoBluffLegend(AchievementSector.World, "No Bluff Legend", "\uD83E\uDDE0", "Perfectly clear No Bluff, All Tough with all three variants selected."),
+  NoBluffLegend(AchievementSector.World, "Hardcore Legend", "\uD83E\uDDE0", "Perfectly clear Hardcore with all question variants selected."),
   WorldPurist(AchievementSector.World, "World Purist", "\uD83C\uDF10", "Complete all countries perfectly without using any hints."),
   SpeedRunStarter(AchievementSector.SpeedRuns, "Speed Run Starter", "\u23F1\uFE0F", "Finish any Speed Run quiz."),
   SpeedRunPurist(AchievementSector.SpeedRuns, "Speed Run Purist", "\uD83D\uDD25", "Finish a perfect Speed Run quiz without using hints."),

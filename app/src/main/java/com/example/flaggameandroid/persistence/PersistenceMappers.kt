@@ -175,6 +175,8 @@ private fun List<SavedQuizTemplate>.serializeSavedQuizTemplates(): String =
       template.variants.joinToString(separator = ".") { it.name },
       template.questionCount.toString(),
       template.seed.toString(),
+      if (template.createQuizLocalMultiplayerEnabled) "1" else "0",
+      template.playerNames.joinToString(separator = "."),
       template.completionCount.toString(),
       template.difficulty.name,
     ).joinToString(separator = ",")
@@ -191,6 +193,7 @@ private fun String.toSavedQuizTemplates(): List<SavedQuizTemplate> =
         val source = CreateQuizSource.entries.firstOrNull { it.name == parts[3] } ?: CreateQuizSource.PresetFilter
         val preset = parts[4].takeIf { it.isNotBlank() }?.let { name -> CreateQuizPreset.entries.firstOrNull { it.name == name } }
         val selectedCountryCodes = parts[5].takeIf { it.isNotBlank() }?.split(".")?.toSet().orEmpty()
+        val modernFormat = parts.size >= 14
         val questionCountryCodes =
           if (parts.size >= 12) {
             parts[6].takeIf { it.isNotBlank() }?.split(".")?.toSet().orEmpty()
@@ -204,6 +207,18 @@ private fun String.toSavedQuizTemplates(): List<SavedQuizTemplate> =
             ?.mapNotNull { variantName -> com.example.flaggameandroid.core.model.QuizVariant.entries.firstOrNull { it.name == variantName } }
             ?.toSet()
             ?: com.example.flaggameandroid.core.model.QuizVariant.entries.toSet()
+        val createQuizLocalMultiplayerEnabled =
+          if (modernFormat) {
+            parts[10] == "1"
+          } else {
+            false
+          }
+        val playerNames =
+          if (modernFormat) {
+            parts[11].takeIf { it.isNotBlank() }?.split(".")?.filter { it.isNotBlank() }.orEmpty()
+          } else {
+            emptyList()
+          }
         SavedQuizTemplate(
           id = parts[0],
           createdAtEpochMillis = parts[1].toLongOrNull() ?: 0L,
@@ -215,8 +230,10 @@ private fun String.toSavedQuizTemplates(): List<SavedQuizTemplate> =
           variants = variants,
           questionCount = parts[if (parts.size >= 12) 8 else 7].toIntOrNull() ?: 10,
           seed = parts[if (parts.size >= 12) 9 else 8].toLongOrNull() ?: 0L,
-          completionCount = parts[if (parts.size >= 12) 10 else 9].toIntOrNull() ?: 0,
-          difficulty = SavedQuizDifficulty.entries.firstOrNull { it.name == parts[if (parts.size >= 12) 11 else 10] } ?: SavedQuizDifficulty.ItIsOk,
+          createQuizLocalMultiplayerEnabled = createQuizLocalMultiplayerEnabled,
+          playerNames = playerNames,
+          completionCount = parts[if (modernFormat) 12 else if (parts.size >= 12) 10 else 9].toIntOrNull() ?: 0,
+          difficulty = SavedQuizDifficulty.entries.firstOrNull { it.name == parts[if (modernFormat) 13 else if (parts.size >= 12) 11 else 10] } ?: SavedQuizDifficulty.ItIsOk,
         )
       }
       .toList()

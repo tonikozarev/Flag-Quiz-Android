@@ -62,7 +62,7 @@ class FlagGameFlowLogicTest {
     val countries = StaticFlagCatalogRepository().getCountries()
     val setup =
       buildSetupForMode(
-        GameMode.Continents,
+        GameMode.WorldFlags,
         listOf("Africa", "Asia", "Europe", "North America", "Oceania", "South America"),
         countries,
         "Tony",
@@ -100,7 +100,7 @@ class FlagGameFlowLogicTest {
       )
     val quiz =
       QuizState(
-        mode = GameMode.Continents,
+        mode = GameMode.WorldFlags,
         questions = listOf(question),
         questionStates = listOf(QuestionDraftState()),
       )
@@ -140,7 +140,7 @@ class FlagGameFlowLogicTest {
     val countries = StaticFlagCatalogRepository().getCountries()
     val setup =
       buildSetupForMode(
-        GameMode.Continents,
+        GameMode.WorldFlags,
         listOf("Africa", "Asia", "Europe", "North America", "Oceania", "South America"),
         countries,
         "Tony",
@@ -187,11 +187,58 @@ class FlagGameFlowLogicTest {
   }
 
   @Test
+  fun withNextSkippedQuestionLoaded_fallsBackToNextUnansweredQuestionWhenNoSkippedExists() {
+    val countries = StaticFlagCatalogRepository().getCountries()
+    val setup =
+      buildSetupForMode(
+        GameMode.WorldFlags,
+        listOf("Africa", "Asia", "Europe", "North America", "Oceania", "South America"),
+        countries,
+        "Tony",
+      ).copy(
+        questionCountInput = "3",
+        selectedContinents = setOf("Europe"),
+        variants = setOf(QuizVariant.FlagToCountry),
+      )
+
+    val quiz =
+      buildStartedQuizState(
+        setup = setup,
+        countries = countries,
+        questionGenerator = QuizQuestionGenerator(Random(31)),
+        hintDifficulty = HintDifficulty.Medium,
+        random = Random(32),
+        hintCount = 0,
+        displayName = "Tony",
+      )
+
+    val currentQuestion = quiz.currentQuestion!!
+    val updatedQuiz =
+      quiz.copy(
+        currentQuestionIndex = 0,
+        selectedCountry = currentQuestion.correctCountry,
+        questionStates =
+          quiz.questionStates.replaceAt(
+            0,
+            QuestionDraftState(
+              status = QuestionStatus.Answered,
+              selectedCountry = currentQuestion.correctCountry,
+            ),
+          ),
+      )
+
+    val jumpedQuiz = updatedQuiz.withNextSkippedQuestionLoaded()
+
+    assertEquals(1, jumpedQuiz.currentQuestionIndex)
+    assertEquals(QuestionStatus.Answered, jumpedQuiz.questionStates[0].status)
+  }
+
+  @Test
   fun canFinish_doesNotRequireBeingOnLastQuestionWhenAllQuestionsAreAnswered() {
     val countries = StaticFlagCatalogRepository().getCountries()
     val setup =
       buildSetupForMode(
-        GameMode.Continents,
+        GameMode.WorldFlags,
         listOf("Africa", "Asia", "Europe", "North America", "Oceania", "South America"),
         countries,
         "Tony",
@@ -228,7 +275,7 @@ class FlagGameFlowLogicTest {
   }
 
   @Test
-  fun canFinish_requiresSkippedQuestionsToBeResolved() {
+  fun canFinish_allowsCurrentSkippedQuestionWithPendingTypedAnswer() {
     val country = FlagCountry(code = "DE", name = "Germany", emoji = "🇩🇪", continent = "Europe")
     val question =
       FlagQuestion(
@@ -238,7 +285,7 @@ class FlagGameFlowLogicTest {
       )
     val quiz =
       QuizState(
-        mode = GameMode.Continents,
+        mode = GameMode.WorldFlags,
         questions = listOf(question, question),
         currentQuestionIndex = 0,
         questionStates =
@@ -249,7 +296,7 @@ class FlagGameFlowLogicTest {
         typedAnswer = "Germany",
       )
 
-    assertFalse(quiz.canFinish)
+    assertTrue(quiz.canFinish)
   }
 
   @Test
@@ -263,7 +310,7 @@ class FlagGameFlowLogicTest {
       )
     val quiz =
       QuizState(
-        mode = GameMode.Continents,
+        mode = GameMode.WorldFlags,
         questions = listOf(question),
         questionStates = listOf(QuestionDraftState()),
       )
@@ -307,8 +354,8 @@ class FlagGameFlowLogicTest {
         hintUsed = false,
       )
 
-    val afterContinents = updateCountryPracticeStats(emptyMap(), listOf(flagMiss), 1L, GameMode.Continents)
-    val afterSpeedRun = updateCountryPracticeStats(afterContinents, listOf(typedMiss), 2L, GameMode.SpeedRun)
+    val afterContinents = updateCountryPracticeStats(emptyMap(), listOf(flagMiss), 1L, GameMode.WorldFlags)
+    val afterSpeedRun = updateCountryPracticeStats(afterContinents, listOf(typedMiss), 2L, GameMode.WorldFlags)
     val afterTraining = updateCountryPracticeStats(afterSpeedRun, listOf(typedMiss), 3L, GameMode.Training)
 
     assertEquals(2, afterSpeedRun[country.code]?.wrongCount)
@@ -320,7 +367,7 @@ class FlagGameFlowLogicTest {
     val countries = StaticFlagCatalogRepository().getCountries()
     val setup =
       buildSetupForMode(
-        GameMode.Continents,
+        GameMode.WorldFlags,
         listOf("Africa", "Asia", "Europe", "North America", "Oceania", "South America"),
         countries,
         "Tony",
@@ -347,10 +394,11 @@ class FlagGameFlowLogicTest {
       )
     val quiz =
       QuizState(
-        mode = GameMode.SpeedRun,
+        mode = GameMode.WorldFlags,
         questions = listOf(question),
         questionStates = listOf(QuestionDraftState(status = QuestionStatus.Answered, selectedCountry = country)),
         speedRunSecondsPerAnswer = 1,
+        countdownEnabled = true,
       )
     val results =
       listOf(
@@ -414,7 +462,7 @@ class FlagGameFlowLogicTest {
       )
     val quiz =
       QuizState(
-        mode = GameMode.Continents,
+        mode = GameMode.WorldFlags,
         questions = listOf(question),
         questionStates = listOf(QuestionDraftState()),
         players = listOf(com.example.flaggameandroid.core.model.PlayerProgress("Solo", hintPoints = 2)),

@@ -43,7 +43,7 @@ class QuizQuestionGeneratorTest {
         countries = repository.getCountries(),
         config =
           QuizConfig(
-            mode = GameMode.Continents,
+            mode = GameMode.WorldFlags,
             variants = variants,
             questionCount = 25,
           ),
@@ -135,7 +135,7 @@ class QuizQuestionGeneratorTest {
   }
 
   @Test
-  fun training_doesNotRepeatCountriesWhenQuestionCountIsWithinPoolSize() {
+  fun training_canRepeatCountriesEvenWhenQuestionCountIsWithinSinglePassPoolSize() {
     val generator = QuizQuestionGenerator(Random(8))
 
     val questions =
@@ -150,7 +150,7 @@ class QuizQuestionGeneratorTest {
       )
 
     assertEquals(195, questions.size)
-    assertEquals(questions.size, questions.map { it.correctCountry.code }.distinct().size)
+    assertTrue(questions.map { it.correctCountry.code }.distinct().size < questions.size)
   }
 
   @Test
@@ -163,7 +163,7 @@ class QuizQuestionGeneratorTest {
           countries = repository.getCountries(),
           config =
             QuizConfig(
-              mode = GameMode.Continents,
+              mode = GameMode.WorldFlags,
               variants = QuizVariant.entries.toSet(),
               questionCount = 99,
               hintDifficulty = HintDifficulty.Impossible,
@@ -184,7 +184,7 @@ class QuizQuestionGeneratorTest {
         countries = repository.getCountries(),
         config =
           QuizConfig(
-            mode = GameMode.AllIn,
+            mode = GameMode.WorldFlags,
             variants = QuizVariant.entries.toSet(),
             questionCount = 100,
             allInType = AllInType.NoBluffAllTough,

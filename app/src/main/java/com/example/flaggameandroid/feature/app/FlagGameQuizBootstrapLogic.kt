@@ -51,17 +51,21 @@ internal fun buildStartedQuizState(
   val questions = generator.buildQuestions(pool, config, practiceStats, countries)
   val players = config.players.map { PlayerProgress(name = it, hintPoints = hintCount) }
   val questionStates = List(questions.size) { QuestionDraftState() }
+  val countdownEnabled = config.countdownEnabled
 
   return QuizState(
-    mode = setup.mode,
+    mode = config.mode,
     allInType = setup.allInType,
     variants = config.variants,
     selectedContinents = setup.selectedContinents,
+    instantCorrectionEnabled = setup.instantCorrectionEnabled,
+    hintsAllowed = !setup.usesCreateQuizManualHardcore,
     questions = questions,
     questionStates = questionStates,
     players = players,
     startedAtEpochMillis = System.currentTimeMillis(),
-    speedRunSecondsPerAnswer = config.speedRunSecondsPerAnswer,
+    speedRunSecondsPerAnswer = if (countdownEnabled) config.speedRunSecondsPerAnswer else 0,
+    countdownEnabled = countdownEnabled,
     poolSource = config.poolSource,
     dailyChallengeTheme = config.dailyChallengeTheme ?: poolResolution.dailyChallengeCache?.theme,
     quizSeed = quizSeed,

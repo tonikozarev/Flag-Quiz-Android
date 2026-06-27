@@ -15,6 +15,11 @@ internal fun FlagGameUiState.withSelectedVariantsToggled(variant: QuizVariant): 
   return withUpdatedSetup { it.copy(variants = next) }
 }
 
+internal fun FlagGameUiState.withInstantCorrectionToggled(): FlagGameUiState =
+  withUpdatedSetup {
+    it.copy(instantCorrectionEnabled = !it.instantCorrectionEnabled)
+  }
+
 internal fun FlagGameUiState.withContinentToggled(
   continent: String,
   countries: List<FlagCountry>,
@@ -31,7 +36,9 @@ internal fun FlagGameUiState.withContinentToggled(
 
 internal fun FlagGameUiState.withQuestionCountInput(questionCount: String): FlagGameUiState =
   withUpdatedSetup {
-    it.copy(questionCountInput = questionCount.filter { char -> char.isDigit() }, surpriseMe = false)
+    val digitsOnly = questionCount.filter { char -> char.isDigit() }
+    val capped = digitsOnly.toIntOrNull()?.coerceAtMost(999)?.toString().orEmpty()
+    it.copy(questionCountInput = capped, surpriseMe = false)
   }
 
 internal fun FlagGameUiState.withCreateQuizSourceSelected(
@@ -42,6 +49,8 @@ internal fun FlagGameUiState.withCreateQuizSourceSelected(
     setup.copy(
       createQuizSource = source,
       selectedCountryCodes = if (source == CreateQuizSource.ManualCountries) setup.selectedCountryCodes else emptySet(),
+      createQuizManualHardcoreEnabled = if (source == CreateQuizSource.ManualCountries) setup.createQuizManualHardcoreEnabled else false,
+      createQuizPresets = setup.createQuizPresets.ifEmpty { setOf(setup.createQuizPreset) },
       createQuizSeed = 0L,
       questionCountInput =
         when (source) {
@@ -61,9 +70,23 @@ internal fun FlagGameUiState.withCreateQuizPresetSelected(
   preset: CreateQuizPreset,
   countries: List<FlagCountry>,
 ): FlagGameUiState {
-  val nextSetup = setup.copy(createQuizSource = CreateQuizSource.PresetFilter, createQuizPreset = preset)
+  val currentPresets = setup.createQuizPresets.ifEmpty { setOf(setup.createQuizPreset) }
+  val toggledPresets =
+    if (preset in currentPresets) {
+      currentPresets - preset
+    } else {
+      currentPresets + preset
+    }
+  val nextPresets = toggledPresets.ifEmpty { currentPresets }
+  val nextSetup =
+    setup.copy(
+      createQuizSource = CreateQuizSource.PresetFilter,
+      createQuizPreset = nextPresets.first(),
+      createQuizPresets = nextPresets,
+      createQuizSeed = 0L,
+    )
   return copy(
-    setup = nextSetup.copy(createQuizSeed = 0L),
+    setup = nextSetup,
     questionCountLimit = questionLimitFor(nextSetup, countries),
     setupError = null,
   )
@@ -90,10 +113,113 @@ internal fun FlagGameUiState.withCreateQuizCountryToggled(
   )
 }
 
+internal fun FlagGameUiState.withCreateQuizContinentToggled(
+  continent: String,
+  countries: List<FlagCountry>,
+): FlagGameUiState {
+  val continentCodes = countries.filter { it.continent == continent }.map { it.code }.toSet()
+  if (continentCodes.isEmpty()) return this
+  val continentSelected = continentCodes.all { it in setup.selectedCountryCodes }
+  val nextSelection =
+    if (continentSelected) {
+      setup.selectedCountryCodes - continentCodes
+    } else {
+      setup.selectedCountryCodes + continentCodes
+    }
+  val nextSetup =
+    setup.copy(
+      createQuizSource = CreateQuizSource.ManualCountries,
+      selectedCountryCodes = nextSelection,
+      createQuizSeed = 0L,
+      questionCountInput = nextSelection.size.toString(),
+      surpriseMe = false,
+    )
+  return copy(
+    setup = nextSetup,
+    questionCountLimit = questionLimitFor(nextSetup, countries),
+    setupError = null,
+  )
+}
+
 internal fun FlagGameUiState.withSpeedRunSecondsPerAnswerInput(speedRunSeconds: String): FlagGameUiState =
   withUpdatedSetup {
     it.copy(speedRunSecondsPerAnswerInput = speedRunSeconds.filter { char -> char.isDigit() })
   }
+
+internal fun FlagGameUiState.withCreateQuizManualHardcoreToggled(countries: List<FlagCountry>): FlagGameUiState {
+  val enabled = !setup.createQuizManualHardcoreEnabled
+  val nextSetup =
+    setup.copy(
+      createQuizManualHardcoreEnabled = enabled,
+      createQuizTrainingEnabled = false,
+      createQuizLocalMultiplayerEnabled = false,
+      createQuizSeed = 0L,
+      questionCountInput = if (enabled) countries.size.toString() else "1",
+      surpriseMe = false,
+    )
+  return copy(
+    setup = nextSetup,
+    questionCountLimit = questionLimitFor(nextSetup, countries),
+    setupError = null,
+  )
+}
+
+internal fun FlagGameUiState.withCreateQuizManualTimerEnabledToggled(): FlagGameUiState =
+  withUpdatedSetup {
+    it.copy(createQuizManualTimerEnabled = !it.createQuizManualTimerEnabled)
+  }
+
+internal fun FlagGameUiState.withCreateQuizTrainingToggled(countries: List<FlagCountry>): FlagGameUiState {
+  val enabled = !setup.createQuizTrainingEnabled
+  val nextSetup =
+    setup.copy(
+      createQuizTrainingEnabled = enabled,
+      createQuizManualHardcoreEnabled = false,
+      createQuizLocalMultiplayerEnabled = false,
+      createQuizSeed = 0L,
+      surpriseMe = false,
+      questionCountInput = "1",
+    )
+  return copy(
+    setup = nextSetup,
+    questionCountLimit = questionLimitFor(nextSetup, countries),
+    setupError = null,
+  )
+}
+
+internal fun FlagGameUiState.withCreateQuizLocalMultiplayerToggled(countries: List<FlagCountry>): FlagGameUiState {
+  val enabled = !setup.createQuizLocalMultiplayerEnabled
+  val nextSetup =
+    setup.copy(
+      createQuizLocalMultiplayerEnabled = enabled,
+      createQuizTrainingEnabled = false,
+      createQuizManualHardcoreEnabled = false,
+      createQuizSeed = 0L,
+    )
+  return copy(
+    setup = nextSetup,
+    questionCountLimit = questionLimitFor(nextSetup, countries),
+    setupError = null,
+  )
+}
+
+internal fun FlagGameUiState.withCreateQuizAllCountriesToggled(countries: List<FlagCountry>): FlagGameUiState {
+  val allCodes = countries.map { it.code }.toSet()
+  val nextSelection = if (setup.selectedCountryCodes.size == allCodes.size) emptySet() else allCodes
+  val nextSetup =
+    setup.copy(
+      createQuizSource = CreateQuizSource.ManualCountries,
+      selectedCountryCodes = nextSelection,
+      createQuizSeed = 0L,
+      questionCountInput = nextSelection.size.toString(),
+      surpriseMe = false,
+    )
+  return copy(
+    setup = nextSetup,
+    questionCountLimit = questionLimitFor(nextSetup, countries),
+    setupError = null,
+  )
+}
 
 internal fun FlagGameUiState.withSurpriseMeToggled(): FlagGameUiState {
   val surpriseMe = !setup.surpriseMe

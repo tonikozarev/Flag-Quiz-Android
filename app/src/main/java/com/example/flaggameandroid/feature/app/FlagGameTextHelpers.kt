@@ -115,7 +115,7 @@ internal fun localizedQuizInfoButtonLabel(language: AppLanguage): String =
   tr(language, "Info \uD835\uDC8A", "Инфо \uD835\uDC8A", "Info \uD835\uDC8A")
 
 internal fun localizedUnskipButtonLabel(language: AppLanguage): String =
-  tr(language, "Unskip \u21B7", "Върни \u21B7", "Zurück \u21B7")
+  tr(language, "Jump \u21B7", "Скочи \u21B7", "Springen \u21B7")
 
 internal fun formatScore(score: Int): String =
   if (score % 2 == 0) (score / 2).toString() else "${score / 2}.5"
@@ -166,6 +166,40 @@ internal fun allInRewardInfo(
       }
   }
 
+internal fun worldFlagsRewardInfo(
+  language: AppLanguage,
+  hardcoreEnabled: Boolean,
+  hintSettingLabel: String,
+  rewardLevels: String,
+  isImpossible: Boolean,
+): String =
+  when (language) {
+    AppLanguage.English ->
+      if (hardcoreEnabled) {
+        "Selected countries count is 195. Hint setting: $hintSettingLabel. Perfect clear reward is active. Finish with no mistakes using all 3 variants to earn $rewardLevels full level(s)." +
+          if (isImpossible) "" else " Switch to 'The impossible one' to earn +1 more level, for +2 full levels total."
+      } else {
+        "Hint setting: $hintSettingLabel. Perfect clear reward is active. Finish with no mistakes using all 3 variants to earn $rewardLevels full level(s)." +
+          if (isImpossible) "" else " Switch to 'The impossible one' to earn +1 more level, for +2 full levels total."
+      }
+    AppLanguage.Bulgarian ->
+      if (hardcoreEnabled) {
+        "Броят на избраните държави е 195. Настройка за жокери: $hintSettingLabel. Наградата за перфектен тест е активна. Завърши без грешка с всичките 3 варианта, за да вземеш $rewardLevels пълно ниво." +
+          if (isImpossible) "" else " Смени на 'The impossible one', за да вземеш още +1 ниво, общо +2 пълни нива."
+      } else {
+        "Настройка за жокери: $hintSettingLabel. Наградата за перфектен тест е активна. Завърши без грешка с всичките 3 варианта, за да вземеш $rewardLevels пълно ниво." +
+          if (isImpossible) "" else " Смени на 'The impossible one', за да вземеш още +1 ниво, общо +2 пълни нива."
+      }
+    AppLanguage.German ->
+      if (hardcoreEnabled) {
+        "Die Anzahl der ausgewählten Länder ist 195. Hinweis-Einstellung: $hintSettingLabel. Die Belohnung für einen fehlerfreien Durchlauf ist aktiv. Beende das Quiz ohne Fehler mit allen 3 Varianten, um $rewardLevels volle Level zu erhalten." +
+          if (isImpossible) "" else " Wechsle zu 'The impossible one', um +1 weiteres Level und insgesamt +2 volle Level zu erhalten."
+      } else {
+        "Hinweis-Einstellung: $hintSettingLabel. Die Belohnung für einen fehlerfreien Durchlauf ist aktiv. Beende das Quiz ohne Fehler mit allen 3 Varianten, um $rewardLevels volle Level zu erhalten." +
+          if (isImpossible) "" else " Wechsle zu 'The impossible one', um +1 weiteres Level und insgesamt +2 volle Level zu erhalten."
+      }
+  }
+
 internal fun displayModeTitle(
   mode: GameMode?,
   language: AppLanguage,
@@ -173,11 +207,9 @@ internal fun displayModeTitle(
   when (mode) {
     GameMode.Training -> cleanModeTitle(GameMode.Training, language)
     GameMode.CreateQuiz -> cleanModeTitle(GameMode.CreateQuiz, language)
-    GameMode.Continents -> cleanModeTitle(GameMode.Continents, language)
+    GameMode.WorldFlags -> cleanModeTitle(GameMode.WorldFlags, language)
     GameMode.DailyChallenge -> cleanModeTitle(GameMode.DailyChallenge, language)
     GameMode.MistakeReview -> cleanModeTitle(GameMode.MistakeReview, language)
-    GameMode.SpeedRun -> cleanModeTitle(GameMode.SpeedRun, language)
-    GameMode.AllIn -> cleanModeTitle(GameMode.AllIn, language)
     GameMode.LocalMultiplayer -> cleanModeTitle(GameMode.LocalMultiplayer, language)
     null -> tr(language, "Quiz", "Тест", "Quiz")
   }
@@ -202,12 +234,12 @@ internal fun speedRunElapsedMillis(
   quiz: QuizState,
   nowMillis: Long,
 ): Long {
-  if (quiz.mode != GameMode.SpeedRun || quiz.startedAtEpochMillis <= 0L) return 0L
+  if (!quiz.countdownEnabled || quiz.startedAtEpochMillis <= 0L) return 0L
   return (nowMillis - quiz.startedAtEpochMillis + (quiz.speedRunPenaltySeconds * 1000L)).coerceAtLeast(0L)
 }
 
 internal fun speedRunTotalBudgetMillis(quiz: QuizState): Long {
-  if (quiz.mode != GameMode.SpeedRun || quiz.questions.isEmpty()) return 0L
+  if (!quiz.countdownEnabled || quiz.questions.isEmpty()) return 0L
   val secondsPerAnswer = quiz.speedRunSecondsPerAnswer.coerceAtLeast(1)
   val totalSeconds =
     quiz.questions.sumOf { question ->
@@ -236,7 +268,7 @@ internal fun localizedSpeedRunTimeLeftLabel(language: AppLanguage): String =
   tr(language, "Time left", "Оставащо време", "Verbleibende Zeit")
 
 internal fun localizedSpeedRunTimeStartLabel(language: AppLanguage): String =
-  tr(language, "Time start", "Начало", "Startzeit")
+  tr(language, "Time to complete", "Начало", "Startzeit")
 
 internal fun localizedSpeedRunGameOverLabel(language: AppLanguage): String =
   tr(language, "Game over", "Край на играта", "Spiel vorbei")

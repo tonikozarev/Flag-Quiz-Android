@@ -52,7 +52,6 @@ import com.example.flaggameandroid.core.model.RatingsProgress
 import com.example.flaggameandroid.core.model.SavedQuizDifficulty
 import com.example.flaggameandroid.core.model.SavedQuizTemplate
 import com.example.flaggameandroid.core.model.startQuizModes
-import com.example.flaggameandroid.core.model.visibleGameModes
 import kotlinx.coroutines.delay
 
 @Composable
@@ -158,13 +157,13 @@ fun GameModesScreen(
       )
     }
 
-    NavigationCard(
+      NavigationCard(
       title = localizedGameModesHubTitle(language),
       description =
         when (language) {
-          AppLanguage.English -> "Continents, speed run, hardcore, and create a quiz."
-          AppLanguage.Bulgarian -> "Континенти, скоростна игра, хардкор и създаване на тест."
-          AppLanguage.German -> "Kontinente, Schnelllauf, Hardcore und Quiz erstellen."
+          AppLanguage.English -> "Create your own quiz."
+          AppLanguage.Bulgarian -> "Създай свой тест."
+          AppLanguage.German -> "Erstelle dein eigenes Quiz."
         },
       openLabel = cleanText(language, UiText.Open),
       onClick = onGameModesClick,
@@ -175,10 +174,20 @@ fun GameModesScreen(
 @Composable
 fun GameModesHubScreen(
   language: AppLanguage,
+  dailyChallengeCache: DailyChallengeCache?,
+  mistakeReviewEligibleCount: Int,
   onModeSelected: (GameMode) -> Unit,
+  onRefreshDailyChallengeAvailability: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   var expandedInfoMode by remember { mutableStateOf<GameMode?>(null) }
+  LaunchedEffect(Unit) {
+    onRefreshDailyChallengeAvailability()
+    while (true) {
+      delay(60_000L)
+      onRefreshDailyChallengeAvailability()
+    }
+  }
   ScreenShell(modifier = modifier) {
     HeaderRow(title = localizedGameModesHubTitle(language))
 
@@ -187,7 +196,12 @@ fun GameModesHubScreen(
         mode = mode,
         language = language,
         infoExpanded = expandedInfoMode == mode,
-        openEnabled = true,
+        openEnabled =
+          when (mode) {
+            GameMode.DailyChallenge -> dailyChallengeCache?.completed != true
+            GameMode.MistakeReview -> mistakeReviewEligibleCount >= com.example.flaggameandroid.core.model.MistakeReviewUnlockCountryCount
+            else -> true
+          },
         openLabel = if (mode == GameMode.CreateQuiz) cleanText(language, UiText.Start) else cleanText(language, UiText.Open),
         onInfoClick = {
           expandedInfoMode = if (expandedInfoMode == mode) null else mode
@@ -360,9 +374,60 @@ fun FavoritesScreen(
 ) {
   val favoriteCountries = countries.filter { countryPracticeStats[it.code]?.favorite == true }
   val grouped = favoriteCountries.groupBy { it.continent }
+  var favoriteCountriesDialogVisible by remember { mutableStateOf(false) }
   var pendingRemovalCountryCode by remember { mutableStateOf<String?>(null) }
 
   ScreenShell(modifier = modifier) {
+    if (favoriteCountriesDialogVisible) {
+      AlertDialog(
+        onDismissRequest = { favoriteCountriesDialogVisible = false },
+        title = { Text(text = cleanText(language, UiText.FavoriteCountriesFlags)) },
+        text = {
+          if (favoriteCountries.isEmpty()) {
+            Text(
+              text =
+                when (language) {
+                  AppLanguage.English -> "Marked favorites will appear here, grouped by continent."
+                  AppLanguage.Bulgarian -> "Маркираните любими ще се показват тук, групирани по континенти."
+                  AppLanguage.German -> "Markierte Favoriten erscheinen hier, nach Kontinenten gruppiert."
+                },
+            )
+          } else {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+              grouped.keys.sorted().forEach { continent ->
+                val list = grouped[continent].orEmpty()
+                if (list.isNotEmpty()) {
+                  SectionCard(title = localizedContinentName(continent, language)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                      list.sortedBy { it.localizedName(language) }.forEach { country ->
+                        FavoriteCountryRow(
+                          country = country,
+                          language = language,
+                          onRemoveFavoriteCountry = { pendingRemovalCountryCode = it },
+                        )
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        confirmButton = {
+          TextButton(onClick = { favoriteCountriesDialogVisible = false }) {
+            Text(
+              text =
+                when (language) {
+                  AppLanguage.English -> "Close"
+                  AppLanguage.Bulgarian -> "Затвори"
+                  AppLanguage.German -> "Schließen"
+                },
+            )
+          }
+        },
+      )
+    }
+
     pendingRemovalCountryCode?.let { countryCode ->
       AlertDialog(
         onDismissRequest = { pendingRemovalCountryCode = null },
@@ -420,6 +485,15 @@ fun FavoritesScreen(
 
     HeaderRow(title = cleanText(language, UiText.Favorites))
 
+    SectionCard(title = cleanText(language, UiText.FavoriteCountriesFlags)) {
+      Button(
+        onClick = { favoriteCountriesDialogVisible = true },
+        modifier = Modifier.fillMaxWidth(),
+      ) {
+        Text(text = cleanText(language, UiText.FavoriteCountriesFlags))
+      }
+    }
+
     SectionCard(title = localizedSavedTestsTitle(language, savedQuizTemplates.size)) {
       if (savedQuizTemplates.isEmpty()) {
         Text(
@@ -445,41 +519,6 @@ fun FavoritesScreen(
         }
       }
     }
-
-    if (favoriteCountries.isEmpty()) {
-      SectionCard(
-        title = when (language) {
-          AppLanguage.English -> "No favorites yet"
-          AppLanguage.Bulgarian -> "Все още няма любими"
-          AppLanguage.German -> "Noch keine Favoriten"
-        },
-      ) {
-        Text(
-          text = when (language) {
-            AppLanguage.English -> "Marked favorites will appear here, grouped by continent."
-            AppLanguage.Bulgarian -> "Маркираните любими ще се показват тук, групирани по континенти."
-            AppLanguage.German -> "Markierte Favoriten erscheinen hier, nach Kontinenten gruppiert."
-          },
-        )
-      }
-    } else {
-      grouped.keys.sorted().forEach { continent ->
-        val list = grouped[continent].orEmpty()
-        if (list.isNotEmpty()) {
-          SectionCard(title = localizedContinentName(continent, language)) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-              list.sortedBy { it.localizedName(language) }.forEach { country ->
-                FavoriteCountryRow(
-                  country = country,
-                  language = language,
-                  onRemoveFavoriteCountry = { pendingRemovalCountryCode = it },
-                )
-              }
-            }
-          }
-        }
-      }
-    }
   }
 }
 
@@ -489,46 +528,71 @@ private fun SavedQuizTemplateRow(
   language: AppLanguage,
   onOpen: () -> Unit,
   onRemove: () -> Unit,
-  ) {
+) {
   var removeConfirmVisible by remember { mutableStateOf(false) }
+  val completionCounterLabel = if (template.completionCount > 99) "99+" else template.completionCount.toString()
   Surface(
     color = MaterialTheme.colorScheme.surfaceVariant,
     shape = RoundedCornerShape(14.dp),
     modifier = Modifier.fillMaxWidth(),
   ) {
-    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
       ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-          Text(
-            template.title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-          )
-          Text(
-            text =
-              when (template.source) {
-                CreateQuizSource.PresetFilter ->
-                  "${template.questionCount} ${if (language == AppLanguage.English) "questions" else if (language == AppLanguage.Bulgarian) "въпроса" else "Fragen"}"
-                CreateQuizSource.ManualCountries ->
-                  "${template.selectedCountryCodes.size} ${if (language == AppLanguage.English) "countries" else if (language == AppLanguage.Bulgarian) "държави" else "Länder"}"
-              },
-            style = MaterialTheme.typography.bodySmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-          )
+        Row(
+          modifier = Modifier.weight(1f),
+          horizontalArrangement = Arrangement.spacedBy(10.dp),
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
+          Surface(
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shape = CircleShape,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
+            modifier = Modifier.size(28.dp),
+          ) {
+            Box(contentAlignment = Alignment.Center) {
+              Text(
+                text = completionCounterLabel,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+              )
+            }
+          }
+          Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+              template.title,
+              style = MaterialTheme.typography.titleSmall,
+              fontWeight = FontWeight.Bold,
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+              text =
+                when (template.source) {
+                  CreateQuizSource.PresetFilter ->
+                    "${template.questionCount} ${if (language == AppLanguage.English) "questions" else if (language == AppLanguage.Bulgarian) "въпроса" else "Fragen"}"
+                  CreateQuizSource.ManualCountries ->
+                    "${template.selectedCountryCodes.size} ${if (language == AppLanguage.English) "countries" else if (language == AppLanguage.Bulgarian) "държави" else "Länder"}"
+                },
+              style = MaterialTheme.typography.bodySmall,
+              maxLines = 1,
+              overflow = TextOverflow.Ellipsis,
+            )
+          }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
           Button(
             onClick = onOpen,
-            modifier = Modifier.size(width = 54.dp, height = 40.dp),
+            modifier = Modifier.size(width = 48.dp, height = 36.dp),
             contentPadding = PaddingValues(0.dp),
-          ) {
+          )
+          {
             Text(
               text = "Go",
               maxLines = 1,
@@ -536,7 +600,7 @@ private fun SavedQuizTemplateRow(
           }
           OutlinedButton(
             onClick = { removeConfirmVisible = true },
-            modifier = Modifier.size(width = 40.dp, height = 40.dp),
+            modifier = Modifier.size(width = 36.dp, height = 36.dp),
             contentPadding = PaddingValues(0.dp),
           ) {
             Text(
@@ -767,7 +831,3 @@ fun SettingsScreen(
     )
   }
 }
-
-
-
-

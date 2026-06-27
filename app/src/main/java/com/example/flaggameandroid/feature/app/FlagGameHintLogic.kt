@@ -15,7 +15,6 @@ internal fun applyHintToCurrentQuestion(
   val quiz = state.quiz
   val question = quiz.currentQuestion ?: return null
   val currentDraft = quiz.currentQuestionState
-  if (currentDraft.locked) return null
   if (currentDraft.hintUses >= 2 || quiz.currentPlayer.hintPoints < 1) return null
 
   val players = quiz.players.toMutableList()
@@ -25,7 +24,7 @@ internal fun applyHintToCurrentQuestion(
   val isTypedQuestion = question.variant == QuizVariant.TypeCountryName
   val firstHint = currentDraft.hintUses == 0
   val speedRunPenaltySeconds =
-    if (quiz.mode == GameMode.SpeedRun) {
+    if (quiz.countdownEnabled) {
       if (firstHint) 1 else 2
     } else {
       0

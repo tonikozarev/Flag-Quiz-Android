@@ -60,16 +60,14 @@ class QuizQuestionGenerator(
     pool: List<FlagCountry>,
     targetCount: Int,
   ): List<FlagCountry> =
-    if (targetCount <= pool.size) {
-      pool.shuffled(random).take(targetCount)
-    } else {
-      buildList {
-        repeat(targetCount / pool.size) {
-          addAll(pool.shuffled(random))
-        }
-        addAll(pool.shuffled(random).take(targetCount % pool.size))
-      }.take(targetCount)
-    }
+    buildList {
+      repeat(5) {
+        addAll(pool.shuffled(random))
+      }
+      if (targetCount > size) {
+        addAll(pool.shuffled(random).take(targetCount - size))
+      }
+    }.shuffled(random).take(targetCount)
 
   private fun pickWeightedCountries(
     pool: List<FlagCountry>,
@@ -128,7 +126,7 @@ class QuizQuestionGenerator(
   ): List<QuizVariant> {
     val selectedVariants = config.variants.ifEmpty { QuizVariant.entries.toSet() }
     if (
-      config.mode != GameMode.AllIn ||
+      config.mode != GameMode.WorldFlags ||
       config.allInType != AllInType.NoBluffAllTough ||
       selectedVariants.size != QuizVariant.entries.size
     ) {

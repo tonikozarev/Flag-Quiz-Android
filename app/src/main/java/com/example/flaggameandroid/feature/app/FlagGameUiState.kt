@@ -75,8 +75,21 @@ data class SetupState(
   val mode: GameMode = GameMode.Training,
   val variants: Set<QuizVariant> = QuizVariant.entries.toSet(),
   val selectedContinents: Set<String> = emptySet(),
+  val instantCorrectionEnabled: Boolean = true,
+  val worldFlagsHardcoreEnabled: Boolean = false,
+  val worldFlagsTimerEnabled: Boolean = false,
+  val createQuizTrainingEnabled: Boolean = false,
+  val createQuizManualHardcoreEnabled: Boolean = false,
+  val createQuizLocalMultiplayerEnabled: Boolean = false,
+  val createQuizManualTimerEnabled: Boolean = false,
   val createQuizSource: CreateQuizSource = CreateQuizSource.PresetFilter,
   val createQuizPreset: CreateQuizPreset = CreateQuizPreset.TwoColors,
+  val createQuizPresets: Set<CreateQuizPreset> =
+    setOf(
+      CreateQuizPreset.TwoColors,
+      CreateQuizPreset.ThreeColors,
+      CreateQuizPreset.FourPlusColors,
+    ),
   val selectedCountryCodes: Set<String> = emptySet(),
   val createQuizSeed: Long = 0L,
   val savedQuizTemplateId: String? = null,
@@ -95,13 +108,33 @@ data class SetupState(
     get() = speedRunSecondsPerAnswerInput.toIntOrNull()
 
   val needsContinents: Boolean
-    get() = mode == GameMode.Continents || mode == GameMode.SpeedRun || (mode == GameMode.CreateQuiz && createQuizSource == CreateQuizSource.PresetFilter)
+    get() =
+      mode == GameMode.WorldFlags ||
+        (mode == GameMode.LocalMultiplayer && multiplayerBase == MultiplayerQuizBase.Continents)
 
   val needsPlayers: Boolean
-    get() = mode == GameMode.LocalMultiplayer
+    get() = mode == GameMode.LocalMultiplayer || (mode == GameMode.CreateQuiz && createQuizLocalMultiplayerEnabled)
 
   val needsManualCountries: Boolean
     get() = mode == GameMode.CreateQuiz && createQuizSource == CreateQuizSource.ManualCountries
+
+  val usesWorldFlagsHardcore: Boolean
+    get() = mode == GameMode.WorldFlags && worldFlagsHardcoreEnabled
+
+  val usesWorldFlagsTimer: Boolean
+    get() = mode == GameMode.WorldFlags && worldFlagsTimerEnabled
+
+  val usesCreateQuizManualHardcore: Boolean
+    get() = mode == GameMode.CreateQuiz && createQuizManualHardcoreEnabled
+
+  val usesCreateQuizTraining: Boolean
+    get() = mode == GameMode.CreateQuiz && createQuizTrainingEnabled
+
+  val usesCreateQuizLocalMultiplayer: Boolean
+    get() = mode == GameMode.CreateQuiz && createQuizLocalMultiplayerEnabled
+
+  val usesCreateQuizManualTimer: Boolean
+    get() = mode == GameMode.CreateQuiz && createQuizManualTimerEnabled
 }
 
 enum class QuestionStatus {
@@ -126,6 +159,7 @@ data class QuizState(
   val allInType: AllInType? = null,
   val variants: Set<QuizVariant> = emptySet(),
   val selectedContinents: Set<String> = emptySet(),
+  val instantCorrectionEnabled: Boolean = false,
   val questions: List<FlagQuestion> = emptyList(),
   val currentQuestionIndex: Int = 0,
   val questionStates: List<QuestionDraftState> = emptyList(),
@@ -136,9 +170,11 @@ data class QuizState(
   val hiddenOptionCodes: Set<String> = emptySet(),
   val typedHintPrefix: String? = null,
   val hintUsedOnCurrentQuestion: Boolean = false,
+  val hintsAllowed: Boolean = true,
   val startedAtEpochMillis: Long = 0L,
   val speedRunSecondsPerAnswer: Int = 5,
   val speedRunPenaltySeconds: Int = 0,
+  val countdownEnabled: Boolean = false,
   val timedOut: Boolean = false,
   val poolSource: com.example.flaggameandroid.core.model.QuizPoolSource = com.example.flaggameandroid.core.model.QuizPoolSource.Standard,
   val dailyChallengeTheme: com.example.flaggameandroid.core.model.DailyChallengeTheme? = null,
@@ -167,7 +203,10 @@ data class QuizState(
   val canFinish: Boolean
     get() {
       if (questions.isEmpty() || questionStates.size != questions.size) return false
-      return questionStates.all { it.status == QuestionStatus.Answered }
+      return questionStates.withIndex().all { (index, questionState) ->
+        questionState.status == QuestionStatus.Answered ||
+          (index == currentQuestionIndex && currentQuestionHasPendingAnswer)
+      }
     }
 
   val currentQuestionHasPendingAnswer: Boolean

@@ -64,9 +64,10 @@ fun QuizScreen(
 ) {
   val question = quiz.currentQuestion ?: return
   val draft = quiz.currentQuestionState
-  val isTrainingLocked = quiz.mode == GameMode.Training && draft.locked
-  val isTrainingPreview = quiz.mode == GameMode.Training && draft.status == QuestionStatus.Answered
-  val isTrainingCorrect =
+  val isImmediateCorrectionEnabled = quiz.instantCorrectionEnabled
+  val isImmediateCorrectionLocked = isImmediateCorrectionEnabled && draft.locked
+  val isImmediateCorrectionPreview = isImmediateCorrectionEnabled && draft.status == QuestionStatus.Answered
+  val isImmediateCorrectionCorrect =
     when (question.variant) {
       QuizVariant.TypeCountryName ->
         QuizAnswerChecker.isTypedAnswerCorrect(
@@ -81,8 +82,8 @@ fun QuizScreen(
   var showQuizInfo by remember { mutableStateOf(false) }
   var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
   BackHandler { showQuitDialog = true }
-  LaunchedEffect(quiz.mode, quiz.startedAtEpochMillis, quiz.speedRunPenaltySeconds, quiz.speedRunSecondsPerAnswer, quiz.questions.size) {
-    if (quiz.mode == GameMode.SpeedRun && quiz.startedAtEpochMillis > 0L) {
+  LaunchedEffect(quiz.countdownEnabled, quiz.startedAtEpochMillis, quiz.speedRunPenaltySeconds, quiz.speedRunSecondsPerAnswer, quiz.questions.size) {
+    if (quiz.countdownEnabled && quiz.startedAtEpochMillis > 0L) {
       while (true) {
         nowMillis = System.currentTimeMillis()
         if (speedRunRemainingMillis(quiz, nowMillis) <= 0L) {
@@ -97,8 +98,9 @@ fun QuizScreen(
   val canGoForward = quiz.currentQuestionIndex < quiz.questions.lastIndex
   val unansweredQuestions = quiz.questionStates.mapIndexedNotNull { index, state -> if (state.status == QuestionStatus.Unanswered) index + 1 else null }
   val skippedQuestions = quiz.questionStates.mapIndexedNotNull { index, state -> if (state.status == QuestionStatus.Skipped) index + 1 else null }
+  val canJump = skippedQuestions.isNotEmpty() || unansweredQuestions.isNotEmpty()
   val speedRunElapsedLabel =
-    if (quiz.mode == GameMode.SpeedRun) {
+    if (quiz.countdownEnabled) {
       formatElapsedTime(speedRunRemainingMillis(quiz, nowMillis))
     } else {
       null
@@ -210,7 +212,7 @@ fun QuizScreen(
         OutlinedTextField(
           value = quiz.typedAnswer,
           onValueChange = onTypedAnswerChanged,
-          enabled = !isTrainingLocked,
+          enabled = !isImmediateCorrectionLocked,
           label = {
             Text(
               when (language) {
@@ -233,24 +235,24 @@ fun QuizScreen(
             }
           },
           colors =
-            if (isTrainingPreview) {
+            if (isImmediateCorrectionPreview) {
               OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = if (isTrainingCorrect) AccentGreen.copy(alpha = 0.18f) else AccentRed.copy(alpha = 0.18f),
-                unfocusedContainerColor = if (isTrainingCorrect) AccentGreen.copy(alpha = 0.18f) else AccentRed.copy(alpha = 0.18f),
-                disabledContainerColor = if (isTrainingCorrect) AccentGreen.copy(alpha = 0.18f) else AccentRed.copy(alpha = 0.18f),
-                focusedBorderColor = if (isTrainingCorrect) AccentGreen else AccentRed,
-                unfocusedBorderColor = if (isTrainingCorrect) AccentGreen else AccentRed,
-                disabledBorderColor = if (isTrainingCorrect) AccentGreen else AccentRed,
-                focusedTextColor = if (isTrainingCorrect) AccentGreen else AccentRed,
-                unfocusedTextColor = if (isTrainingCorrect) AccentGreen else AccentRed,
-                disabledTextColor = if (isTrainingCorrect) AccentGreen else AccentRed,
+                focusedContainerColor = if (isImmediateCorrectionCorrect) AccentGreen.copy(alpha = 0.18f) else AccentRed.copy(alpha = 0.18f),
+                unfocusedContainerColor = if (isImmediateCorrectionCorrect) AccentGreen.copy(alpha = 0.18f) else AccentRed.copy(alpha = 0.18f),
+                disabledContainerColor = if (isImmediateCorrectionCorrect) AccentGreen.copy(alpha = 0.18f) else AccentRed.copy(alpha = 0.18f),
+                focusedBorderColor = if (isImmediateCorrectionCorrect) AccentGreen else AccentRed,
+                unfocusedBorderColor = if (isImmediateCorrectionCorrect) AccentGreen else AccentRed,
+                disabledBorderColor = if (isImmediateCorrectionCorrect) AccentGreen else AccentRed,
+                focusedTextColor = if (isImmediateCorrectionCorrect) AccentGreen else AccentRed,
+                unfocusedTextColor = if (isImmediateCorrectionCorrect) AccentGreen else AccentRed,
+                disabledTextColor = if (isImmediateCorrectionCorrect) AccentGreen else AccentRed,
               )
             } else {
               OutlinedTextFieldDefaults.colors()
             },
           modifier = Modifier.fillMaxWidth(),
         )
-        if (isTrainingPreview && !isTrainingCorrect) {
+        if (isImmediateCorrectionPreview && !isImmediateCorrectionCorrect) {
           Surface(
             color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(14.dp),
@@ -290,8 +292,8 @@ fun QuizScreen(
               selectedCountry = quiz.selectedCountry,
               language = language,
               onCountryAnswerSelected = onCountryAnswerSelected,
-              enabled = !isTrainingLocked,
-              trainingPreview = isTrainingPreview,
+              enabled = !isImmediateCorrectionLocked,
+              trainingPreview = isImmediateCorrectionPreview,
               correctCountry = question.correctCountry,
             )
           }
@@ -301,19 +303,20 @@ fun QuizScreen(
       infoLabel = localizedQuizInfoButtonLabel(language),
       showInfo = showQuizInfo,
       onInfoClick = { showQuizInfo = !showQuizInfo },
+      showHintButton = quiz.hintsAllowed,
       hintLabel =
         if (quiz.currentQuestionState.hintUses == 0) {
           localizedHintButtonLabel(language)
         } else {
           localizedRevealButtonLabel(language)
         },
-      canUseHint = quiz.currentPlayer.hintPoints >= 1 && quiz.currentQuestionState.hintUses < 2 && !quiz.currentQuestionState.locked,
+      canUseHint = quiz.hintsAllowed && quiz.currentPlayer.hintPoints >= 1 && quiz.currentQuestionState.hintUses < 2,
       onUseHint = onUseHint,
       unskipLabel = localizedUnskipButtonLabel(language),
-      canUnskip = skippedQuestions.isNotEmpty(),
+      canUnskip = canJump,
       onUnskipQuestion = onUnskipQuestion,
-      verifyLabel = if (quiz.mode == GameMode.Training && question.variant == QuizVariant.TypeCountryName) localizedVerifyButtonLabel(language) else null,
-      canVerify = quiz.typedAnswer.isNotBlank() && !isTrainingLocked,
+      verifyLabel = if (isImmediateCorrectionEnabled && question.variant == QuizVariant.TypeCountryName) localizedVerifyButtonLabel(language) else null,
+      canVerify = quiz.typedAnswer.isNotBlank() && !isImmediateCorrectionLocked,
       onVerifyTypedAnswer = onVerifyTypedAnswer,
     )
 
@@ -353,20 +356,23 @@ fun ResultsScreen(
       LevelUpBanner(level = levelProgress.level, language = language, onLevelUpSeen = onLevelUpSeen)
     }
 
-    if (quiz.mode == GameMode.SpeedRun) {
-      val speedRunStartTime =
-        java.time.Instant.ofEpochMilli(quiz.startedAtEpochMillis)
-          .atZone(java.time.ZoneId.systemDefault())
-          .toLocalTime()
-          .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+    if (quiz.countdownEnabled) {
+      val speedRunTimerLabel =
+        when (language) {
+          AppLanguage.English -> "Timer"
+          AppLanguage.Bulgarian -> "Таймер"
+          AppLanguage.German -> "Timer"
+        }
+      val speedRunStartBudget = formatElapsedTime(speedRunTotalBudgetMillis(quiz))
+      val speedRunUsedAtFinish = formatElapsedTime(speedRunElapsedMillis(quiz, completedAtEpochMillis))
       val speedRunResultLabel =
-        "${localizedSpeedRunTimeStartLabel(language)}: $speedRunStartTime | ${localizedSpeedRunTimeLeftLabel(language)}: ${formatElapsedTime(speedRunRemainingMillis(quiz, completedAtEpochMillis))}"
+        "$speedRunTimerLabel: $speedRunUsedAtFinish / $speedRunStartBudget minutes"
       SectionCard(
         title =
           if (quiz.timedOut) {
             localizedSpeedRunGameOverLabel(language)
           } else {
-            cleanModeTitle(GameMode.SpeedRun, language)
+            cleanModeTitle(quiz.mode ?: GameMode.WorldFlags, language)
           },
       ) {
         Text(
