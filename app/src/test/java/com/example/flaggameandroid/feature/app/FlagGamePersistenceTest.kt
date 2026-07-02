@@ -28,7 +28,7 @@ class FlagGamePersistenceTest {
           PersistedAppState(
             hintDifficulty = HintDifficulty.Hard,
             reminderEnabled = false,
-            hintCount = 7,
+            hintCount = 7.0,
             level = 3,
             hintsTowardNextLevel = 4,
             correctAnswersTowardNextLevel = 18,
@@ -41,7 +41,7 @@ class FlagGamePersistenceTest {
     val state = viewModel.uiState.value
     assertEquals(HintDifficulty.Hard, state.settings.hintDifficulty)
     assertEquals(false, state.settings.reminderEnabled)
-    assertEquals(7, state.hintCount)
+    assertEquals(7.0, state.hintCount)
     assertEquals(3, state.levelProgress.level)
     assertEquals(4, state.levelProgress.hintsTowardNextLevel)
     assertEquals(18, state.levelProgress.correctAnswersTowardNextLevel)

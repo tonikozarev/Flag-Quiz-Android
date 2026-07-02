@@ -45,7 +45,7 @@ class FlagGameFlowLogicTest {
         questionGenerator = QuizQuestionGenerator(Random(31)),
         hintDifficulty = HintDifficulty.Medium,
         random = Random(32),
-        hintCount = 0,
+        hintCount = 0.0,
         displayName = "Tony",
       )
 
@@ -82,7 +82,7 @@ class FlagGameFlowLogicTest {
         questionGenerator = QuizQuestionGenerator(Random(31)),
         hintDifficulty = HintDifficulty.Medium,
         random = Random(32),
-        hintCount = 1,
+        hintCount = 1.0,
         displayName = "Tony",
       )
 
@@ -160,7 +160,7 @@ class FlagGameFlowLogicTest {
         questionGenerator = QuizQuestionGenerator(Random(31)),
         hintDifficulty = HintDifficulty.Medium,
         random = Random(32),
-        hintCount = 0,
+        hintCount = 0.0,
         displayName = "Tony",
       )
 
@@ -211,7 +211,7 @@ class FlagGameFlowLogicTest {
         questionGenerator = QuizQuestionGenerator(Random(31)),
         hintDifficulty = HintDifficulty.Medium,
         random = Random(32),
-        hintCount = 0,
+        hintCount = 0.0,
         displayName = "Tony",
       )
 
@@ -258,7 +258,7 @@ class FlagGameFlowLogicTest {
         questionGenerator = QuizQuestionGenerator(Random(31)),
         hintDifficulty = HintDifficulty.Medium,
         random = Random(32),
-        hintCount = 0,
+        hintCount = 0.0,
         displayName = "Tony",
       )
 
@@ -570,7 +570,7 @@ class FlagGameFlowLogicTest {
         mode = GameMode.WorldFlags,
         questions = listOf(question),
         questionStates = listOf(QuestionDraftState()),
-        players = listOf(com.example.flaggameandroid.core.model.PlayerProgress("Solo", hintPoints = 2)),
+        players = listOf(com.example.flaggameandroid.core.model.PlayerProgress("Solo", hintPoints = 2.0)),
       ).withSelectedCountry(country)
     val state = FlagGameUiState(quiz = quiz, settings = com.example.flaggameandroid.feature.app.SettingsState())
 

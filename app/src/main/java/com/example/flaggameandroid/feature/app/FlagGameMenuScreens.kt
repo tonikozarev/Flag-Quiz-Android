@@ -719,7 +719,7 @@ private fun FavoriteCountryRow(
 @Composable
 fun SettingsScreen(
   settings: SettingsState,
-  hintCount: Int,
+  hintCount: Double,
   inactiveIconActive: Boolean,
   onBack: () -> Unit,
   onHintDifficultySelected: (HintDifficulty) -> Unit,
@@ -789,7 +789,7 @@ fun SettingsScreen(
             fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f),
           )
-          Text("$hintCount", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+          Text(formatHintPoints(hintCount), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         }
         HintDifficulty.entries.forEach { difficulty ->
           CompactInfoRow(

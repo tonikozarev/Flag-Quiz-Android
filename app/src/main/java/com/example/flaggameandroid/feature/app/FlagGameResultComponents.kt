@@ -84,22 +84,28 @@ internal fun ResultRow(
 ) {
   val background =
     when {
-      result.isCorrect && result.hintUses < 2 -> AccentGreen.copy(alpha = 0.15f)
+      result.isCorrect && !result.revealed -> AccentGreen.copy(alpha = 0.15f)
       else -> AccentRed.copy(alpha = 0.15f)
     }
   val hintSuffix =
-    when (result.hintUses) {
-      1 ->
-        when (language) {
-          AppLanguage.English -> " (Hinted)"
-          AppLanguage.Bulgarian -> " (Подсказано)"
-          AppLanguage.German -> " (Tipp genutzt)"
-        }
-      2 ->
+    when {
+      result.revealed ->
         when (language) {
           AppLanguage.English -> " (Revealed)"
           AppLanguage.Bulgarian -> " (Разкрито)"
           AppLanguage.German -> " (Aufgedeckt)"
+        }
+      result.hintUses == 1 ->
+        when (language) {
+          AppLanguage.English -> " (Hinted x1)"
+          AppLanguage.Bulgarian -> " (Подсказано x1)"
+          AppLanguage.German -> " (Hinweis x1)"
+        }
+      result.hintUses == 2 ->
+        when (language) {
+          AppLanguage.English -> " (Hinted x2)"
+          AppLanguage.Bulgarian -> " (Подсказано x2)"
+          AppLanguage.German -> " (Hinweis x2)"
         }
       else -> ""
     }
@@ -111,8 +117,8 @@ internal fun ResultRow(
     }
   val netPointsInternal =
     when {
-      !result.isCorrect || result.hintUses >= 2 -> 0
-      result.hintUses == 1 -> 1
+      !result.isCorrect || result.revealed -> 0
+      result.hintUses > 0 -> 1
       else -> 2
     }
   val showPlayerName = result.playerName.isNotBlank() && result.playerName != "Solo"
@@ -267,7 +273,7 @@ private fun localizedMyAnswerText(
     },
   )
   val answer =
-    if (result.hintUses >= 2) {
+    if (result.revealed) {
       "-"
     } else if (result.question.variant == QuizVariant.TypeText) {
       result.typedAnswer.ifBlank { "-" }
@@ -276,7 +282,7 @@ private fun localizedMyAnswerText(
         reviewAnswerLabel(it, result.question.variant, language, result.question.topic)
       } ?: "-"
     }
-  if (result.isCorrect && result.hintUses < 2) {
+  if (result.isCorrect && !result.revealed) {
     pushStyle(SpanStyle(fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline))
     append(answer)
     pop()

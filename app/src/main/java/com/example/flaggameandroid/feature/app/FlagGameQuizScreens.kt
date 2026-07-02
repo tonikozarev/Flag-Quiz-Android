@@ -176,9 +176,14 @@ fun QuizScreen(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
       ) {
-        Text(cleanText(language, UiText.GuessTheFlag), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        Text(
+          localizedQuizHeaderTitle(quiz.currentQuestion, language),
+          style = MaterialTheme.typography.titleSmall,
+          fontWeight = FontWeight.Bold,
+          modifier = Modifier.weight(1f),
+        )
         Text("${quiz.currentQuestionIndex + 1}/${quiz.totalQuestions}", style = MaterialTheme.typography.bodySmall)
-        Text("${cleanText(language, UiText.Hints)}: ${quiz.currentPlayer.hintPoints}", style = MaterialTheme.typography.bodySmall)
+        Text("${cleanText(language, UiText.Hints)}: ${formatHintPoints(quiz.currentPlayer.hintPoints)}", style = MaterialTheme.typography.bodySmall)
       }
     }
 
@@ -200,6 +205,7 @@ fun QuizScreen(
         QuestionPrompt(
           question = question,
           language = language,
+          showContextHint = quiz.currentQuestionState.hintUses > 0,
           modifier = Modifier.weight(1f),
         )
       },
@@ -298,13 +304,15 @@ fun QuizScreen(
       showInfo = showQuizInfo,
       onInfoClick = { showQuizInfo = !showQuizInfo },
       showHintButton = quiz.hintsAllowed,
-      hintLabel =
-        if (quiz.currentQuestionState.hintUses == 0) {
-          localizedHintButtonLabel(language)
-        } else {
-          localizedRevealButtonLabel(language)
-        },
-      canUseHint = quiz.hintsAllowed && quiz.currentPlayer.hintPoints >= 1 && quiz.currentQuestionState.hintUses < 2,
+      hintLabel = localizedHintStageButtonLabel(language, quiz.currentQuestionState.hintUses),
+      canUseHint =
+        quiz.hintsAllowed &&
+          when (quiz.currentQuestionState.hintUses) {
+            0,
+            1 -> quiz.currentPlayer.hintPoints >= 0.5
+            2 -> quiz.currentPlayer.hintPoints >= 1.0
+            else -> false
+          },
       onUseHint = onUseHint,
       unskipLabel = localizedUnskipButtonLabel(language),
       canUnskip = canJump,

@@ -157,6 +157,7 @@ data class QuestionDraftState(
   val typedHintPrefix: String? = null,
   val hintUses: Int = 0,
   val hintUsed: Boolean = false,
+  val revealed: Boolean = false,
   val locked: Boolean = false,
 )
 
@@ -283,7 +284,7 @@ data class FlagGameUiState(
   val levelProgress: LevelProgressState = LevelProgressState(),
   val profile: ProfileState = ProfileState(),
   val countries: List<FlagCountry> = emptyList(),
-  val hintCount: Int = 0,
+  val hintCount: Double = 0.0,
   val ratings: RatingsProgress = RatingsProgress(),
   val achievements: AchievementsProgress = AchievementsProgress(),
   val setupError: String? = null,

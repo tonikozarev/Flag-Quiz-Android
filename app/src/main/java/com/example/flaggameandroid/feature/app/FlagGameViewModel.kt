@@ -275,8 +275,8 @@ class FlagGameViewModel(
   fun onResetHintsClicked() {
     updateStateAndPersistProgress {
       it.copy(
-        hintCount = 0,
-        quiz = it.quiz.copy(players = it.quiz.players.map { player -> player.copy(hintPoints = 0) }),
+        hintCount = 0.0,
+        quiz = it.quiz.copy(players = it.quiz.players.map { player -> player.copy(hintPoints = 0.0) }),
       )
     }
   }
@@ -707,7 +707,7 @@ class FlagGameViewModel(
         questionGenerator = questionGenerator,
         hintDifficulty = hintDifficulty,
         random = Random(setup.createQuizSeed),
-        hintCount = 0,
+        hintCount = 0.0,
         displayName = _uiState.value.profile.displayName,
       )
     return quiz.questions.map { it.correctCountry.code }.toSet()

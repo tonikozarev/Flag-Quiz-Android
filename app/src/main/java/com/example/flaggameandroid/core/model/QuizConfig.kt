@@ -25,19 +25,20 @@ data class QuizQuestionSpec(
 data class PlayerProgress(
   val name: String,
   val score: Int = 0,
-  val hintPoints: Int = 0,
+  val hintPoints: Double = 0.0,
   val earnedHintPoints: Int = 0,
   val correctStreak: Int = 0,
 ) {
   fun afterAnswer(
     isCorrect: Boolean,
     hintUses: Int,
+    revealed: Boolean = false,
     hintDifficulty: HintDifficulty,
     canEarnHints: Boolean = true,
   ): PlayerProgress {
-    if (!isCorrect || hintUses >= 2) return copy(correctStreak = 0)
+    if (!isCorrect || revealed) return copy(correctStreak = 0)
 
-    if (hintUses == 1) {
+    if (hintUses > 0) {
       return copy(score = score + 1)
     }
 
@@ -49,7 +50,7 @@ data class PlayerProgress(
     )
   }
 
-  fun spendHint(): PlayerProgress = copy(hintPoints = hintPoints - 1)
+  fun spendHint(cost: Double = 1.0): PlayerProgress = copy(hintPoints = hintPoints - cost)
 
   fun afterSkip(): PlayerProgress = copy(correctStreak = 0)
 

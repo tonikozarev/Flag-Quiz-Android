@@ -25,6 +25,7 @@ import com.example.flaggameandroid.theme.FlagGameAndroidTheme
 internal fun QuestionPrompt(
   question: FlagQuestion,
   language: AppLanguage,
+  showContextHint: Boolean,
   modifier: Modifier = Modifier,
 ) {
   ElevatedCard(
@@ -45,14 +46,16 @@ internal fun QuestionPrompt(
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
           )
-          capitalQuestionCountryLabel(question, language)?.let { countryLabel ->
-            Text(
-              text = countryLabel,
-              style = MaterialTheme.typography.titleSmall,
-              fontWeight = FontWeight.SemiBold,
-              modifier = Modifier.fillMaxWidth(),
-              textAlign = TextAlign.Center,
-            )
+          if (showContextHint) {
+            capitalQuestionCountryLabel(question, language)?.let { countryLabel ->
+              Text(
+                text = countryLabel,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+              )
+            }
           }
         }
 
@@ -88,6 +91,7 @@ private fun PreviewQuestionPrompt() {
             options = emptyList(),
           ),
         language = AppLanguage.English,
+        showContextHint = true,
       )
     }
   }

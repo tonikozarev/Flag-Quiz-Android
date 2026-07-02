@@ -5,7 +5,7 @@ import com.example.flaggameandroid.core.model.QuizVariant
 
 internal data class HintApplicationResult(
   val quiz: QuizState,
-  val hintCount: Int,
+  val hintCount: Double,
   val speedRunPenaltySeconds: Int = 0,
 )
 
@@ -15,35 +15,45 @@ internal fun applyHintToCurrentQuestion(
   val quiz = state.quiz
   val question = quiz.currentQuestion ?: return null
   val currentDraft = quiz.currentQuestionState
-  if (currentDraft.hintUses >= 2 || quiz.currentPlayer.hintPoints < 1) return null
+  val hintCost =
+    when (currentDraft.hintUses) {
+      0,
+      1 -> 0.5
+      2 -> 1.0
+      else -> 1.0
+    }
+  if (currentDraft.hintUses >= 3 || quiz.currentPlayer.hintPoints < hintCost) return null
 
   val players = quiz.players.toMutableList()
-  val newHintCount = quiz.currentPlayer.hintPoints - 1
+  val newHintCount = quiz.currentPlayer.hintPoints - hintCost
   players.replaceAll { it.copy(hintPoints = newHintCount) }
 
   val isTypedQuestion = question.variant == QuizVariant.TypeText
-  val firstHint = currentDraft.hintUses == 0
+  val nextHintUses = currentDraft.hintUses + 1
   val speedRunPenaltySeconds =
     if (quiz.countdownEnabled) {
-      if (firstHint) 1 else 2
+      nextHintUses
     } else {
       0
     }
   val fullAnswerText = question.correctCountry.localizedQuizText(state.settings.language, question.topic).trim()
+  val hiddenWrongCodes = question.options.filterNot { it.code == question.correctCountry.code }.map { it.code }
   val hiddenCodes =
-    when {
-      isTypedQuestion -> currentDraft.hiddenOptionCodes
-      firstHint ->
-        currentDraft.hiddenOptionCodes +
-          question.options
-            .filterNot { it.code == question.correctCountry.code }
-            .filterNot { it.code in currentDraft.hiddenOptionCodes }
-            .take(2)
-            .map { it.code }
+    when (nextHintUses) {
+      1 -> currentDraft.hiddenOptionCodes
+      2 -> {
+        if (isTypedQuestion) {
+          currentDraft.hiddenOptionCodes
+        } else {
+          currentDraft.hiddenOptionCodes + hiddenWrongCodes.take(2)
+        }
+      }
       else ->
-        question.options
-          .filterNot { it.code == question.correctCountry.code }
-          .map { it.code }
+        if (isTypedQuestion) {
+          currentDraft.hiddenOptionCodes
+        } else {
+          hiddenWrongCodes.toSet()
+        }
     }.toSet()
 
   val updatedQuestionState =
@@ -52,28 +62,26 @@ internal fun applyHintToCurrentQuestion(
       typedHintPrefix =
         when {
           !isTypedQuestion -> currentDraft.typedHintPrefix
-          firstHint -> fullAnswerText.take(3)
-          else -> fullAnswerText
+          nextHintUses == 1 -> currentDraft.typedHintPrefix
+          nextHintUses == 2 -> fullAnswerText.take(3)
+          else -> null
         },
       typedAnswer =
         when {
           !isTypedQuestion -> currentDraft.typedAnswer
-          firstHint -> currentDraft.typedAnswer
-          else -> fullAnswerText
+          nextHintUses == 3 -> fullAnswerText
+          else -> currentDraft.typedAnswer
         },
       selectedCountry =
         when {
           isTypedQuestion -> currentDraft.selectedCountry
-          firstHint -> currentDraft.selectedCountry
-          else -> question.correctCountry
+          nextHintUses >= 3 -> question.correctCountry
+          else -> currentDraft.selectedCountry
         },
-      status =
-        when {
-          firstHint -> currentDraft.status
-          else -> QuestionStatus.Answered
-        },
-      hintUses = (currentDraft.hintUses + 1).coerceAtMost(2),
+      status = currentDraft.status,
+      hintUses = nextHintUses.coerceAtMost(3),
       hintUsed = true,
+      revealed = nextHintUses >= 3,
     )
 
   return HintApplicationResult(

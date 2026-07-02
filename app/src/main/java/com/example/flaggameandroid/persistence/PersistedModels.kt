@@ -14,7 +14,7 @@ import com.example.flaggameandroid.feature.app.AppLanguage
 data class PersistedAppState(
   val hintDifficulty: HintDifficulty = HintDifficulty.Medium,
   val reminderEnabled: Boolean = true,
-  val hintCount: Int = 0,
+  val hintCount: Double = 0.0,
   val level: Int = 1,
   val hintsTowardNextLevel: Int = 0,
   val correctAnswersTowardNextLevel: Int = 0,

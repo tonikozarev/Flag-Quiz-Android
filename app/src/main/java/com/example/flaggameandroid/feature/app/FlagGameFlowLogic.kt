@@ -120,8 +120,8 @@ internal fun buildQuizResults(
       }
     val updatedStreak =
       when {
-        !isCorrect || draft.hintUses >= 2 -> 0
-        draft.hintUses == 1 -> previousStreak
+        !isCorrect || draft.revealed -> 0
+        draft.hintUses > 0 -> previousStreak
         else -> previousStreak + 1
       }
     streakByPlayer[playerName] = updatedStreak
@@ -134,6 +134,7 @@ internal fun buildQuizResults(
       isCorrect = isCorrect,
       hintUsed = draft.hintUsed || draft.hintUses > 0,
       hintUses = draft.hintUses,
+      revealed = draft.revealed,
       hintStreak = updatedStreak,
     )
   }
@@ -154,6 +155,7 @@ internal fun scorePlayersFromResults(
       scored[index].afterAnswer(
         isCorrect = result.isCorrect,
         hintUses = result.hintUses,
+        revealed = result.revealed,
         hintDifficulty = hintDifficulty,
         canEarnHints = canEarnHints,
       )
@@ -596,6 +598,7 @@ internal fun buildQuestionAdvanceOutcome(
     quiz.currentPlayer.afterAnswer(
       isCorrect = isCorrect,
       hintUses = currentDraft.hintUses,
+      revealed = currentDraft.revealed,
       hintDifficulty = state.settings.hintDifficulty,
       canEarnHints = quiz.mode != GameMode.LocalMultiplayer,
     )

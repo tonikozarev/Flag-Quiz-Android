@@ -298,7 +298,7 @@ class GameModeRegressionTest {
     viewModel.onNextQuestion()
 
     assertEquals(AppScreen.Results, viewModel.uiState.value.screen)
-    assertEquals(1, viewModel.uiState.value.hintCount)
+    assertEquals(1.0, viewModel.uiState.value.hintCount)
   }
 
   @Test
@@ -313,7 +313,7 @@ class GameModeRegressionTest {
     }
 
     assertEquals(AppScreen.Results, viewModel.uiState.value.screen)
-    assertEquals(1, viewModel.uiState.value.hintCount)
+    assertEquals(1.0, viewModel.uiState.value.hintCount)
   }
 
   private fun startSingleVariantQuiz(

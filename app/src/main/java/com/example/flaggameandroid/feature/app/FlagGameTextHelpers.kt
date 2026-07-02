@@ -54,11 +54,41 @@ internal fun answerOptionLabel(
     else -> option.localizedQuizText(language, question.topic)
   }
 
+internal fun localizedQuizHeaderTitle(
+  question: FlagQuestion?,
+  language: AppLanguage,
+): String =
+  when {
+    question?.variant == QuizVariant.FlagToText && question.topic == QuizTopic.Capitals ->
+      tr(language, "What is the capital?", "Коя е столицата?", "Was ist die Hauptstadt?")
+    question?.variant == QuizVariant.FlagToText ->
+      tr(language, "What is the country?", "Коя е държавата?", "Welches Land ist das?")
+    question?.variant == QuizVariant.TextToFlag && question.topic == QuizTopic.Capitals ->
+      tr(language, "What is the flag?", "Кой е флагът?", "Welche Flagge ist das?")
+    question?.variant == QuizVariant.TextToFlag ->
+      tr(language, "What is the flag?", "Кой е флагът?", "Welche Flagge ist das?")
+    question?.variant == QuizVariant.TypeText && question.topic == QuizTopic.Capitals ->
+      tr(language, "Type the capital", "Напиши столицата", "Hauptstadt eingeben")
+    question?.variant == QuizVariant.TypeText ->
+      tr(language, "Type the country", "Напиши държавата", "Land eingeben")
+    else -> tr(language, "Guess the flag", "Познай флага", "Errate die Flagge")
+  }
+
 internal fun capitalQuestionCountryLabel(
   question: FlagQuestion,
   language: AppLanguage,
 ): String? =
-  if (question.topic == QuizTopic.Capitals && question.variant != QuizVariant.TextToFlag) {
+  if (question.variant == QuizVariant.TextToFlag) {
+    null
+  } else if (question.topic == QuizTopic.Countries) {
+    val prefix =
+      when (language) {
+        AppLanguage.English -> "Capital"
+        AppLanguage.Bulgarian -> "Столица"
+        AppLanguage.German -> "Hauptstadt"
+      }
+    "$prefix: ${question.correctCountry.capital.orEmpty()}"
+  } else if (question.topic == QuizTopic.Capitals) {
     val prefix =
       when (language) {
         AppLanguage.English -> "Country"
@@ -177,6 +207,9 @@ internal fun localizedUnskipButtonLabel(language: AppLanguage): String =
 
 internal fun formatScore(score: Int): String =
   if (score % 2 == 0) (score / 2).toString() else "${score / 2}.5"
+
+internal fun formatHintPoints(hintPoints: Double): String =
+  if (hintPoints % 1.0 == 0.0) hintPoints.toInt().toString() else "%.1f".format(java.util.Locale.US, hintPoints)
 
 internal fun modeSelectionTitle(language: AppLanguage): String =
   cleanModeSelectionTitle(language)
@@ -340,3 +373,13 @@ internal fun formatElapsedTime(totalMillis: Long): String {
   val seconds = totalSeconds % 60L
   return "${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
 }
+
+internal fun localizedHintStageButtonLabel(
+  language: AppLanguage,
+  hintUses: Int,
+): String =
+  when (hintUses) {
+    0 -> tr(language, "Hint 1/2", "Жокер 1/2", "Hinweis 1/2")
+    1 -> tr(language, "Hint 2/2", "Жокер 2/2", "Hinweis 2/2")
+    else -> localizedRevealButtonLabel(language)
+  }
