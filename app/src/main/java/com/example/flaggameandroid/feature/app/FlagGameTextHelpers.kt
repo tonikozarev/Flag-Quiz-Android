@@ -46,14 +46,38 @@ internal fun answerOptionLabel(
   question: FlagQuestion,
   option: FlagCountry,
   language: AppLanguage,
+  hintUses: Int = 0,
 ): String =
-  when {
-    question.variant == QuizVariant.TextToFlag && question.topic == QuizTopic.Countries ->
-      "${option.localizedQuizText(language, QuizTopic.Capitals)} ${option.emoji}"
-    question.variant == QuizVariant.TextToFlag && question.topic == QuizTopic.Capitals ->
-      "${option.localizedName(language)} ${option.emoji}"
-    question.variant == QuizVariant.TextToFlag -> option.emoji
-    else -> option.localizedQuizText(language, question.topic)
+  if (question.variant == QuizVariant.TextToFlag) {
+    if (hintUses > 0) {
+      localizedHintContextLabel(language, question.topic)?.let { prefix ->
+        val contextValue =
+          when (question.topic) {
+            QuizTopic.Countries -> option.localizedQuizText(language, QuizTopic.Capitals)
+            QuizTopic.Capitals -> option.localizedName(language)
+            QuizTopic.Mixed -> ""
+          }
+        if (contextValue.isNotBlank()) {
+          "${option.emoji} ($prefix: $contextValue)"
+        } else {
+          option.emoji
+        }
+      } ?: option.emoji
+    } else {
+      option.emoji
+    }
+  } else {
+    option.localizedQuizText(language, question.topic)
+  }
+
+internal fun localizedHintContextLabel(
+  language: AppLanguage,
+  topic: QuizTopic,
+): String? =
+  when (topic) {
+    QuizTopic.Countries -> tr(language, "Capital", "Столица", "Hauptstadt")
+    QuizTopic.Capitals -> tr(language, "Country", "Държава", "Land")
+    QuizTopic.Mixed -> null
   }
 
 internal fun localizedQuizHeaderTitle(
@@ -211,7 +235,7 @@ internal fun formatScore(score: Int): String =
   if (score % 2 == 0) (score / 2).toString() else "${score / 2}.5"
 
 internal fun formatHintPoints(hintPoints: Double): String =
-  if (hintPoints % 1.0 == 0.0) hintPoints.toInt().toString() else "%.1f".format(java.util.Locale.US, hintPoints)
+  if (hintPoints % 1.0 == 0.0) hintPoints.toInt().toString() else "%.2f".format(java.util.Locale.US, hintPoints)
 
 internal fun modeSelectionTitle(language: AppLanguage): String =
   cleanModeSelectionTitle(language)

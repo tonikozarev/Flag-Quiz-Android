@@ -35,6 +35,7 @@ internal fun PlayerResultRow(
   totalQuestions: Int,
   correctAnswers: Int,
   showHints: Boolean,
+  netScoreText: String = formatScore(player.score),
 ) {
   Surface(
     color = MaterialTheme.colorScheme.surfaceVariant,
@@ -54,9 +55,9 @@ internal fun PlayerResultRow(
       Text(
         text =
           when (language) {
-            AppLanguage.English -> "Net score: ${formatScore(player.score)}"
-            AppLanguage.Bulgarian -> "Краен резултат: ${formatScore(player.score)}"
-            AppLanguage.German -> "Punktestand: ${formatScore(player.score)}"
+            AppLanguage.English -> "Net score: $netScoreText"
+            AppLanguage.Bulgarian -> "Краен резултат: $netScoreText"
+            AppLanguage.German -> "Punktestand: $netScoreText"
           },
       )
       if (showHints) {
@@ -115,12 +116,7 @@ internal fun ResultRow(
     } else {
       result.question.options
     }
-  val netPointsInternal =
-    when {
-      !result.isCorrect || result.revealed -> 0
-      result.hintUses > 0 -> 1
-      else -> 2
-    }
+  val netPoints = resultPointValue(result)
   val showPlayerName = result.playerName.isNotBlank() && result.playerName != "Solo"
   Surface(
     color = background,
@@ -189,14 +185,29 @@ internal fun ResultRow(
       Text(
         text =
           when (language) {
-            AppLanguage.English -> "Points: ${formatScore(netPointsInternal)}"
-            AppLanguage.Bulgarian -> "Точки: ${formatScore(netPointsInternal)}"
-            AppLanguage.German -> "Punkte: ${formatScore(netPointsInternal)}"
+            AppLanguage.English -> "Points: ${formatPointValue(netPoints)}"
+            AppLanguage.Bulgarian -> "Точки: ${formatPointValue(netPoints)}"
+            AppLanguage.German -> "Punkte: ${formatPointValue(netPoints)}"
           },
       )
     }
   }
 }
+
+internal fun resultPointValue(result: QuestionResult): Double =
+  when {
+    result.revealed -> 0.0
+    !result.isCorrect -> 0.0
+    result.hintUses == 1 -> 0.75
+    result.hintUses == 2 -> 0.25
+    else -> 1.0
+  }
+
+internal fun formatPointValue(points: Double): String =
+  run {
+    val rounded = kotlin.math.round(points * 100.0) / 100.0
+    if (rounded % 1.0 == 0.0) rounded.toInt().toString() else "%.2f".format(java.util.Locale.US, rounded)
+  }
 
 private fun localizedReviewedQuestionText(
   result: QuestionResult,

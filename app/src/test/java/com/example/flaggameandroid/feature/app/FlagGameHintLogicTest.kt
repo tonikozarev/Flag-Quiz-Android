@@ -11,6 +11,7 @@ import com.example.flaggameandroid.core.model.QuizTopic
 import com.example.flaggameandroid.core.model.QuizVariant
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertNotNull
+import junit.framework.TestCase.assertNull
 import org.junit.Test
 import kotlin.random.Random
 
@@ -174,5 +175,44 @@ class FlagGameHintLogicTest {
     assertEquals(3, third.quiz.currentQuestionState.hintUses)
     assertEquals(correct, third.quiz.currentQuestionState.selectedCountry)
     assertEquals(true, third.quiz.currentQuestionState.revealed)
+  }
+
+  @Test
+  fun applyHintToCurrentQuestion_doesNotSpendHintsAfterInstantCorrectionLocksMultipleChoice() {
+    val correct =
+      FlagCountry(
+        code = "DE",
+        name = "Germany",
+        emoji = "",
+        continent = "Europe",
+      )
+    val wrong = FlagCountry(code = "AT", name = "Austria", emoji = "", continent = "Europe")
+    val question =
+      FlagQuestion(
+        correctCountry = correct,
+        options = listOf(correct, wrong),
+        variant = QuizVariant.FlagToText,
+      )
+    val quiz =
+      QuizState(
+        mode = GameMode.WorldFlags,
+        instantCorrectionEnabled = true,
+        questions = listOf(question),
+        questionStates =
+          listOf(
+            QuestionDraftState(
+              status = QuestionStatus.Answered,
+              selectedCountry = correct,
+              locked = true,
+            ),
+          ),
+        players = listOf(PlayerProgress(name = "Solo", hintPoints = 2.0)),
+        selectedCountry = correct,
+      )
+    val state = FlagGameUiState(quiz = quiz)
+
+    val hint = applyHintToCurrentQuestion(state)
+
+    assertNull(hint)
   }
 }

@@ -291,6 +291,7 @@ fun QuizScreen(
               option = option,
               selectedCountry = quiz.selectedCountry,
               language = language,
+              hintUses = quiz.currentQuestionState.hintUses,
               onCountryAnswerSelected = onCountryAnswerSelected,
               enabled = !isImmediateCorrectionLocked,
               trainingPreview = isImmediateCorrectionPreview,
@@ -307,6 +308,10 @@ fun QuizScreen(
       hintLabel = localizedHintStageButtonLabel(language, quiz.currentQuestionState.hintUses),
       canUseHint =
         quiz.hintsAllowed &&
+          !(
+            isImmediateCorrectionLocked &&
+              question.variant != QuizVariant.TypeText
+          ) &&
           when (quiz.currentQuestionState.hintUses) {
             0,
             1 -> quiz.currentPlayer.hintPoints >= 0.75
@@ -396,6 +401,7 @@ fun ResultsScreen(
           totalQuestions = playerResults.size,
           correctAnswers = playerResults.count { it.isCorrect },
           showHints = quiz.mode != GameMode.LocalMultiplayer,
+          netScoreText = formatPointValue(playerResults.sumOf { resultPointValue(it) }),
         )
       }
     }

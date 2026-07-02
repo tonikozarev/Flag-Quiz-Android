@@ -299,6 +299,7 @@ internal fun AnswerButton(
   option: FlagCountry,
   selectedCountry: FlagCountry?,
   language: AppLanguage,
+  hintUses: Int = 0,
   onCountryAnswerSelected: (FlagCountry) -> Unit,
   enabled: Boolean = true,
   trainingPreview: Boolean = false,
@@ -336,15 +337,16 @@ internal fun AnswerButton(
     modifier = Modifier.fillMaxWidth(),
   ) {
     val isCapitalFlagAnswer = question.variant == QuizVariant.TextToFlag && question.topic == com.example.flaggameandroid.core.model.QuizTopic.Capitals
+    val hasHintAnswerText = question.variant == QuizVariant.TextToFlag && hintUses > 0
     Text(
-      text = answerOptionLabel(question, option, language),
+      text = answerOptionLabel(question, option, language, hintUses),
       fontSize =
         when {
-          isCapitalFlagAnswer -> 16.sp
+          isCapitalFlagAnswer || hasHintAnswerText -> 16.sp
           question.variant == QuizVariant.TextToFlag -> 32.sp
           else -> 16.sp
         },
-      maxLines = if (isCapitalFlagAnswer) 2 else 1,
+      maxLines = if (isCapitalFlagAnswer || hasHintAnswerText) 2 else 1,
       textAlign = TextAlign.Center,
       overflow = TextOverflow.Ellipsis,
     )

@@ -15,6 +15,7 @@ internal fun applyHintToCurrentQuestion(
   val quiz = state.quiz
   val question = quiz.currentQuestion ?: return null
   val currentDraft = quiz.currentQuestionState
+  if (question.variant != QuizVariant.TypeText && currentDraft.locked) return null
   val hintCost =
     when (currentDraft.hintUses) {
       0,

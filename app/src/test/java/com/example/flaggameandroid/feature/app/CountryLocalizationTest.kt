@@ -1,10 +1,14 @@
 package com.example.flaggameandroid.feature.app
 
-import com.example.flaggameandroid.core.data.StaticFlagCatalogRepository
 import com.example.flaggameandroid.core.data.QuizAnswerChecker
+import com.example.flaggameandroid.core.data.StaticFlagCatalogRepository
 import com.example.flaggameandroid.core.model.FlagCountry
-import org.junit.Assert.assertFalse
+import com.example.flaggameandroid.core.model.FlagQuestion
+import com.example.flaggameandroid.core.model.QuestionResult
+import com.example.flaggameandroid.core.model.QuizTopic
+import com.example.flaggameandroid.core.model.QuizVariant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -16,6 +20,7 @@ class CountryLocalizationTest {
       name = "Germany",
       emoji = "🇩🇪",
       continent = "Europe",
+      capital = "Berlin",
     )
 
   @Test
@@ -53,5 +58,123 @@ class CountryLocalizationTest {
     assertTrue(QuizAnswerChecker.isTypedAnswerCorrect("Germany", acceptedAnswers))
     assertFalse(QuizAnswerChecker.isTypedAnswerCorrect("Deutschland", acceptedAnswers))
     assertFalse(QuizAnswerChecker.isTypedAnswerCorrect("Германия", acceptedAnswers))
+  }
+
+  @Test
+  fun formatHintPoints_keepsTwoDecimalPlacesForQuarterValues() {
+    assertEquals("15.25", formatHintPoints(15.25))
+    assertEquals("0.75", formatHintPoints(0.75))
+  }
+
+  @Test
+  fun resultPointValue_usesRequestedHintAndRevealScoring() {
+    val question =
+      FlagQuestion(
+        correctCountry = germany,
+        options = listOf(germany),
+        variant = QuizVariant.TextToFlag,
+        topic = QuizTopic.Countries,
+      )
+
+    assertEquals(
+      1.0,
+      resultPointValue(
+        QuestionResult(
+          question = question,
+          playerName = "Solo",
+          selectedCountry = germany,
+          typedAnswer = "",
+          isCorrect = true,
+          hintUsed = false,
+          hintUses = 0,
+          revealed = false,
+        ),
+      ),
+      0.0,
+    )
+    assertEquals(
+      0.75,
+      resultPointValue(
+        QuestionResult(
+          question = question,
+          playerName = "Solo",
+          selectedCountry = germany,
+          typedAnswer = "",
+          isCorrect = true,
+          hintUsed = true,
+          hintUses = 1,
+          revealed = false,
+        ),
+      ),
+      0.0,
+    )
+    assertEquals(
+      0.25,
+      resultPointValue(
+        QuestionResult(
+          question = question,
+          playerName = "Solo",
+          selectedCountry = germany,
+          typedAnswer = "",
+          isCorrect = true,
+          hintUsed = true,
+          hintUses = 2,
+          revealed = false,
+        ),
+      ),
+      0.0,
+    )
+    assertEquals(
+      0.0,
+      resultPointValue(
+        QuestionResult(
+          question = question,
+          playerName = "Solo",
+          selectedCountry = germany,
+          typedAnswer = "",
+          isCorrect = true,
+          hintUsed = true,
+          hintUses = 3,
+          revealed = true,
+        ),
+      ),
+      0.0,
+    )
+    assertEquals(
+      0.0,
+      resultPointValue(
+        QuestionResult(
+          question = question,
+          playerName = "Solo",
+          selectedCountry = germany,
+          typedAnswer = "",
+          isCorrect = false,
+          hintUsed = false,
+          hintUses = 0,
+          revealed = false,
+        ),
+      ),
+      0.0,
+    )
+  }
+
+  @Test
+  fun hintedAnswerLabels_startWithFlagsAndAddLocalizedPrefixesAfterHint() {
+    val countriesQuestion =
+      FlagQuestion(
+        correctCountry = germany,
+        options = listOf(germany),
+        variant = QuizVariant.TextToFlag,
+        topic = QuizTopic.Countries,
+      )
+    val capitalsQuestion = countriesQuestion.copy(topic = QuizTopic.Capitals)
+
+    assertEquals("🇩🇪", answerOptionLabel(countriesQuestion, germany, AppLanguage.English))
+    assertEquals("🇩🇪 (Capital: Berlin)", answerOptionLabel(countriesQuestion, germany, AppLanguage.English, hintUses = 1))
+    assertEquals("🇩🇪 (Столица: Berlin)", answerOptionLabel(countriesQuestion, germany, AppLanguage.Bulgarian, hintUses = 1))
+    assertEquals("🇩🇪 (Hauptstadt: Berlin)", answerOptionLabel(countriesQuestion, germany, AppLanguage.German, hintUses = 1))
+    assertEquals("🇩🇪 (Country: Germany)", answerOptionLabel(capitalsQuestion, germany, AppLanguage.English, hintUses = 1))
+    assertEquals("🇩🇪 (Държава: ${germany.localizedName(AppLanguage.Bulgarian)})", answerOptionLabel(capitalsQuestion, germany, AppLanguage.Bulgarian, hintUses = 1))
+    assertEquals("🇩🇪 (Land: Deutschland)", answerOptionLabel(capitalsQuestion, germany, AppLanguage.German, hintUses = 1))
   }
 }
