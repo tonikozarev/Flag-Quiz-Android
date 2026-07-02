@@ -318,13 +318,13 @@ class FlagGameViewModelTest {
     viewModel.onUseHint()
 
     var quiz = viewModel.uiState.value.quiz
-    assertEquals(9.5, quiz.currentPlayer.hintPoints)
+    assertEquals(9.25, quiz.currentPlayer.hintPoints)
     assertTrue(quiz.hintUsedOnCurrentQuestion)
     assertEquals(0, quiz.hiddenOptionCodes.size)
 
     viewModel.onUseHint()
     quiz = viewModel.uiState.value.quiz
-    assertEquals(9.0, quiz.currentPlayer.hintPoints)
+    assertEquals(8.5, quiz.currentPlayer.hintPoints)
     assertTrue(quiz.hintUsedOnCurrentQuestion)
     assertEquals(2, quiz.currentQuestion?.options?.count { it.code !in quiz.hiddenOptionCodes })
     assertEquals(null, quiz.selectedCountry)
@@ -356,7 +356,7 @@ class FlagGameViewModelTest {
     assertEquals(AppScreen.Results, state.screen)
     assertEquals(11, player.score)
     assertEquals(1, player.earnedHintPoints)
-    assertEquals(5.5, state.hintCount)
+    assertEquals(5.25, state.hintCount)
     assertEquals(5, player.correctStreak)
     assertEquals(4, state.quiz.results[4].hintStreak)
     assertEquals(1, state.quiz.results[4].hintUses)
@@ -604,7 +604,7 @@ class FlagGameViewModelTest {
 
     assertEquals(10.0, viewModel.uiState.value.quiz.currentPlayer.hintPoints)
     viewModel.onUseHint()
-    assertEquals(9.5, viewModel.uiState.value.hintCount)
+    assertEquals(9.25, viewModel.uiState.value.hintCount)
 
     answerCurrentCorrectly(viewModel)
     viewModel.onNextQuestion()
@@ -612,7 +612,7 @@ class FlagGameViewModelTest {
     viewModel.onNextQuestion()
 
     assertEquals(AppScreen.Results, viewModel.uiState.value.screen)
-    assertEquals(9.5, viewModel.uiState.value.hintCount)
+    assertEquals(9.25, viewModel.uiState.value.hintCount)
     assertEquals(0, viewModel.uiState.value.quiz.players.sumOf { it.earnedHintPoints })
   }
 

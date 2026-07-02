@@ -48,6 +48,8 @@ internal fun answerOptionLabel(
   language: AppLanguage,
 ): String =
   when {
+    question.variant == QuizVariant.TextToFlag && question.topic == QuizTopic.Countries ->
+      "${option.localizedQuizText(language, QuizTopic.Capitals)} ${option.emoji}"
     question.variant == QuizVariant.TextToFlag && question.topic == QuizTopic.Capitals ->
       "${option.localizedName(language)} ${option.emoji}"
     question.variant == QuizVariant.TextToFlag -> option.emoji

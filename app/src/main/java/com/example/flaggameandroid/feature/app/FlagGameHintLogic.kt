@@ -18,9 +18,9 @@ internal fun applyHintToCurrentQuestion(
   val hintCost =
     when (currentDraft.hintUses) {
       0,
-      1 -> 0.5
-      2 -> 1.0
-      else -> 1.0
+      1 -> 0.75
+      2 -> 0.5
+      else -> 0.5
     }
   if (currentDraft.hintUses >= 3 || quiz.currentPlayer.hintPoints < hintCost) return null
 

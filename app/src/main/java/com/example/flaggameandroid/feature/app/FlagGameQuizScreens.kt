@@ -309,8 +309,8 @@ fun QuizScreen(
         quiz.hintsAllowed &&
           when (quiz.currentQuestionState.hintUses) {
             0,
-            1 -> quiz.currentPlayer.hintPoints >= 0.5
-            2 -> quiz.currentPlayer.hintPoints >= 1.0
+            1 -> quiz.currentPlayer.hintPoints >= 0.75
+            2 -> quiz.currentPlayer.hintPoints >= 0.5
             else -> false
           },
       onUseHint = onUseHint,
